@@ -1,0 +1,14 @@
+hanconv
+-------
+
+The dictionaries in dictionary/ are the data files of OpenCC (Open Chinese Convert),
+https://github.com/BYVoid/OpenCC, Copyright (c) 2010-2020 Carbo Kuo (BYVoid) and the OpenCC
+contributors, licensed under the Apache License, Version 2.0
+(http://www.apache.org/licenses/LICENSE-2.0).
+
+The files were taken unmodified from the copy bundled with github.com/liuzl/gocc (Apache License 2.0)
+at version v0.0.0-20231231122217-0372e1059ca5 and are stored gzip-compressed. Only the 13 files used by
+the supported conversions are included.
+
+The conversion code in this package is an independent implementation; it does not contain code from
+OpenCC, gocc or any trie library.

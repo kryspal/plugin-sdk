@@ -1,0 +1,49 @@
+// Kryspal Media Plugin protocol v1: person alias maps (change 0149).
+//
+// Capabilities and the methods they map to:
+//   people.aliasmap  GetAliasMap
+// For capabilities the plugin does not declare, the corresponding calls return UNIMPLEMENTED.
+//
+// Many metadata sources keep a name map for people: a real name with the stage names, former names and other
+// spellings the same person is known by. A plugin that has such a table can hand it to the host as a whole, instead
+// of the host learning aliases one person at a time. The host uses it to recognize people by any of their names when
+// it scans and scrapes, to find people by any name in search, and as evidence when it looks for duplicate people. The
+// host never merges two existing people on its own because of a map: an administrator confirms every merge.
+syntax = "proto3";
+
+package kryspal.plugin.v1;
+
+option go_package = "github.com/kryspal/plugin-sdk/pluginv1;pluginv1";
+
+service PersonAliasProvider {
+  // GetAliasMap streams the plugin's whole alias map. The host calls it after the plugin starts and then about once a
+  // day. When known_version equals the plugin's current version, the plugin sends one chunk with not_modified set and no
+  // entries. Otherwise it sends the entries in one or more chunks; every chunk carries the same version, and the host
+  // replaces its copy of this plugin's map only after the stream ends without an error.
+  rpc GetAliasMap(GetAliasMapRequest) returns (stream AliasMapChunk);
+}
+
+message GetAliasMapRequest {
+  // The version of the map the host already has from this plugin; empty when it has none.
+  string known_version = 1;
+}
+
+message AliasMapChunk {
+  // An opaque version of the whole map (for example a content hash or a release date). Required.
+  string version = 1;
+  // Set when the map has not changed since known_version; then entries is empty.
+  bool not_modified = 2;
+  repeated AliasEntry entries = 3;
+}
+
+// AliasEntry is one person and every name the person is known by.
+message AliasEntry {
+  // All names of this person, the preferred name first. At least two names; names are compared after the host's
+  // normalization (case, width, Traditional and Simplified Chinese, kana, spacing and punctuation).
+  repeated string names = 1;
+  // The person's IDs at providers, with lowercase keys (for example "tmdb", "imdb"); may be empty. When present the
+  // host also uses them to confirm it is the same person.
+  map<string, string> provider_ids = 2;
+  // The birth date as YYYY-MM-DD; empty when unknown. A different birth date on the host's side vetoes a match.
+  string birth_date = 3;
+}

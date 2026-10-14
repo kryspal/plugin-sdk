@@ -1,0 +1,77 @@
+// Kryspal Media Plugin protocol v1: segment providers (change 0122 part A).
+//
+// Capabilities and the methods they map to:
+//   segments.provider  GetSegments
+//   segments.submit    SubmitSegments
+// For capabilities the plugin does not declare, the corresponding calls return UNIMPLEMENTED.
+// A segment provider returns candidates: the host adopts them only after checking them against the local runtime or audio
+// fingerprints, and discards those that do not fit. No results means an empty list, not NOT_FOUND.
+syntax = "proto3";
+
+package kryspal.plugin.v1;
+
+import "pluginv1/metadata.proto";
+
+option go_package = "github.com/kryspal/plugin-sdk/pluginv1;pluginv1";
+
+// SegmentProvider is implemented by plugins that declare segments.* capabilities.
+service SegmentProvider {
+  // GetSegments looks up segments such as intros and credits by provider ID, season and episode.
+  rpc GetSegments(GetSegmentsRequest) returns (GetSegmentsResponse);
+  // SubmitSegments uploads segments confirmed by the administrator. The host calls it only when the administrator has
+  // turned uploading on; file names and paths are never sent.
+  rpc SubmitSegments(SubmitSegmentsRequest) returns (SubmitSegmentsResponse);
+}
+
+// SegmentKind is the kind of a segment, matching domain.MediaSegmentKind.
+enum SegmentKind {
+  SEGMENT_KIND_UNSPECIFIED = 0;
+  SEGMENT_KIND_INTRO = 1;
+  SEGMENT_KIND_OUTRO = 2;
+  SEGMENT_KIND_RECAP = 3;
+  SEGMENT_KIND_PREVIEW = 4;
+}
+
+// SegmentTarget identifies a movie or an episode.
+message SegmentTarget {
+  // ITEM_TYPE_MOVIE or ITEM_TYPE_EPISODE.
+  ItemType type = 1;
+  // Movie: the movie's provider IDs; episode: the series' provider IDs (e.g. {"tmdb": "1399", "imdb": "tt0944947"}).
+  map<string, string> provider_ids = 2;
+  // Required for episodes.
+  optional int32 season_number = 3;
+  optional int32 episode_number = 4;
+  // Runtime of the local file (milliseconds); 0 means unknown.
+  int64 duration_ms = 5;
+}
+
+message GetSegmentsRequest {
+  SegmentTarget target = 1;
+}
+
+message SegmentCandidate {
+  SegmentKind kind = 1;
+  int64 start_ms = 2;
+  int64 end_ms = 3;
+  // Runtime (milliseconds) of the file these times belong to; 0 means the provider does not know. The host uses it to
+  // tell whether the version matches.
+  int64 duration_ms = 4;
+  // 0–1; 0 means the provider does not supply it.
+  double confidence = 5;
+  // Number of submissions or votes; 0 means not supplied.
+  int32 votes = 6;
+}
+
+message GetSegmentsResponse {
+  repeated SegmentCandidate candidates = 1;
+}
+
+message SubmitSegmentsRequest {
+  SegmentTarget target = 1;
+  repeated SegmentCandidate segments = 2;
+}
+
+message SubmitSegmentsResponse {
+  // Number of entries the other side accepted.
+  int32 accepted = 1;
+}

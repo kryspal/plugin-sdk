@@ -1,0 +1,437 @@
+// Kryspal Media Plugin protocol v1: metadata providers.
+//
+// Capabilities and the methods they map to:
+//   metadata.movie      Search(ITEM_TYPE_MOVIE), GetItem(ITEM_TYPE_MOVIE)
+//   metadata.series     Search(ITEM_TYPE_SERIES), GetItem(ITEM_TYPE_SERIES, ITEM_TYPE_SEASON, ITEM_TYPE_EPISODE)
+//   metadata.person     GetPerson
+//   metadata.collection GetCollection
+// For capabilities the plugin does not declare, the corresponding calls return UNIMPLEMENTED.
+//
+// Common conventions:
+//   - Provider ID keys are always lowercase, for example tmdb, imdb, tvdb.
+//   - Dates are YYYY-MM-DD strings (UTC calendar days); an empty string means unknown. When only the year is known,
+//     fill production_year and leave the date empty.
+//   - A numeric 0 means unknown.
+//   - Images are always returned as HTTPS URLs; the host downloads and caches them. Plugins do not write files.
+//   - Errors are expressed as gRPC status codes; see "Errors" in PROTOCOL.md.
+syntax = "proto3";
+
+package kryspal.plugin.v1;
+
+option go_package = "github.com/kryspal/plugin-sdk/pluginv1;pluginv1";
+
+// MetadataProvider is implemented by plugins that declare metadata.* capabilities.
+service MetadataProvider {
+  // Search searches for candidates by name, year and known provider IDs, in decreasing order of relevance. When
+  // there are no results it returns an empty list, not NOT_FOUND.
+  rpc Search(SearchRequest) returns (SearchResponse);
+  // GetItem fetches an item's metadata by provider ID. Returns NOT_FOUND when it does not exist.
+  rpc GetItem(GetItemRequest) returns (ItemMetadata);
+  // GetPerson fetches a person's data by provider ID. Returns NOT_FOUND when it does not exist.
+  rpc GetPerson(GetPersonRequest) returns (PersonMetadata);
+  // SearchPerson looks up a person by name (plus hints from the local titles) (change 0079); only plugins that
+  // declare metadata.person.search implement it, the others return UNIMPLEMENTED. When there are no results it
+  // returns an empty list, not NOT_FOUND.
+  rpc SearchPerson(SearchPersonRequest) returns (SearchPersonResponse);
+  // GetCollection fetches a collection's data by provider ID. Returns NOT_FOUND when it does not exist.
+  rpc GetCollection(GetCollectionRequest) returns (CollectionMetadata);
+}
+
+// Languages is the language preference of a request.
+message Languages {
+  // Preferred language, BCP 47, for example zh-TW. An empty string means English.
+  string language = 1;
+  // Fallback languages tried in order when the preferred language is unavailable, for example ["zh-CN"]. When none
+  // is available the plugin returns the original text.
+  repeated string fallbacks = 2;
+}
+
+// ItemType is the kind of item that can be scraped.
+enum ItemType {
+  ITEM_TYPE_UNSPECIFIED = 0;
+  ITEM_TYPE_MOVIE = 1;
+  ITEM_TYPE_SERIES = 2;
+  ITEM_TYPE_SEASON = 3;
+  ITEM_TYPE_EPISODE = 4;
+  // A person. Only used by GetImagesRequest (capability images.person, change 0156); no other message carries it.
+  ITEM_TYPE_PERSON = 5;
+}
+
+message SearchRequest {
+  // Only ever ITEM_TYPE_MOVIE or ITEM_TYPE_SERIES.
+  ItemType type = 1;
+  // Name, usually the title taken from the file name or the NFO.
+  string name = 2;
+  // Year; 0 means unknown. The plugin may use the year to filter or to rank.
+  int32 year = 3;
+  Languages languages = 4;
+  // Hints of known provider IDs, for example {"imdb": "tt0137523"}. When the plugin can locate the title directly
+  // with one, it should return that result first.
+  map<string, string> provider_ids = 5;
+  // Maximum number of results; 0 means the plugin decides (10 is suggested).
+  int32 limit = 6;
+
+  // The following are name recognition hints (change 0121), only sent to plugins that declare
+  // metadata.search.hints; plugins that do not declare it only look at name and year. name is still the first title.
+  // The recognized titles, in decreasing order of weight (including name).
+  repeated TitleHint titles = 7;
+  // Where the year came from; the plugin uses it to decide how much tolerance to allow for the year.
+  YearSource year_source = 8;
+  // ISO 3166-1, for example a category folder whose name is the Chinese word for India → IN.
+  repeated string region_hints = 9;
+  // ISO 639-1.
+  repeated string language_hints = 10;
+  // Series: the local season and episode structure, for disambiguation.
+  SeriesShape shape = 11;
+  // anime, collection_folder and so on.
+  repeated string flags = 12;
+  // Known runtime (seconds); only filled when the media info has already been read, the host does not read the file
+  // for this. 0 means unknown.
+  int32 duration_seconds = 13;
+}
+
+// TitleHint is one title found by name recognition (change 0121).
+message TitleHint {
+  string text = 1;
+  // BCP 47 or script kind: zh-Hans, zh-Hant, en, ja, und.
+  string language = 2;
+  TitleRole role = 3;
+  double weight = 4;
+}
+
+// TitleRole is the role of a title.
+enum TitleRole {
+  TITLE_ROLE_UNSPECIFIED = 0;
+  TITLE_ROLE_PRIMARY = 1;
+  TITLE_ROLE_ALTERNATE = 2;
+  TITLE_ROLE_ORIGINAL = 3;
+  TITLE_ROLE_ROMANIZED = 4;
+  TITLE_ROLE_MAIN_ONLY = 5;  // subtitle removed
+  TITLE_ROLE_VARIANT = 6;    // variants such as Simplified/Traditional Chinese or normalized sequel numbering
+}
+
+// YearSource is where the year came from; providers use it to decide how much tolerance to allow when matching the year.
+enum YearSource {
+  YEAR_SOURCE_UNSPECIFIED = 0;
+  YEAR_SOURCE_NONE = 1;
+  YEAR_SOURCE_PAREN = 2;    // a year in parentheses, for example "Name (2019)"
+  YEAR_SOURCE_TOKEN = 3;    // a standalone year in the name
+  YEAR_SOURCE_RANGE = 4;    // a year range, for example "2010-2015"
+  YEAR_SOURCE_CONTEXT = 5;  // inferred from a parent folder or sibling file names
+}
+
+// SeriesShape is the local season and episode structure of a series (computed by the host from the database).
+message SeriesShape {
+  repeated int32 season_numbers = 1;
+  // Season number → highest local episode number.
+  map<int32, int32> episodes_per_season = 2;
+  // Used to detect absolute episode numbering in anime.
+  int32 max_episode_number = 3;
+}
+
+message SearchResponse {
+  repeated SearchCandidate candidates = 1;
+}
+
+// SearchCandidate is one candidate in the search results; it is also used for a collection's member list.
+message SearchCandidate {
+  // This provider's ID, usable directly with GetItem.
+  string id = 1;
+  ItemType type = 2;
+  string name = 3;
+  string original_name = 4;
+  int32 year = 5;
+  string overview = 6;
+  // Poster URL; may be empty.
+  string image_url = 7;
+  // IDs from other sources, for example imdb.
+  map<string, string> provider_ids = 8;
+  // The plugin's own estimate of how well this matches, 0 to 1; 0 means the plugin does not provide one. The host
+  // does not rely on it; the scraping flow judges confidence by itself.
+  double score = 9;
+  // The title that matched (an alias, a translated title or the original title; change 0121, filled by plugins that
+  // declare metadata.search.hints).
+  string matched_title = 10;
+  // Codes of the scoring reasons, for example title.exact, title.alias, year.release_date, shape.ok, region.match
+  // (for debugging and evaluation).
+  repeated string reasons = 11;
+}
+
+message GetItemRequest {
+  ItemType type = 1;
+  // The item's ID at this provider. Required for movies and series; may be empty for seasons and episodes, which
+  // are located by series_id and their numbers instead.
+  string id = 2;
+  // ID at this provider of the series that the season or episode belongs to.
+  string series_id = 3;
+  // Season number; required for seasons and episodes. 0 is specials.
+  optional int32 season_number = 4;
+  // Episode number; required for episodes.
+  optional int32 episode_number = 5;
+  Languages languages = 6;
+  // Episodes only: the absolute episode number (common in anime). The plugin maps it back to a season and episode
+  // and returns that episode; only plugins that declare metadata.series.absolute receive it (change 0121). When it
+  // is set, season_number and episode_number are not.
+  optional int32 absolute_episode_number = 7;
+}
+
+// ItemMetadata is an item's metadata. Fields without data are left empty; the host never treats an empty value as
+// clearing the field.
+message ItemMetadata {
+  // This provider's ID. May be empty for seasons and episodes that have no ID of their own.
+  string id = 1;
+  ItemType type = 2;
+  string name = 3;
+  string original_title = 4;
+  // Sort name; an empty string means the host derives it from the name.
+  string sort_name = 5;
+  string overview = 6;
+  string tagline = 7;
+  int32 production_year = 8;
+  // Release or first air date.
+  string premiere_date = 9;
+  // Date the series ended.
+  string end_date = 10;
+  // Season number (for a season) or episode number (for an episode).
+  optional int32 index_number = 11;
+  // Season number of the season the episode belongs to.
+  optional int32 parent_index_number = 12;
+  // Community rating, 0 to 10.
+  double community_rating = 13;
+  // Critic rating, 0 to 100.
+  double critic_rating = 14;
+  // Content rating, for example PG-13.
+  string official_rating = 15;
+  // Runtime, in seconds.
+  int64 runtime_seconds = 16;
+  // IDs at this provider and at other sources, for example {"tmdb": "550", "imdb": "tt0137523"}.
+  map<string, string> provider_ids = 17;
+  repeated string genres = 18;
+  repeated string studios = 19;
+  repeated string tags = 20;
+  // Production countries or regions.
+  repeated string production_locations = 21;
+  repeated Image images = 22;
+  // Cast and crew, ordered by kind and order.
+  repeated Credit credits = 23;
+  // The collection it belongs to; left unset when it belongs to no collection.
+  CollectionRef collection = 24;
+  // Remote trailers, in order of preference (the first is preferred); left unset when there are none. Only
+  // meaningful when the metadata.trailers capability is declared (change 0022).
+  repeated Trailer trailers = 25;
+  // The series' airing status (change 0019); only meaningful for series. For movies, seasons, episodes and when
+  // unknown it is SERIES_STATUS_UNSPECIFIED.
+  SeriesStatus status = 26;
+  // The language this result actually uses (BCP 47, change 0018): when the target language was unavailable and the
+  // result fell back to a fallback language or the original text, this is the language fallen back to; for example,
+  // when the title falls back to the original title, fill in the original language. An empty string means the
+  // provider did not report it.
+  string language = 27;
+  // The title's original language (BCP 47, for example ja, change 0120); empty when unknown.
+  string original_language = 28;
+  // Ratings from each source (change 0122 part F), for example tmdb, imdb, douban. community_rating is still filled
+  // with this provider's own score.
+  repeated Rating ratings = 29;
+  // The item's product code (the catalogue number of an adult video, for example ABC-123; change 0141). Surrounding
+  // whitespace is ignored; left empty when the provider has none. The provider's own content ID (for example DMM's
+  // cid) belongs in provider_ids, not here. Only movies and episodes carry one; the host ignores it for other types.
+  string product_code = 30;
+}
+
+// Rating is one source's rating.
+message Rating {
+  // Source code, lowercase, for example tmdb, imdb, douban.
+  string source = 1;
+  double value = 2;
+  // Maximum score, for example 10 or 5; 0 is treated as 10.
+  double max = 3;
+  // Number of votes; 0 means not provided.
+  int64 votes = 4;
+}
+
+// SeriesStatus is a series' airing status, corresponding to domain.SeriesStatus. The plugin maps the provider's
+// status onto it by itself.
+enum SeriesStatus {
+  SERIES_STATUS_UNSPECIFIED = 0;
+  // Still airing.
+  SERIES_STATUS_CONTINUING = 1;
+  // Ended.
+  SERIES_STATUS_ENDED = 2;
+}
+
+// Trailer is a remote trailer (Emby's RemoteTrailers).
+message Trailer {
+  // An HTTPS URL that can be opened directly, for example https://www.youtube.com/watch?v=<key>.
+  string url = 1;
+  string name = 2;
+  // BCP 47; an empty string when unknown.
+  string language = 3;
+  // trailer, teaser, clip, featurette, behind_the_scenes and so on; values the host does not recognize are stored as is.
+  string kind = 4;
+  // Uploaded officially by the studio or distributor.
+  bool official = 5;
+}
+
+// ImageType is the image type, mapping one to one to the server's image types.
+enum ImageType {
+  IMAGE_TYPE_UNSPECIFIED = 0;
+  // Poster, or a person's photo.
+  IMAGE_TYPE_PRIMARY = 1;
+  // Background (fanart).
+  IMAGE_TYPE_BACKDROP = 2;
+  // clearlogo.
+  IMAGE_TYPE_LOGO = 3;
+  // Landscape thumbnail.
+  IMAGE_TYPE_THUMB = 4;
+  IMAGE_TYPE_BANNER = 5;
+  // clearart.
+  IMAGE_TYPE_ART = 6;
+  IMAGE_TYPE_DISC = 7;
+}
+
+// Image is a remote image. When there are several of the same type, they are in order of preference and the first
+// is preferred.
+message Image {
+  ImageType type = 1;
+  // HTTPS URL.
+  string url = 2;
+  // Language of the text in the image, BCP 47; empty when there is no text or it is unknown.
+  string language = 3;
+  // Width and height in pixels; 0 means unknown.
+  int32 width = 4;
+  int32 height = 5;
+  // Number of likes on the source website; 0 means unknown. When there are several images of the same type, the host
+  // uses it together with language to order them when merging several image sources (change 0098).
+  int32 likes = 6;
+  // The image's ID on the source website, for debugging and deduplication; may be empty (change 0098).
+  string source_id = 7;
+}
+
+// PersonKind is a person's role in an item.
+enum PersonKind {
+  PERSON_KIND_UNSPECIFIED = 0;
+  PERSON_KIND_ACTOR = 1;
+  PERSON_KIND_DIRECTOR = 2;
+  PERSON_KIND_WRITER = 3;
+  PERSON_KIND_PRODUCER = 4;
+  PERSON_KIND_GUEST_STAR = 5;
+  PERSON_KIND_COMPOSER = 6;
+}
+
+// Credit is one cast or crew entry in an item.
+message Credit {
+  // The person's ID at this provider, usable with GetPerson; empty when unknown.
+  string person_id = 1;
+  string name = 2;
+  PersonKind kind = 3;
+  // Name of the character the actor plays.
+  string role = 4;
+  // Order within the same kind, starting at 0.
+  int32 order = 5;
+  // Photo URL; may be empty.
+  string image_url = 6;
+  // The person's provider IDs; should include at least this provider's own ID (the same as person_id).
+  map<string, string> provider_ids = 7;
+  // The person's gender (change 0079); GENDER_UNSPECIFIED when unknown. The server only uses it when the person's
+  // gender is unknown.
+  Gender gender = 8;
+}
+
+// CollectionRef points to a collection.
+message CollectionRef {
+  // The collection's ID at this provider, usable with GetCollection.
+  string id = 1;
+  string name = 2;
+}
+
+message GetPersonRequest {
+  // The person's ID at this provider.
+  string id = 1;
+  Languages languages = 2;
+}
+
+// Gender is a person's gender.
+enum Gender {
+  GENDER_UNSPECIFIED = 0;
+  GENDER_FEMALE = 1;
+  GENDER_MALE = 2;
+  GENDER_OTHER = 3;
+}
+
+message SearchPersonRequest {
+  string name = 1;
+  // Other names, for example stage names or names in other languages.
+  repeated string aliases = 2;
+  // Some of this person's titles on the local server (at most 10, those with the most titles first), so the plugin
+  // can confirm it is the same person.
+  repeated PersonWork works = 3;
+  Languages languages = 4;
+}
+
+// PersonWork is a hint about one title.
+message PersonWork {
+  string name = 1;
+  // 0 means unknown.
+  int32 production_year = 2;
+  // Only ever ITEM_TYPE_MOVIE or ITEM_TYPE_SERIES; for other values the plugin should ignore this title.
+  ItemType item_type = 3;
+  // The title's provider IDs, keys in lowercase, for example tmdb, imdb.
+  map<string, string> provider_ids = 4;
+}
+
+message SearchPersonResponse {
+  // In decreasing order of relevance.
+  repeated PersonCandidate candidates = 1;
+}
+
+message PersonCandidate {
+  // Must have at least id and name; other fields may be given now, but the host still fetches the full data with GetPerson.
+  PersonMetadata person = 1;
+  // The plugin has used works to confirm it is the same person (for example, the person's filmography contains one
+  // of the titles). Only set it to true after such a confirmation; a match on the name alone is false. The host only
+  // accepts a candidate when it is the only confirmed one.
+  bool confirmed = 2;
+}
+
+// PersonMetadata is a person's data; the fields follow the server's person model.
+message PersonMetadata {
+  string id = 1;
+  string name = 2;
+  string sort_name = 3;
+  // Other names, for example names in other languages or stage names.
+  repeated string aliases = 4;
+  // Biography, plain text.
+  string overview = 5;
+  string birth_date = 6;
+  string death_date = 7;
+  string birth_place = 8;
+  Gender gender = 9;
+  map<string, string> provider_ids = 10;
+  // Social and external pages.
+  repeated Link links = 11;
+  repeated Image images = 12;
+}
+
+// Link is an external page of a person.
+message Link {
+  // Lowercase kind, for example homepage, twitter, instagram, weibo, tmdb, imdb.
+  string kind = 1;
+  string url = 2;
+}
+
+message GetCollectionRequest {
+  // The collection's ID at this provider.
+  string id = 1;
+  Languages languages = 2;
+}
+
+// CollectionMetadata is a collection's data.
+message CollectionMetadata {
+  string id = 1;
+  string name = 2;
+  string overview = 3;
+  map<string, string> provider_ids = 4;
+  repeated Image images = 5;
+  // Members, in increasing order of release date.
+  repeated SearchCandidate parts = 6;
+}

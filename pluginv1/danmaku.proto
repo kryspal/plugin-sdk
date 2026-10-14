@@ -1,0 +1,58 @@
+// Kryspal Media Plugin protocol v1: danmaku providers (change 0122 part E).
+//
+// Capabilities and the methods they map to:
+//   danmaku.provider  GetDanmaku
+// For capabilities the plugin does not declare, the corresponding calls return UNIMPLEMENTED. No results means an empty
+// list, not NOT_FOUND.
+syntax = "proto3";
+
+package kryspal.plugin.v1;
+
+import "pluginv1/metadata.proto";
+
+option go_package = "github.com/kryspal/plugin-sdk/pluginv1;pluginv1";
+
+// DanmakuProvider is implemented by plugins that declare danmaku.provider.
+service DanmakuProvider {
+  // GetDanmaku fetches the danmaku of a movie or an episode. The host is responsible for caching.
+  rpc GetDanmaku(GetDanmakuRequest) returns (GetDanmakuResponse);
+}
+
+message GetDanmakuRequest {
+  // ITEM_TYPE_MOVIE or ITEM_TYPE_EPISODE.
+  ItemType type = 1;
+  // Movie: the movie's provider IDs; episode: the series' provider IDs.
+  map<string, string> provider_ids = 2;
+  optional int32 season_number = 3;
+  optional int32 episode_number = 4;
+  // Title and year, for matching against sources that have no ID mapping.
+  string title = 5;
+  int32 year = 6;
+  // Runtime of the local file (milliseconds); 0 means unknown.
+  int64 duration_ms = 7;
+  Languages languages = 8;
+}
+
+// DanmakuMode is how a danmaku comment is displayed.
+enum DanmakuMode {
+  DANMAKU_MODE_UNSPECIFIED = 0;  // treated as SCROLL
+  DANMAKU_MODE_SCROLL = 1;
+  DANMAKU_MODE_TOP = 2;
+  DANMAKU_MODE_BOTTOM = 3;
+}
+
+message DanmakuComment {
+  // When it appears (milliseconds, relative to 0 at the start of the video).
+  int64 time_ms = 1;
+  string text = 2;
+  // 0xRRGGBB; 0 means the default white.
+  uint32 color = 3;
+  DanmakuMode mode = 4;
+  // Name of the source site (e.g. when the plugin connects to several sites), for display and filtering.
+  string source = 5;
+}
+
+message GetDanmakuResponse {
+  // In increasing time order. The host uses at most the first 20000 comments.
+  repeated DanmakuComment comments = 1;
+}

@@ -1,0 +1,48 @@
+# Kryspal Media Plugin SDK CI. Actions are pinned to full commit SHAs (the comment is the matching version), the same
+# pins as the main repository's release workflow. Tools run with `go run <module>@<version>`, so go.sum verification pins
+# their content.
+# TODO: the tool versions below (buf v1.50.0, go-licenses v1.6.0) were chosen offline; confirm they resolve on the
+# first run and bump them together with this note.
+name: ci
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0 # the compatibility gate compares against the last v0.x tag
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        with:
+          go-version-file: go.mod
+      - name: Build, vet and test
+        run: |
+          go build ./...
+          go vet ./...
+          go test -race ./...
+      # Compatibility gate: fail on incompatible proto changes (renumbered or removed fields,
+      # removed RPCs) against the last released v0.x tag. Skipped until the first tag exists. buf is Apache-2.0.
+      - name: Proto compatibility (buf breaking)
+        run: |
+          base="$(git tag --list 'v0.*' --sort=-v:refname | head -n 1)"
+          if [ -z "$base" ]; then
+            echo "no v0.x tag yet; skipping buf breaking"
+            exit 0
+          fi
+          echo "checking against $base"
+          go run github.com/bufbuild/buf/cmd/buf@v1.50.0 breaking --against ".git#tag=$base"
+      # Dependency licenses: GPL, AGPL and other restricted or forbidden licenses fail the build.
+      # go-licenses is Apache-2.0.
+      - name: Dependency licenses
+        run: |
+          go run github.com/google/go-licenses@v1.6.0 check ./... \
+            --ignore github.com/kryspal/plugin-sdk \
+            --disallowed_types=forbidden,restricted

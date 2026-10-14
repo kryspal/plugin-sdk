@@ -1,0 +1,89 @@
+// Kryspal Media Plugin protocol v1: name recognition (change 0121).
+//
+// Capabilities and the methods they map to:
+//   media.recognize  Recognize
+// For capabilities the plugin does not declare, the corresponding calls return UNIMPLEMENTED.
+// Recognition looks only at paths and names: the plugin must not read file contents or access the network (a convention;
+// the host does not enforce it). Results must be deterministic: the same input gives the same result.
+// When nothing is recognized, return empty candidates, not NOT_FOUND.
+syntax = "proto3";
+
+package kryspal.plugin.v1;
+
+import "pluginv1/metadata.proto";
+
+option go_package = "github.com/kryspal/plugin-sdk/pluginv1;pluginv1";
+
+// Recognizer is implemented by plugins that declare the media.recognize capability.
+service Recognizer {
+  // Recognize infers which title an item is from its path and name. The host calls it when scraping (not when scanning).
+  rpc Recognize(RecognizeRequest) returns (RecognizeResponse);
+}
+
+// LibraryKind is the kind of a library.
+enum LibraryKind {
+  LIBRARY_KIND_UNSPECIFIED = 0;
+  LIBRARY_KIND_MOVIES = 1;
+  LIBRARY_KIND_TVSHOWS = 2;
+  LIBRARY_KIND_MIXED = 3;
+}
+
+message RecognizeRequest {
+  LibraryKind library_kind = 1;
+  // The host's current judgment: ITEM_TYPE_MOVIE, ITEM_TYPE_SERIES or ITEM_TYPE_EPISODE.
+  ItemType type = 2;
+  // Segments of the path relative to the library root; the last one is the item's folder name or file name.
+  repeated string path = 3;
+  // File names of the other videos in the same folder (at most 20, names only).
+  repeated string siblings = 4;
+  // Series: the local season numbers and episode counts per season (computed by the host from the database); not set for movies.
+  SeriesShape shape = 5;
+  // The item's current name and year; when the user has renamed it, this takes precedence. A year of 0 means unknown.
+  string current_name = 6;
+  int32 current_year = 7;
+  // The item's known provider IDs; the plugin can sometimes return them directly.
+  map<string, string> provider_ids = 8;
+  Languages languages = 9;
+  // The previous recognition result did not get a provider match (the host's second round, change 0121 revision). In
+  // this round the plugin may switch to a more expensive method,
+  // e.g. calling AI assist through the host (requires declaring the llm permission and the administrator's approval).
+  // The host sends at most one second round per item.
+  bool previous_unmatched = 10;
+}
+
+message RecognizeResponse {
+  // In decreasing order of confidence, at most 3; empty when nothing is recognized.
+  repeated Recognition candidates = 1;
+  // Version of the recognition rules; when it changes, the host reruns the items that are "awaiting identification" or "failed".
+  string parser_version = 2;
+}
+
+message Recognition {
+  // The inferred type (a theatrical film of a series may return ITEM_TYPE_MOVIE).
+  ItemType type = 1;
+  // In decreasing order of weight.
+  repeated TitleHint titles = 2;
+  // 0 means none.
+  int32 year = 3;
+  YearSource year_source = 4;
+  optional int32 season = 5;
+  optional int32 episode = 6;
+  optional int32 episode_end = 7;
+  optional int32 absolute_episode = 8;
+  // Part number of a multi-part movie.
+  optional int32 part = 9;
+  // Director's cut and the like; for display or debugging only.
+  string edition = 10;
+  // IDs or codes found in the name, e.g. tmdb, imdb, product_code.
+  map<string, string> identifiers = 11;
+  // ISO 3166-1, e.g. a category folder whose name is the Chinese word for India → IN.
+  repeated string region_hints = 12;
+  // ISO 639-1.
+  repeated string language_hints = 13;
+  // anime, special, collection_folder, variety, date_episode, etc.
+  repeated string flags = 14;
+  // 0–1.
+  double confidence = 15;
+  // Codes of the rules that matched, e.g. "year.paren", "group.bracket" (for debugging and evaluation).
+  repeated string evidence = 16;
+}

@@ -1,0 +1,46 @@
+// Kryspal Media Plugin protocol v1: image providers (change 0098).
+//
+// Capabilities and the methods they map to:
+//   images.movie   GetImages(ITEM_TYPE_MOVIE)
+//   images.series  GetImages(ITEM_TYPE_SERIES)
+//   images.person  GetImages(ITEM_TYPE_PERSON)  (change 0156)
+// For capabilities the plugin does not declare, the corresponding calls return UNIMPLEMENTED. The common conventions are the
+// same as in metadata.proto: images are always HTTPS URLs that the host downloads and caches,
+// plugins never receive image bytes; no results means an empty list, not NOT_FOUND.
+syntax = "proto3";
+
+package kryspal.plugin.v1;
+
+import "pluginv1/metadata.proto";
+
+option go_package = "github.com/kryspal/plugin-sdk/pluginv1;pluginv1";
+
+// ImageProvider is implemented by plugins that declare images.* capabilities.
+service ImageProvider {
+  // GetImages fetches images by the item's provider IDs. It returns an empty list when no image is found or no provider ID
+  // is recognized.
+  rpc GetImages(GetImagesRequest) returns (GetImagesResponse);
+}
+
+message GetImagesRequest {
+  // ITEM_TYPE_MOVIE or ITEM_TYPE_SERIES, or ITEM_TYPE_PERSON for the capability images.person.
+  ItemType type = 1;
+  // The item's known provider IDs, e.g. {"tmdb": "550", "imdb": "tt0137523"}. The plugin picks the keys it recognizes.
+  // For a person these are the person's IDs (e.g. {"tmdb": "287"}); they may be empty when only the name is known.
+  map<string, string> provider_ids = 2;
+  // Only these types; empty means all. A person only has IMAGE_TYPE_PRIMARY (the photo).
+  repeated ImageType types = 3;
+  Languages languages = 4;
+  // Maximum number of images to return per type; 0 lets the plugin decide.
+  int32 limit_per_type = 5;
+  // Only for ITEM_TYPE_PERSON (change 0156): the person's name as the server knows it. Many photo libraries are keyed by name, so
+  // a plugin that cannot use provider_ids matches on name and aliases. Empty for movies and series.
+  string name = 6;
+  // Only for ITEM_TYPE_PERSON: other names of the person (stage names, names in other languages).
+  repeated string aliases = 7;
+}
+
+message GetImagesResponse {
+  // In order of preference; the first image of each type is the preferred one.
+  repeated Image images = 1;
+}

@@ -1,0 +1,8 @@
+# buf configuration for the compatibility gate in CI (buf breaking). Protos live in pluginv1/ and import each other as
+# "pluginv1/<name>.proto", so the module root is the repository root.
+version: v2
+modules:
+  - path: .
+breaking:
+  use:
+    - FILE

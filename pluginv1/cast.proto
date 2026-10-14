@@ -1,0 +1,232 @@
+// Kryspal Media Plugin protocol v1: cast targets (change 0109).
+//
+// Capability cast.target: Discover, Probe, Prepare, Load, Control, Status. A plugin that declares it can find playback
+// devices on the local network (a DLNA television, a Chromecast), push a media URL to one and control it. The host owns
+// everything that does not depend on the protocol: the device list, the cast session, the authorization behind the media URL
+// and play tracking. The plugin owns the protocol and the quirks of the devices.
+//
+// The media URL the plugin receives is complete and carries its own authorization (a token in the path). It is limited to one
+// item, can be revoked by the host at any time, and the plugin never receives a signing key or a credential. The plugin
+// declares the permission network.lan (it sends multicast and connects to devices on the local network) and the manifest field
+// cast_protocol ("dlna", "chromecast") so that the admin console can show what kind of devices it handles.
+//
+// A device is identified by Device.id, which is stable for the same physical device. Device.handle and Device.state are opaque
+// to the host: the host stores them and sends them back unchanged. When a response carries updated_state, the host saves it
+// first and uses it from then on (the plugin keeps what it learned about the device there, for example which variant of the
+// request the device accepted). The host keeps no state of a session in the plugin: it polls Status.
+//
+// Timeouts: Discover and Probe 15 seconds, Load 30 seconds, Prepare, Control and Status 10 seconds.
+// For capabilities the plugin does not declare, the calls return UNIMPLEMENTED.
+syntax = "proto3";
+
+package kryspal.plugin.v1;
+
+option go_package = "github.com/kryspal/plugin-sdk/pluginv1;pluginv1";
+
+// CastTarget is implemented by plugins that declare the cast.target capability.
+service CastTarget {
+  // Discover scans the local network for timeout_ms milliseconds and returns the devices found. known_hosts are devices the
+  // administrator added by hand (host or host:port); the plugin asks them directly (unicast), which works where multicast
+  // does not (a container on a bridge network, a segmented network). Devices that do not answer are left out.
+  rpc Discover(DiscoverRequest) returns (DiscoverResponse);
+
+  // Probe asks one host directly (administrator adds a device by IP). Unreachable or not a device of this protocol returns
+  // NOT_FOUND.
+  rpc Probe(ProbeRequest) returns (ProbeResponse);
+
+  // Prepare decides, without touching the device, whether and how the media can be played on it, and what the host must put on
+  // the HTTP responses that serve the media: the content type, response headers (for example the DLNA contentFeatures and
+  // transferMode headers, which must match what Load tells the device), and warnings. The host then creates the
+  // authorization with these headers, builds the URL and calls Load. Prepare receives no URL.
+  rpc Prepare(PrepareRequest) returns (PrepareResponse);
+
+  // Load pushes the media to the device and starts playback. The device may refuse the media: that is an answer
+  // (LoadResponse.rejected_code), not an RPC error, so the host can show the reason and the administrator can change the
+  // device options and retry.
+  rpc Load(LoadRequest) returns (LoadResponse);
+
+  // Control sends a command to the device that is playing.
+  rpc Control(ControlRequest) returns (ControlResponse);
+
+  // Status reads the playback state of the device. The host polls it about every 2 seconds while a session is active.
+  rpc Status(StatusRequest) returns (StatusResponse);
+}
+
+message Device {
+  // Stable ID of the device within this plugin (for example the UDN of a DLNA device). The host prefixes it with the plugin ID.
+  string id = 1;
+  // Name shown to people (the device's friendly name).
+  string name = 2;
+  string manufacturer = 3;
+  string model = 4;
+  // Address shown to administrators (host or host:port); the plugin does not need the host to interpret it.
+  string address = 5;
+  // Opaque data the plugin needs to reach the device again (for example the control URLs). Replaced by Discover's latest value.
+  bytes handle = 6;
+  // Opaque data the plugin learned about the device and wants to keep across restarts (see updated_state).
+  bytes state = 7;
+  DeviceCapabilities capabilities = 8;
+}
+
+message DeviceCapabilities {
+  bool can_seek = 1;
+  bool can_set_volume = 2;
+  bool can_mute = 3;
+  // The device can show a separate text subtitle that the plugin hands it.
+  bool can_show_subtitles = 4;
+}
+
+message DiscoverRequest {
+  uint32 timeout_ms = 1;
+  // Hosts the administrator added by hand.
+  repeated string known_hosts = 2;
+  // Network interfaces to use (names); empty means all non-loopback IPv4 interfaces.
+  repeated string interfaces = 3;
+}
+
+message DiscoverResponse {
+  repeated Device devices = 1;
+}
+
+message ProbeRequest {
+  string host = 1;
+}
+
+message ProbeResponse {
+  Device device = 1;
+}
+
+// Media describes what is going to be played. Prepare receives it without url; Load receives it with url (and subtitle urls).
+message Media {
+  // Complete http URL of the media, including the authorization. Empty in Prepare.
+  string url = 1;
+  // File name extension of the container as served (mkv, mp4, ts); the content type the plugin suggests comes from Prepare.
+  string container = 2;
+  string title = 3;
+  // Poster image URL (also served with the authorization); may be empty.
+  string poster_url = 4;
+  int64 duration_ms = 5;
+  int64 size_bytes = 6;
+  // Description of the streams the device will receive (the first video and the selected audio).
+  string video_codec = 7;
+  string video_profile = 8;
+  int32 video_level = 9;
+  int32 video_bit_depth = 10;
+  // Dynamic range of the video: "sdr", "hdr10", "hlg" or "dolby-vision" (empty when unknown).
+  string video_range = 11;
+  string audio_codec = 12;
+  int32 audio_channels = 13;
+  // Bit rate of the media as served, in bits per second (0 when unknown).
+  int64 bit_rate = 14;
+  // The text subtitle to show (the host already converted it to the format listed); empty when the person chose none.
+  repeated Subtitle subtitles = 15;
+  // Where playback starts.
+  int64 start_position_ms = 16;
+  // How the media is delivered: "file" (the original file, Range requests) or "hls".
+  string delivery = 17;
+}
+
+message Subtitle {
+  // Complete http URL, including the authorization. Empty in Prepare.
+  string url = 1;
+  // "srt" or "vtt".
+  string format = 2;
+  // BCP 47 language of the subtitle; empty when unknown.
+  string language = 3;
+  string title = 4;
+}
+
+message PrepareRequest {
+  Device device = 1;
+  Media media = 2;
+  // Text the administrator entered for this device or this plugin, passed on unchanged (device overrides, change 0109 first version).
+  string options = 3;
+}
+
+message PrepareResponse {
+  // Content type for the media responses (also what Load tells the device).
+  string mime = 1;
+  // Headers to add to the media responses. The host accepts only the allowed names (transferMode.dlna.org,
+  // contentFeatures.dlna.org, CaptionInfo.sec, Access-Control-Allow-Origin, Access-Control-Allow-Headers,
+  // Access-Control-Expose-Headers) and drops the rest with a warning in its log.
+  map<string, string> headers = 2;
+  // Warning codes that do not stop the cast but are worth telling the person (for example cast_codec_risky,
+  // cast_subtitle_style_lost, cast_audio_transcoded). The host translates them; the plugin sends codes, not text.
+  repeated string warnings = 3;
+  // Reasons the media cannot be played on this device (for example cast_subtitle_graphic, cast_codec_unsupported). When it
+  // is not empty the host does not call Load and answers cast_not_possible with these codes.
+  repeated string reasons = 4;
+  bytes updated_state = 5;
+}
+
+message LoadRequest {
+  Device device = 1;
+  Media media = 2;
+  string options = 3;
+  // The content type and headers Prepare returned, for the plugin's convenience (it need not remember them).
+  string mime = 4;
+}
+
+message LoadResponse {
+  // Empty when the device accepted the media and started (or is starting) playback. Otherwise a code that tells why the
+  // device refused (for example renderer_rejected, renderer_unreachable); the host shows it and remembers it in the log.
+  string rejected_code = 1;
+  // The plugin's own message for the administrator's eyes in the log; never shown to members.
+  string detail = 2;
+  bytes updated_state = 3;
+}
+
+enum ControlAction {
+  CONTROL_ACTION_UNSPECIFIED = 0;
+  CONTROL_ACTION_PLAY = 1;
+  CONTROL_ACTION_PAUSE = 2;
+  CONTROL_ACTION_STOP = 3;
+  // Seek to position_ms.
+  CONTROL_ACTION_SEEK = 4;
+  // Set the volume to volume (0 to 100).
+  CONTROL_ACTION_SET_VOLUME = 5;
+  // Mute or unmute according to muted.
+  CONTROL_ACTION_SET_MUTE = 6;
+}
+
+message ControlRequest {
+  Device device = 1;
+  ControlAction action = 2;
+  int64 position_ms = 3;
+  int32 volume = 4;
+  bool muted = 5;
+}
+
+message ControlResponse {
+  bytes updated_state = 1;
+}
+
+enum PlaybackState {
+  PLAYBACK_STATE_UNSPECIFIED = 0;
+  // The device is loading the media.
+  PLAYBACK_STATE_LOADING = 1;
+  PLAYBACK_STATE_PLAYING = 2;
+  PLAYBACK_STATE_PAUSED = 3;
+  // Stopped or finished (see ended).
+  PLAYBACK_STATE_STOPPED = 4;
+  // The device has nothing loaded.
+  PLAYBACK_STATE_IDLE = 5;
+}
+
+message StatusRequest {
+  Device device = 1;
+}
+
+message StatusResponse {
+  PlaybackState state = 1;
+  int64 position_ms = 2;
+  int64 duration_ms = 3;
+  // Volume 0 to 100; -1 when the device does not report it.
+  int32 volume = 4;
+  bool muted = 5;
+  // Set when the device stopped on its own at the end of the media (as opposed to being stopped by a person or an error).
+  bool ended = 6;
+  // Set when the device reports an error (a code, for example renderer_error); empty otherwise.
+  string error_code = 7;
+  bytes updated_state = 8;
+}

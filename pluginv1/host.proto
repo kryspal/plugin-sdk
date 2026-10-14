@@ -1,0 +1,73 @@
+// Kryspal Media Plugin protocol v1: the service the host offers to plugins (plugins call back into the host).
+//
+// The rest of the protocol is all "host calls plugin"; this file goes the other way: every time the host starts a plugin
+// process, it opens an extra gRPC service for it,
+// served over a Unix socket (environment variables KRYSPAL_HOST_SOCKET and KRYSPAL_HOST_TOKEN, see PROTOCOL.md).
+// On every call the plugin sends `x-kryspal-host-token` in the metadata; the host uses it to confirm the caller is this
+// process, and checks the call against the
+// permissions declared in the plugin manifest and against what the administrator allowed. A plugin never gets the key,
+// the BaseURL or other plugins' usage.
+//
+// Once this file is published it only accepts compatible additions (change 0103).
+syntax = "proto3";
+
+package kryspal.plugin.v1;
+
+option go_package = "github.com/kryspal/plugin-sdk/pluginv1;pluginv1";
+
+// Host is the service the host offers to plugins.
+service Host {
+  // LLMComplete calls the server's "AI assist" (a global LLM capability; the administrator brings their own key). Requires
+  // permissions: ["llm"] declared in the manifest and the administrator's approval.
+  //
+  // Errors (gRPC status codes; the message is a fixed code that does not vary by language):
+  //   PERMISSION_DENIED  ai_assist_not_allowed: the manifest does not declare llm, or the administrator has not allowed it;
+  //     host_token_invalid: token mismatch.
+  //   FAILED_PRECONDITION  ai_assist_disabled: the administrator has not enabled AI assist (or has not configured its
+  //     address and key yet).
+  //   INVALID_ARGUMENT  invalid request (no messages, the JSON schema is not valid JSON…).
+  //   DEADLINE_EXCEEDED  the service provider timed out.
+  //   RESOURCE_EXHAUSTED  the service provider is rate limiting (429): carries the retry-after-seconds trailer (see PROTOCOL.md);
+  //     insufficient balance or quota (402): message ai_assist_payment_required, no trailer (retrying will not help); too
+  //     many simultaneous calls from the same plugin: message too many concurrent requests.
+  //   UNAVAILABLE  the service provider cannot be reached, or it returned 5xx.
+  //   UNAUTHENTICATED  the service provider rejected the key; the plugin need not handle this beyond logging it and degrading.
+  rpc LLMComplete(LLMCompleteRequest) returns (LLMCompleteResponse);
+}
+
+// LLMMessage is one message of a conversation.
+message LLMMessage {
+  // Role: user or assistant (for system, use LLMCompleteRequest.system).
+  string role = 1;
+  string content = 2;
+}
+
+message LLMCompleteRequest {
+  // System prompt.
+  string system = 1;
+  repeated LLMMessage messages = 2;
+  // Optional: a JSON Schema (as a string) when structured output is wanted. The host makes a best effort to use the
+  // service provider's structured output and validates the response locally;
+  // on a validation failure it retries at most once, and returns INTERNAL if it still fails. The empty string means plain text.
+  string json_schema = 3;
+  // Token limit for the response; 0 means the host default. The host also enforces a hard limit.
+  uint32 max_tokens = 4;
+  // Sampling temperature; both the default and the host's maximum are 0 (reproducible). Whether the host uses a value
+  // above 0 requested by a plugin depends on its configuration.
+  float temperature = 5;
+}
+
+message LLMCompleteResponse {
+  // Text, or a JSON string for structured output (already validated against the schema).
+  string text = 1;
+  // Usage reported by the service provider; usage.known is false when none was reported (the host does not estimate it).
+  LLMUsage usage = 2;
+  // Name of the model actually used (so the plugin can record the source).
+  string model = 3;
+}
+
+message LLMUsage {
+  bool known = 1;
+  uint64 prompt_tokens = 2;
+  uint64 completion_tokens = 3;
+}

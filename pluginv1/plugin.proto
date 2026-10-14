@@ -1,0 +1,173 @@
+// Kryspal Media Plugin protocol v1: the plugin's own description and configuration.
+//
+// The specification of the handshake, error codes, health checks and the plugin catalog is in pluginapi/PROTOCOL.md.
+// Once this file is published it only accepts compatible additions: field numbers and types do not change, and
+// deleted numbers are never reused. Incompatible changes go into kryspal.plugin.v2.
+syntax = "proto3";
+
+package kryspal.plugin.v1;
+
+option go_package = "github.com/kryspal/plugin-sdk/pluginv1;pluginv1";
+
+// Plugin is the service that every plugin must implement.
+service Plugin {
+  // Describe returns the plugin's manifest. Labels, descriptions and other text are returned in language; when the
+  // plugin does not have that language it returns English.
+  // While a plugin is running, the response must stay the same apart from the language of the text.
+  rpc Describe(DescribeRequest) returns (Manifest);
+
+  // Configure validates and applies a complete configuration.
+  //
+  // When both error and field_errors in the response are empty, the configuration was accepted and is in effect.
+  // When either is non-empty, the plugin must not apply this configuration and keeps using the previous one (or
+  // stays unconfigured).
+  // gRPC errors are only for problems other than the configuration itself, such as an internal plugin error.
+  //
+  // The host calls it after the plugin starts and whenever an administrator changes the configuration. After the
+  // plugin starts and before it has received a valid configuration, metadata calls should return FAILED_PRECONDITION.
+  rpc Configure(ConfigureRequest) returns (ConfigureResponse);
+}
+
+message DescribeRequest {
+  // BCP 47 language tag, for example zh-TW or en. An empty string means English.
+  string language = 1;
+}
+
+// Manifest is the plugin's declaration.
+message Manifest {
+  // Plugin ID: lowercase letters, digits and hyphens, starting with a letter or digit, at most 63 characters, for
+  // example tmdb. Must match the id in the plugin catalog.
+  string id = 1;
+  // Display name.
+  string name = 2;
+  // Short description, in DescribeRequest.language.
+  string description = 3;
+  // Plugin version, semver, for example 1.2.0. Must match the version in the plugin catalog.
+  string version = 4;
+  // Major protocol version the plugin implements, 1 for v1; must equal the major version declared in the handshake line.
+  uint32 protocol_version = 5;
+  // Capabilities the plugin provides, for example metadata.movie. The full list is in PROTOCOL.md. The host ignores
+  // capabilities it does not recognize.
+  repeated string capabilities = 6;
+  // Configuration fields, in declaration order.
+  repeated ConfigField config_fields = 7;
+  // Groups of configuration fields, in declaration order.
+  repeated ConfigGroup config_groups = 8;
+  // Attribution for the data source, shown on the admin console's plugin page and About page.
+  Attribution attribution = 9;
+  // Suggested limit on concurrent calls; 0 means no suggestion and the host uses the default of 4. Administrators
+  // can override it.
+  uint32 suggested_concurrency = 10;
+  // Host permissions the plugin needs (change 0103), for example ["llm"] (uses AI enhancement). The host ignores
+  // permissions it does not recognize; administrators allow each permission for each plugin individually, and
+  // without that permission the plugin's calls to the Host service return PERMISSION_DENIED.
+  repeated string permissions = 11;
+  // Codes of the premium features the plugin implements (for example "name-recognize"). Declaring them only
+  // means something for plugins signed by the official catalog: the host will later decide by license whether they
+  // can be enabled; third-party plugins need not declare them and are not affected by licensing. The host ignores
+  // codes it does not recognize.
+  repeated string features = 12;
+  // For plugins that declare the capability cast.target (change 0109): the protocol they speak, "dlna" or "chromecast",
+  // shown by the admin console. The host ignores values it does not recognize.
+  string cast_protocol = 13;
+}
+
+// Attribution is the credit a data source requires, for example the text and logo required by the TMDB terms.
+message Attribution {
+  // Attribution text, in DescribeRequest.language.
+  string text = 1;
+  // HTTPS URL of the logo image.
+  string logo_url = 2;
+  // HTTPS URL of the data source's website.
+  string link = 3;
+}
+
+// ConfigFieldType is the type of a configuration field. Values of every type are passed as strings; the encoding
+// is described at ConfigField.default_value.
+enum ConfigFieldType {
+  CONFIG_FIELD_TYPE_UNSPECIFIED = 0;
+  // Single-line text.
+  CONFIG_FIELD_TYPE_STRING = 1;
+  // Secret text, such as an API key. The host stores it encrypted; the admin interface only shows whether it is set
+  // and never returns the value.
+  CONFIG_FIELD_TYPE_SECRET = 2;
+  // Boolean.
+  CONFIG_FIELD_TYPE_BOOL = 3;
+  // Integer; the range is given by min and max.
+  CONFIG_FIELD_TYPE_INT = 4;
+  // Single choice from options.
+  CONFIG_FIELD_TYPE_SELECT = 5;
+  // Multiple choice from options.
+  CONFIG_FIELD_TYPE_MULTISELECT = 6;
+}
+
+// ConfigField declares one configuration field. The admin console generates the form from these declarations.
+message ConfigField {
+  // Field key: lowercase letters, digits and underscores, starting with a letter, for example api_token. Unique
+  // within a plugin; should not be renamed after publication.
+  string key = 1;
+  // Label, in DescribeRequest.language.
+  string label = 2;
+  // Description, in DescribeRequest.language; plain text.
+  string description = 3;
+  // HTTPS URL of an external link, for example the page where an API key is requested.
+  string link = 4;
+  // Text of the external link, in DescribeRequest.language; when empty the admin console shows the URL.
+  string link_label = 5;
+  ConfigFieldType type = 6;
+  // Required. When a required field has no value, the plugin is in the needs-configuration state.
+  bool required = 7;
+  // Default value, encoded as a string:
+  //   string, secret: as is; secret should have no default value.
+  //   bool: true or false.
+  //   int: a decimal integer.
+  //   select: one value from options.
+  //   multiselect: a JSON array of strings made of option values, for example ["en","ja"]; an empty array is [].
+  // Configuration values (ConfigureRequest.values) use the same encoding.
+  string default_value = 8;
+  // Hint text shown when the field is empty, in DescribeRequest.language.
+  string placeholder = 9;
+  // ConfigGroup.key of the group the field belongs to; an empty string means it belongs to no group.
+  string group = 10;
+  // Options for select and multiselect, in display order.
+  repeated ConfigOption options = 11;
+  // Lower and upper bounds for int (inclusive); unset means no limit.
+  optional int64 min = 12;
+  optional int64 max = 13;
+}
+
+// ConfigOption is one option of a select or multiselect.
+message ConfigOption {
+  // Option value, i.e. the string stored in the configuration value.
+  string value = 1;
+  // Display text, in DescribeRequest.language.
+  string label = 2;
+}
+
+// ConfigGroup is a group of configuration fields. The form first shows the fields that belong to no group, then each
+// group in config_groups order; within a group, fields follow their declaration order.
+message ConfigGroup {
+  // Group key, unique within a plugin.
+  string key = 1;
+  // Group title, in DescribeRequest.language.
+  string title = 2;
+  // Group description, in DescribeRequest.language; may be empty.
+  string description = 3;
+}
+
+message ConfigureRequest {
+  // The complete configuration values, keyed by ConfigField.key; the value encoding is described at
+  // ConfigField.default_value. Fields without a value are absent from the map; the host does not fill in defaults
+  // for the plugin. Secret fields are in plain text.
+  map<string, string> values = 1;
+  // Language of error messages, BCP 47; an empty string means English.
+  string language = 2;
+}
+
+message ConfigureResponse {
+  // Overall error, in ConfigureRequest.language; an empty string means there is no overall error.
+  string error = 1;
+  // Errors for individual fields, keyed by ConfigField.key, for example api_token → "Invalid API key"; same language
+  // as above.
+  map<string, string> field_errors = 2;
+}

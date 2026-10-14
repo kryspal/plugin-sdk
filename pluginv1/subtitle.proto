@@ -1,0 +1,109 @@
+// Kryspal Media Plugin protocol v1: subtitle providers (change 0098).
+//
+// Capability subtitles.search: Search, Download. The subtitle account (e.g. an OpenSubtitles username and password) is a
+// server-level setting configured by the administrator,
+// and the plugin logs in by itself; this service has no member-level credentials. Writing files next to the video is the
+// host's job; the plugin only returns bytes.
+syntax = "proto3";
+
+package kryspal.plugin.v1;
+
+import "pluginv1/metadata.proto";
+
+option go_package = "github.com/kryspal/plugin-sdk/pluginv1;pluginv1";
+
+// SubtitleProvider is implemented by plugins that declare the subtitles.search capability.
+service SubtitleProvider {
+  // Search searches for candidate subtitles, in decreasing order of relevance. No results means an empty list, not NOT_FOUND.
+  rpc Search(SearchSubtitlesRequest) returns (SearchSubtitlesResponse);
+  // Download fetches the subtitle file of one candidate. Candidate IDs and links expire, so the host downloads right after
+  // searching and does not keep them.
+  // When the quota is used up, it returns RESOURCE_EXHAUSTED with retry-after-seconds.
+  rpc Download(DownloadSubtitleRequest) returns (DownloadSubtitleResponse);
+}
+
+message SearchSubtitlesRequest {
+  SubtitleTarget target = 1;
+  // Wanted subtitle languages (BCP 47, in order of preference).
+  repeated string languages = 2;
+  // Whether subtitles for the hearing impaired are acceptable.
+  bool include_hearing_impaired = 3;
+  // Maximum number of results; 0 lets the plugin decide.
+  int32 limit = 4;
+}
+
+// SubtitleTarget is the video that needs subtitles. The host fills in as much as it can and the plugin picks what it can
+// use; an empty value means the host does not have it.
+message SubtitleTarget {
+  // Only ITEM_TYPE_MOVIE or ITEM_TYPE_EPISODE.
+  ItemType type = 1;
+  string title = 2;
+  int32 year = 3;
+  optional int32 season_number = 4;
+  optional int32 episode_number = 5;
+  // imdb, tmdb, tvdb (of the item itself or of its series).
+  map<string, string> provider_ids = 6;
+  // Video file name (without the path).
+  string file_name = 7;
+  // In bytes; 0 means unknown.
+  int64 file_size = 8;
+  // OpenSubtitles moviehash; the empty string when the host cannot read the first and last 64 KB of the file (remote strm).
+  string movie_hash = 9;
+  int32 duration_seconds = 10;
+}
+
+message SearchSubtitlesResponse {
+  repeated SubtitleCandidate candidates = 1;
+  // Remaining download quota of the configured account, when the plugin knows it (for example read after signing in),
+  // so the admin console can show it before the first download. Leave it unset when unknown; -1 also means unknown.
+  // Added in change 0146; older plugins do not send it and older hosts ignore it.
+  optional int32 quota_remaining = 2;
+}
+
+message SubtitleCandidate {
+  // This provider's subtitle ID, usable directly with Download.
+  string id = 1;
+  // BCP 47.
+  string language = 2;
+  // Release name of the source, e.g. "Movie.2020.1080p.BluRay".
+  string release_name = 3;
+  // Lowercase file extension, e.g. srt, ass; zip for an archive.
+  string format = 4;
+  bool hearing_impaired = 5;
+  enum MatchedBy {
+    MATCHED_BY_UNSPECIFIED = 0;
+    MATCHED_BY_HASH = 1;
+    MATCHED_BY_IDS = 2;
+    MATCHED_BY_NAME = 3;
+  }
+  // What the match is based on, for the host's sorting: hash > ids > name.
+  MatchedBy matched_by = 6;
+  // 0 means unknown.
+  int32 download_count = 7;
+  // 0 to 10; 0 means unknown.
+  double rating = 8;
+  // The plugin's own score from 0 to 1; 0 means not supplied. The host does not rely on it.
+  double score = 9;
+}
+
+message DownloadSubtitleRequest {
+  string id = 1;
+}
+
+message DownloadSubtitleResponse {
+  // A candidate may contain several files (after unpacking an archive). The plugin unpacks it and limits the number and
+  // size of files; the response is capped at 5 MB in total, and larger responses return INVALID_ARGUMENT.
+  repeated SubtitleFile files = 1;
+  // Remaining quota reported by the upstream; -1 means unknown. Shown in the admin console, and used by the host to
+  // throttle automatic downloads.
+  int32 quota_remaining = 2;
+}
+
+message SubtitleFile {
+  // File name, without the path.
+  string name = 1;
+  // BCP 47; may be empty for a single file inside an archive, in which case the host fills in the requested language.
+  string language = 2;
+  // Raw bytes; the host handles encoding conversion.
+  bytes data = 3;
+}
