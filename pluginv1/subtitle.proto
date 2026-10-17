@@ -1,4 +1,4 @@
-// Kryspal Media Plugin protocol v1: subtitle providers (change 0098).
+// Kryspal Media Plugin protocol v1: subtitle providers.
 //
 // Capability subtitles.search: Search, Download. The subtitle account (e.g. an OpenSubtitles username and password) is a
 // server-level setting configured by the administrator,
@@ -56,7 +56,7 @@ message SearchSubtitlesResponse {
   repeated SubtitleCandidate candidates = 1;
   // Remaining download quota of the configured account, when the plugin knows it (for example read after signing in),
   // so the admin console can show it before the first download. Leave it unset when unknown; -1 also means unknown.
-  // Added in change 0146; older plugins do not send it and older hosts ignore it.
+  // Added within v1; older plugins do not send it and older hosts ignore it.
   optional int32 quota_remaining = 2;
 }
 
@@ -84,6 +84,25 @@ message SubtitleCandidate {
   double rating = 8;
   // The plugin's own score from 0 to 1; 0 means not supplied. The host does not rely on it.
   double score = 9;
+  // The following help users and the host pick a subtitle that fits before downloading it. Fill in what the source
+  // provides; leave the rest at the default (unknown). Added within v1; older hosts ignore them.
+  // Size of the download in bytes; 0 means unknown.
+  int64 size_bytes = 10;
+  // Time of the last cue, in seconds, when the source gives it; 0 means unknown. The host compares it with the video's
+  // runtime.
+  int32 duration_seconds = 11;
+  // Frame rate the subtitle is timed for, for example 23.976; 0 means unknown. A mismatch makes cues drift.
+  double frame_rate = 12;
+  // Upload date, YYYY-MM-DD; empty means unknown.
+  string uploaded_at = 13;
+  // The source marks it as machine translated.
+  bool machine_translated = 14;
+  // The source marks it as coming from a trusted uploader or an official release.
+  bool trusted = 15;
+  // Number of subtitle files in the download (for example one per episode in a season pack); 0 means unknown.
+  int32 file_count = 16;
+  // A short note from the source, for example "synced for the extended cut"; plain text, at most 200 characters.
+  string comment = 17;
 }
 
 message DownloadSubtitleRequest {

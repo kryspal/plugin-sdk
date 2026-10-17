@@ -41,7 +41,7 @@ func main() {
 	sdk.Main(sdk.Config{Plugin: p, MetadataProvider: p, ImageProvider: images{}, SubtitleProvider: subtitles{}, UserSync: usersync{}})
 }
 
-// String tables (change 0057): the host calls Describe and Configure with a BCP 47 language tag. Languages without a
+// String tables: the host calls Describe and Configure with a BCP 47 language tag. Languages without a
 // string table get their strings along the i18n fallback chain, ending in English; every key needs at least English.
 var messages = i18n.New(map[string]map[string]string{
 	"en": {
@@ -104,7 +104,7 @@ func (p *provider) Describe(_ context.Context, req *pluginv1.DescribeRequest) (*
 			pluginv1.CapabilityMetadataPerson,
 			pluginv1.CapabilityMetadataCollection,
 			pluginv1.CapabilityMetadataPersonSearch,
-			// The services of change 0098 (services.go).
+			// Images, subtitles and user sync (services.go).
 			pluginv1.CapabilityImagesMovie,
 			pluginv1.CapabilitySubtitlesSearch,
 			pluginv1.CapabilityUserSyncLink,
@@ -229,7 +229,7 @@ func (p *provider) GetItem(_ context.Context, req *pluginv1.GetItemRequest) (*pl
 	}, nil
 }
 
-// SearchPerson demonstrates metadata.person.search (change 0079): there is a candidate only when the name or an alias
+// SearchPerson demonstrates metadata.person.search: there is a candidate only when the name or an alias
 // matches; confirmed is set only when the title hints include this provider's movie 1001, never on a name match alone.
 func (p *provider) SearchPerson(_ context.Context, req *pluginv1.SearchPersonRequest) (*pluginv1.SearchPersonResponse, error) {
 	if err := p.ready(); err != nil {

@@ -1,11 +1,11 @@
-// Kryspal Media Plugin protocol v1: image providers (change 0098).
+// Kryspal Media Plugin protocol v1: image providers.
 //
 // Capabilities and the methods they map to:
 //   images.movie   GetImages(ITEM_TYPE_MOVIE)
 //   images.series  GetImages(ITEM_TYPE_SERIES)
-//   images.person  GetImages(ITEM_TYPE_PERSON)  (change 0156)
+//   images.person  GetImages(ITEM_TYPE_PERSON) 
 // For capabilities the plugin does not declare, the corresponding calls return UNIMPLEMENTED. The common conventions are the
-// same as in metadata.proto: images are always HTTPS URLs that the host downloads and caches,
+// same as in metadata.proto: images are URLs (https preferred, http accepted) that the host downloads and caches,
 // plugins never receive image bytes; no results means an empty list, not NOT_FOUND.
 syntax = "proto3";
 
@@ -28,12 +28,12 @@ message GetImagesRequest {
   // The item's known provider IDs, e.g. {"tmdb": "550", "imdb": "tt0137523"}. The plugin picks the keys it recognizes.
   // For a person these are the person's IDs (e.g. {"tmdb": "287"}); they may be empty when only the name is known.
   map<string, string> provider_ids = 2;
-  // Only these types; empty means all. A person only has IMAGE_TYPE_PRIMARY (the photo).
+  // Only these types; empty means all. A person has IMAGE_TYPE_PRIMARY (the main photo) and IMAGE_TYPE_PHOTO (the gallery).
   repeated ImageType types = 3;
   Languages languages = 4;
   // Maximum number of images to return per type; 0 lets the plugin decide.
   int32 limit_per_type = 5;
-  // Only for ITEM_TYPE_PERSON (change 0156): the person's name as the server knows it. Many photo libraries are keyed by name, so
+  // Only for ITEM_TYPE_PERSON: the person's name as the server knows it. Many photo libraries are keyed by name, so
   // a plugin that cannot use provider_ids matches on name and aliases. Empty for movies and series.
   string name = 6;
   // Only for ITEM_TYPE_PERSON: other names of the person (stage names, names in other languages).
@@ -43,4 +43,9 @@ message GetImagesRequest {
 message GetImagesResponse {
   // In order of preference; the first image of each type is the preferred one.
   repeated Image images = 1;
+  // Same meaning as the ItemMetadata fields of the same names: what happened at each source, and whether
+  // the host should ask again later for images a slow source has not delivered yet.
+  repeated Notice notices = 2;
+  bool incomplete = 3;
+  uint32 retry_after_seconds = 4;
 }

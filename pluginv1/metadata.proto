@@ -12,7 +12,7 @@
 //   - Dates are YYYY-MM-DD strings (UTC calendar days); an empty string means unknown. When only the year is known,
 //     fill production_year and leave the date empty.
 //   - A numeric 0 means unknown.
-//   - Images are always returned as HTTPS URLs; the host downloads and caches them. Plugins do not write files.
+//   - Images are returned as URLs (https preferred, http accepted); the host downloads and caches them. Plugins do not write files.
 //   - Errors are expressed as gRPC status codes; see "Errors" in PROTOCOL.md.
 syntax = "proto3";
 
@@ -29,7 +29,7 @@ service MetadataProvider {
   rpc GetItem(GetItemRequest) returns (ItemMetadata);
   // GetPerson fetches a person's data by provider ID. Returns NOT_FOUND when it does not exist.
   rpc GetPerson(GetPersonRequest) returns (PersonMetadata);
-  // SearchPerson looks up a person by name (plus hints from the local titles) (change 0079); only plugins that
+  // SearchPerson looks up a person by name (plus hints from the local titles); only plugins that
   // declare metadata.person.search implement it, the others return UNIMPLEMENTED. When there are no results it
   // returns an empty list, not NOT_FOUND.
   rpc SearchPerson(SearchPersonRequest) returns (SearchPersonResponse);
@@ -53,7 +53,7 @@ enum ItemType {
   ITEM_TYPE_SERIES = 2;
   ITEM_TYPE_SEASON = 3;
   ITEM_TYPE_EPISODE = 4;
-  // A person. Only used by GetImagesRequest (capability images.person, change 0156); no other message carries it.
+  // A person. Only used by GetImagesRequest (capability images.person); no other message carries it.
   ITEM_TYPE_PERSON = 5;
 }
 
@@ -71,7 +71,7 @@ message SearchRequest {
   // Maximum number of results; 0 means the plugin decides (10 is suggested).
   int32 limit = 6;
 
-  // The following are name recognition hints (change 0121), only sent to plugins that declare
+  // The following are name recognition hints, only sent to plugins that declare
   // metadata.search.hints; plugins that do not declare it only look at name and year. name is still the first title.
   // The recognized titles, in decreasing order of weight (including name).
   repeated TitleHint titles = 7;
@@ -90,7 +90,7 @@ message SearchRequest {
   int32 duration_seconds = 13;
 }
 
-// TitleHint is one title found by name recognition (change 0121).
+// TitleHint is one title found by name recognition.
 message TitleHint {
   string text = 1;
   // BCP 47 or script kind: zh-Hans, zh-Hant, en, ja, und.
@@ -131,6 +131,9 @@ message SeriesShape {
 
 message SearchResponse {
   repeated SearchCandidate candidates = 1;
+  // What happened at each source while searching, shown in the identify dialog when there are no or few candidates.
+  // Same rules as ItemMetadata.notices.
+  repeated Notice notices = 2;
 }
 
 // SearchCandidate is one candidate in the search results; it is also used for a collection's member list.
@@ -149,8 +152,8 @@ message SearchCandidate {
   // The plugin's own estimate of how well this matches, 0 to 1; 0 means the plugin does not provide one. The host
   // does not rely on it; the scraping flow judges confidence by itself.
   double score = 9;
-  // The title that matched (an alias, a translated title or the original title; change 0121, filled by plugins that
-  // declare metadata.search.hints).
+  // The title that matched (an alias, a translated title or the original title; filled by plugins that declare
+  // metadata.search.hints).
   string matched_title = 10;
   // Codes of the scoring reasons, for example title.exact, title.alias, year.release_date, shape.ok, region.match
   // (for debugging and evaluation).
@@ -170,13 +173,39 @@ message GetItemRequest {
   optional int32 episode_number = 5;
   Languages languages = 6;
   // Episodes only: the absolute episode number (common in anime). The plugin maps it back to a season and episode
-  // and returns that episode; only plugins that declare metadata.series.absolute receive it (change 0121). When it
+  // and returns that episode; only plugins that declare metadata.series.absolute receive it. When it
   // is set, season_number and episode_number are not.
   optional int32 absolute_episode_number = 7;
 }
 
 // ItemMetadata is an item's metadata. Fields without data are left empty; the host never treats an empty value as
 // clearing the field.
+// Notice tells the user what happened at one data source during a request. The host shows notices in
+// the item's refresh history and in the identify dialog, as plain text, and keeps only the latest set per plugin.
+message Notice {
+  // The source as the user knows it, at most 48 characters, for example "JavDB" or "TMDB".
+  string source = 1;
+  NoticeStatus status = 2;
+  // One sentence for the user, at most 200 characters, plain text. Say what to do when there is something to do:
+  // "Sign in on the plugin settings page" or "Set a proxy for this source".
+  string message = 3;
+  // The entry of a settings list (ConfigItem.id) this source belongs to, when the plugin has one; the host links the
+  // notice to that entry's settings. Empty otherwise.
+  string item = 4;
+}
+
+enum NoticeStatus {
+  NOTICE_STATUS_UNSPECIFIED = 0;
+  NOTICE_STATUS_OK = 1;          // the source answered and contributed
+  NOTICE_STATUS_NOT_FOUND = 2;   // the source does not know this title or person
+  NOTICE_STATUS_BLOCKED = 3;     // blocked by region, firewall or an anti-bot challenge the plugin could not pass
+  NOTICE_STATUS_NEEDS_LOGIN = 4; // the source wants credentials the user has not set
+  NOTICE_STATUS_CHALLENGE = 5;   // an anti-bot challenge needs a tool the user has not configured
+  NOTICE_STATUS_TIMEOUT = 6;     // the source did not answer in time
+  NOTICE_STATUS_ERROR = 7;       // anything else, for example the site changed
+  NOTICE_STATUS_INCOMPLETE = 8;  // the source answered but part of its data is still missing (see ItemMetadata.incomplete)
+}
+
 message ItemMetadata {
   // This provider's ID. May be empty for seasons and episodes that have no ID of their own.
   string id = 1;
@@ -217,25 +246,42 @@ message ItemMetadata {
   // The collection it belongs to; left unset when it belongs to no collection.
   CollectionRef collection = 24;
   // Remote trailers, in order of preference (the first is preferred); left unset when there are none. Only
-  // meaningful when the metadata.trailers capability is declared (change 0022).
+  // meaningful when the metadata.trailers capability is declared.
   repeated Trailer trailers = 25;
-  // The series' airing status (change 0019); only meaningful for series. For movies, seasons, episodes and when
+  // The series' airing status; only meaningful for series. For movies, seasons, episodes and when
   // unknown it is SERIES_STATUS_UNSPECIFIED.
   SeriesStatus status = 26;
-  // The language this result actually uses (BCP 47, change 0018): when the target language was unavailable and the
+  // The language this result actually uses (BCP 47): when the target language was unavailable and the
   // result fell back to a fallback language or the original text, this is the language fallen back to; for example,
   // when the title falls back to the original title, fill in the original language. An empty string means the
   // provider did not report it.
   string language = 27;
-  // The title's original language (BCP 47, for example ja, change 0120); empty when unknown.
+  // The title's original language (BCP 47, for example ja); empty when unknown.
   string original_language = 28;
-  // Ratings from each source (change 0122 part F), for example tmdb, imdb, douban. community_rating is still filled
+  // Ratings from each source, for example tmdb, imdb, douban. community_rating is still filled
   // with this provider's own score.
   repeated Rating ratings = 29;
-  // The item's product code (the catalogue number of an adult video, for example ABC-123; change 0141). Surrounding
-  // whitespace is ignored; left empty when the provider has none. The provider's own content ID (for example DMM's
-  // cid) belongs in provider_ids, not here. Only movies and episodes carry one; the host ignores it for other types.
+  // The item's product code: a catalogue number printed on the release, for example ABC-123. Surrounding whitespace
+  // is ignored; left empty when the provider has none. A store's own internal content ID belongs in provider_ids, not
+  // here. Only movies and episodes carry one; the host ignores it for other types.
   string product_code = 30;
+  // Extra public facts the provider has that no field above covers, for example the label or the series. Keys are
+  // lowercase letters, digits and underscores; at most 32 entries; values are plain text of at most 256 characters.
+  // The host shows them as "name: value" and translates the suggested keys listed in PROTOCOL.md; other keys are shown
+  // as given. Display only: the host does not search or filter on them.
+  map<string, string> attributes = 31;
+  // Field 32 was "badges" in a preview of v0.2.0; use tags instead.
+  reserved 32;
+  reserved "badges";
+  // What happened at each data source; at most 32. Optional, shown to the user as is.
+  repeated Notice notices = 33;
+  // True when a source ran out of time and this result is missing fields or images it would normally have. The host
+  // saves what is here, then fetches again after retry_after_seconds and fills only the fields that are still empty
+  // (never values the user edited); at most three retries. Defaults to false: the result is final.
+  bool incomplete = 34;
+  // Seconds until the host should fetch again when incomplete is true; the host clamps it to 60..86400 and uses 600
+  // when zero.
+  uint32 retry_after_seconds = 35;
 }
 
 // Rating is one source's rating.
@@ -287,6 +333,9 @@ enum ImageType {
   // clearart.
   IMAGE_TYPE_ART = 6;
   IMAGE_TYPE_DISC = 7;
+  // One of several photos of a person (a gallery), in order of preference. A person's main photo stays PRIMARY. A host
+  // that does not know this value skips the image.
+  IMAGE_TYPE_PHOTO = 8;
 }
 
 // Image is a remote image. When there are several of the same type, they are in order of preference and the first
@@ -301,10 +350,45 @@ message Image {
   int32 width = 4;
   int32 height = 5;
   // Number of likes on the source website; 0 means unknown. When there are several images of the same type, the host
-  // uses it together with language to order them when merging several image sources (change 0098).
+  // uses it together with language to order them when merging several image sources.
   int32 likes = 6;
-  // The image's ID on the source website, for debugging and deduplication; may be empty (change 0098).
+  // The image's ID on the source website, for debugging and deduplication; may be empty.
   string source_id = 7;
+  // Optional: the part of the image to use, as fractions of its width and height. The host crops before it makes any
+  // size, so every client sees the cropped image. For example, a catalog that only has a wide cover with the front on
+  // the right half sets {x: 0.53, y: 0, width: 0.47, height: 1} on the poster.
+  ImageCrop crop = 8;
+  // Optional: the point to keep in view, as fractions of the width and height, for example the center of a face in a
+  // person's photo. The host centers square and round thumbnails on it.
+  ImagePoint focus = 9;
+  // Optional: a crop given as an aspect ratio and a position, for when the plugin does not know the image's size. The
+  // host works out the rectangle from the actual size after it downloads the image. Ignored when crop is set. For
+  // example, a wide cover with the front on the right half sets {aspect: 0.6667, x: 1} on the poster.
+  ImageCropHint crop_hint = 10;
+}
+
+// ImageCropHint asks for the largest part of the image with the given aspect ratio, placed by x and y.
+message ImageCropHint {
+  // Width divided by height, from 0.2 to 5; for example 2:3 is 0.6667.
+  double aspect = 1;
+  // Where the part sits within the room left over, from 0 to 1, like CSS object-position: x 0 is flush left, 1 flush
+  // right, 0.5 centered; y 0 is flush top, 1 flush bottom. When unset, 0.5 (centered).
+  optional double x = 2;
+  optional double y = 3;
+}
+
+// ImageCrop is a rectangle in fractions of the image's width and height (0 to 1). Each side is at least 0.05.
+message ImageCrop {
+  double x = 1;
+  double y = 2;
+  double width = 3;
+  double height = 4;
+}
+
+// ImagePoint is a point in fractions of the image's width and height (0 to 1).
+message ImagePoint {
+  double x = 1;
+  double y = 2;
 }
 
 // PersonKind is a person's role in an item.
@@ -332,7 +416,7 @@ message Credit {
   string image_url = 6;
   // The person's provider IDs; should include at least this provider's own ID (the same as person_id).
   map<string, string> provider_ids = 7;
-  // The person's gender (change 0079); GENDER_UNSPECIFIED when unknown. The server only uses it when the person's
+  // The person's gender; GENDER_UNSPECIFIED when unknown. The server only uses it when the person's
   // gender is unknown.
   Gender gender = 8;
 }
@@ -375,8 +459,11 @@ message PersonWork {
   int32 production_year = 2;
   // Only ever ITEM_TYPE_MOVIE or ITEM_TYPE_SERIES; for other values the plugin should ignore this title.
   ItemType item_type = 3;
-  // The title's provider IDs, keys in lowercase, for example tmdb, imdb.
+  // Every provider ID the server knows for the title, from any provider (not only this plugin), keys in lowercase,
+  // for example tmdb, imdb.
   map<string, string> provider_ids = 4;
+  // The title's product code (ItemMetadata.product_code) when it has one; empty otherwise.
+  string product_code = 5;
 }
 
 message SearchPersonResponse {
@@ -409,7 +496,15 @@ message PersonMetadata {
   map<string, string> provider_ids = 10;
   // Social and external pages.
   repeated Link links = 11;
+  // PRIMARY is the main photo; PHOTO images form the person's gallery.
   repeated Image images = 12;
+  // Extra public facts about the person that no field above covers, for example height. Same rules as
+  // ItemMetadata.attributes.
+  map<string, string> attributes = 13;
+  // Same meaning as the ItemMetadata fields.
+  repeated Notice notices = 14;
+  bool incomplete = 15;
+  uint32 retry_after_seconds = 16;
 }
 
 // Link is an external page of a person.

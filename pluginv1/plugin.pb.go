@@ -46,6 +46,12 @@ const (
 	ConfigFieldType_CONFIG_FIELD_TYPE_SELECT ConfigFieldType = 5
 	// Multiple choice from options.
 	ConfigFieldType_CONFIG_FIELD_TYPE_MULTISELECT ConfigFieldType = 6
+	// Multi-line text, for example a mapping table with one entry per line. At most 64 KiB.
+	ConfigFieldType_CONFIG_FIELD_TYPE_TEXT ConfigFieldType = 7
+	// A list of strings the user adds, removes and reorders.
+	ConfigFieldType_CONFIG_FIELD_TYPE_STRING_LIST ConfigFieldType = 8
+	// Multiple choice from options in an order the user sets, for example data sources by priority.
+	ConfigFieldType_CONFIG_FIELD_TYPE_ORDERED_MULTISELECT ConfigFieldType = 9
 )
 
 // Enum value maps for ConfigFieldType.
@@ -58,15 +64,21 @@ var (
 		4: "CONFIG_FIELD_TYPE_INT",
 		5: "CONFIG_FIELD_TYPE_SELECT",
 		6: "CONFIG_FIELD_TYPE_MULTISELECT",
+		7: "CONFIG_FIELD_TYPE_TEXT",
+		8: "CONFIG_FIELD_TYPE_STRING_LIST",
+		9: "CONFIG_FIELD_TYPE_ORDERED_MULTISELECT",
 	}
 	ConfigFieldType_value = map[string]int32{
-		"CONFIG_FIELD_TYPE_UNSPECIFIED": 0,
-		"CONFIG_FIELD_TYPE_STRING":      1,
-		"CONFIG_FIELD_TYPE_SECRET":      2,
-		"CONFIG_FIELD_TYPE_BOOL":        3,
-		"CONFIG_FIELD_TYPE_INT":         4,
-		"CONFIG_FIELD_TYPE_SELECT":      5,
-		"CONFIG_FIELD_TYPE_MULTISELECT": 6,
+		"CONFIG_FIELD_TYPE_UNSPECIFIED":         0,
+		"CONFIG_FIELD_TYPE_STRING":              1,
+		"CONFIG_FIELD_TYPE_SECRET":              2,
+		"CONFIG_FIELD_TYPE_BOOL":                3,
+		"CONFIG_FIELD_TYPE_INT":                 4,
+		"CONFIG_FIELD_TYPE_SELECT":              5,
+		"CONFIG_FIELD_TYPE_MULTISELECT":         6,
+		"CONFIG_FIELD_TYPE_TEXT":                7,
+		"CONFIG_FIELD_TYPE_STRING_LIST":         8,
+		"CONFIG_FIELD_TYPE_ORDERED_MULTISELECT": 9,
 	}
 )
 
@@ -168,18 +180,33 @@ type Manifest struct {
 	// Suggested limit on concurrent calls; 0 means no suggestion and the host uses the default of 4. Administrators
 	// can override it.
 	SuggestedConcurrency uint32 `protobuf:"varint,10,opt,name=suggested_concurrency,json=suggestedConcurrency,proto3" json:"suggested_concurrency,omitempty"`
-	// Host permissions the plugin needs (change 0103), for example ["llm"] (uses AI enhancement). The host ignores
+	// Host permissions the plugin needs, for example ["llm"] (uses AI enhancement). The host ignores
 	// permissions it does not recognize; administrators allow each permission for each plugin individually, and
 	// without that permission the plugin's calls to the Host service return PERMISSION_DENIED.
 	Permissions []string `protobuf:"bytes,11,rep,name=permissions,proto3" json:"permissions,omitempty"`
-	// Codes of the premium features the plugin implements (for example "name-recognize"). Declaring them only
-	// means something for plugins signed by the official catalog: the host will later decide by license whether they
-	// can be enabled; third-party plugins need not declare them and are not affected by licensing. The host ignores
-	// codes it does not recognize.
+	// No longer used; the host ignores it. Paid plans gate capabilities, not plugins (PROTOCOL.md §11.5).
 	Features []string `protobuf:"bytes,12,rep,name=features,proto3" json:"features,omitempty"`
-	// For plugins that declare the capability cast.target (change 0109): the protocol they speak, "dlna" or "chromecast",
+	// For plugins that declare the capability cast.target: the protocol they speak, "dlna" or "chromecast",
 	// shown by the admin console. The host ignores values it does not recognize.
-	CastProtocol  string `protobuf:"bytes,13,opt,name=cast_protocol,json=castProtocol,proto3" json:"cast_protocol,omitempty"`
+	CastProtocol string `protobuf:"bytes,13,opt,name=cast_protocol,json=castProtocol,proto3" json:"cast_protocol,omitempty"`
+	// How the host downloads this plugin's images from hosts that require a Referer. At most 32 rules. May depend on
+	// the configuration: the host calls Describe again after each accepted Configure.
+	ImageFetchRules []*ImageFetchRule `protobuf:"bytes,14,rep,name=image_fetch_rules,json=imageFetchRules,proto3" json:"image_fetch_rules,omitempty"`
+	// Maintenance tasks the plugin offers (capability plugin.tasks), run by the host on a schedule or on demand.
+	Tasks []*TaskDeclaration `protobuf:"bytes,15,rep,name=tasks,proto3" json:"tasks,omitempty"`
+	// Display names for the attribute keys the plugin sends (ItemMetadata.attributes, PersonMetadata.attributes), in
+	// DescribeRequest.language. Optional: keys without a label are shown as they are, and suggested keys are translated
+	// by the host whatever is declared here. A plugin may label only the languages it targets.
+	AttributeLabels []*AttributeLabel `protobuf:"bytes,16,rep,name=attribute_labels,json=attributeLabels,proto3" json:"attribute_labels,omitempty"`
+	// The plugin's author or publisher, plain text, at most 64 characters. Optional. Shown in the plugin center when
+	// the plugin has no catalog entry (development mode, manual installs); a catalog entry's owner takes precedence.
+	Author string `protobuf:"bytes,17,opt,name=author,proto3" json:"author,omitempty"`
+	// The plugin's project page, for example its source repository: an absolute https URL of at most 512 characters.
+	// Optional; same precedence as author (the catalog entry's homepage wins).
+	Homepage string `protobuf:"bytes,18,opt,name=homepage,proto3" json:"homepage,omitempty"`
+	// Checks an administrator can run from the plugin's settings page (capability plugin.checks), for example "test the
+	// API key" or "show the remaining quota". In DescribeRequest.language. At most 16.
+	Checks        []*CheckDeclaration `protobuf:"bytes,19,rep,name=checks,proto3" json:"checks,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -305,6 +332,381 @@ func (x *Manifest) GetCastProtocol() string {
 	return ""
 }
 
+func (x *Manifest) GetImageFetchRules() []*ImageFetchRule {
+	if x != nil {
+		return x.ImageFetchRules
+	}
+	return nil
+}
+
+func (x *Manifest) GetTasks() []*TaskDeclaration {
+	if x != nil {
+		return x.Tasks
+	}
+	return nil
+}
+
+func (x *Manifest) GetAttributeLabels() []*AttributeLabel {
+	if x != nil {
+		return x.AttributeLabels
+	}
+	return nil
+}
+
+func (x *Manifest) GetAuthor() string {
+	if x != nil {
+		return x.Author
+	}
+	return ""
+}
+
+func (x *Manifest) GetHomepage() string {
+	if x != nil {
+		return x.Homepage
+	}
+	return ""
+}
+
+func (x *Manifest) GetChecks() []*CheckDeclaration {
+	if x != nil {
+		return x.Checks
+	}
+	return nil
+}
+
+// CheckDeclaration is one check shown as a button on the plugin's settings page.
+type CheckDeclaration struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Unique within the plugin: a lowercase letter, then lowercase letters, digits and underscores, at most 48 characters.
+	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	// Button text, in DescribeRequest.language.
+	Label string `protobuf:"bytes,2,opt,name=label,proto3" json:"label,omitempty"`
+	// What the check does, in DescribeRequest.language; may be empty.
+	Description string `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
+	// ConfigGroup.key of the group the button belongs to; empty puts it at the top of the settings page.
+	Group string `protobuf:"bytes,4,opt,name=group,proto3" json:"group,omitempty"`
+	// The check is about one entry of the group's list (ConfigGroup.items), for example "Test this source": the admin
+	// console shows the button inside each entry and RunCheckRequest.item names the entry. Needs a group with items;
+	// otherwise the host shows the button once in the group and sends no item.
+	PerItem       bool `protobuf:"varint,5,opt,name=per_item,json=perItem,proto3" json:"per_item,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CheckDeclaration) Reset() {
+	*x = CheckDeclaration{}
+	mi := &file_pluginv1_plugin_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CheckDeclaration) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CheckDeclaration) ProtoMessage() {}
+
+func (x *CheckDeclaration) ProtoReflect() protoreflect.Message {
+	mi := &file_pluginv1_plugin_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CheckDeclaration.ProtoReflect.Descriptor instead.
+func (*CheckDeclaration) Descriptor() ([]byte, []int) {
+	return file_pluginv1_plugin_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *CheckDeclaration) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *CheckDeclaration) GetLabel() string {
+	if x != nil {
+		return x.Label
+	}
+	return ""
+}
+
+func (x *CheckDeclaration) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
+func (x *CheckDeclaration) GetGroup() string {
+	if x != nil {
+		return x.Group
+	}
+	return ""
+}
+
+func (x *CheckDeclaration) GetPerItem() bool {
+	if x != nil {
+		return x.PerItem
+	}
+	return false
+}
+
+// AttributeLabel is the display name of one attribute key.
+type AttributeLabel struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Key           string                 `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
+	Label         string                 `protobuf:"bytes,2,opt,name=label,proto3" json:"label,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AttributeLabel) Reset() {
+	*x = AttributeLabel{}
+	mi := &file_pluginv1_plugin_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AttributeLabel) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AttributeLabel) ProtoMessage() {}
+
+func (x *AttributeLabel) ProtoReflect() protoreflect.Message {
+	mi := &file_pluginv1_plugin_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AttributeLabel.ProtoReflect.Descriptor instead.
+func (*AttributeLabel) Descriptor() ([]byte, []int) {
+	return file_pluginv1_plugin_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *AttributeLabel) GetKey() string {
+	if x != nil {
+		return x.Key
+	}
+	return ""
+}
+
+func (x *AttributeLabel) GetLabel() string {
+	if x != nil {
+		return x.Label
+	}
+	return ""
+}
+
+// ImageFetchRule tells the host which Referer to send when it downloads an image from certain hosts.
+type ImageFetchRule struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Host names the rule applies to, at most 16: an exact name (img.example.com) or a leading wildcard (*.example.com,
+	// which matches subdomains only). IP addresses and a lone * are not allowed.
+	Hosts []string `protobuf:"bytes,1,rep,name=hosts,proto3" json:"hosts,omitempty"`
+	// The Referer sent with matching downloads: an absolute https or http URL.
+	Referer string `protobuf:"bytes,2,opt,name=referer,proto3" json:"referer,omitempty"`
+	// Key of one of this plugin's settings (a string or secret field) whose value is a proxy URL (http, https or socks5).
+	// The host downloads images from matching hosts through that proxy. Empty: no plugin proxy; the host's
+	// own image download proxy, if the administrator set one, still applies. The host never logs or echoes the value.
+	ProxyFrom     string `protobuf:"bytes,3,opt,name=proxy_from,json=proxyFrom,proto3" json:"proxy_from,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ImageFetchRule) Reset() {
+	*x = ImageFetchRule{}
+	mi := &file_pluginv1_plugin_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ImageFetchRule) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ImageFetchRule) ProtoMessage() {}
+
+func (x *ImageFetchRule) ProtoReflect() protoreflect.Message {
+	mi := &file_pluginv1_plugin_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ImageFetchRule.ProtoReflect.Descriptor instead.
+func (*ImageFetchRule) Descriptor() ([]byte, []int) {
+	return file_pluginv1_plugin_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *ImageFetchRule) GetHosts() []string {
+	if x != nil {
+		return x.Hosts
+	}
+	return nil
+}
+
+func (x *ImageFetchRule) GetReferer() string {
+	if x != nil {
+		return x.Referer
+	}
+	return ""
+}
+
+func (x *ImageFetchRule) GetProxyFrom() string {
+	if x != nil {
+		return x.ProxyFrom
+	}
+	return ""
+}
+
+// TaskDeclaration is a task the plugin can run through TaskRunner.RunTask.
+type TaskDeclaration struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Unique within the plugin: a lowercase letter, then lowercase letters, digits and underscores, at most 48
+	// characters. Do not rename it after release.
+	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	// Title, in DescribeRequest.language.
+	Title string `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`
+	// Description, in DescribeRequest.language; may be empty.
+	Description string `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
+	// The default schedule; unset means the task runs only when an administrator starts it.
+	DefaultSchedule *TaskSchedule `protobuf:"bytes,4,opt,name=default_schedule,json=defaultSchedule,proto3" json:"default_schedule,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *TaskDeclaration) Reset() {
+	*x = TaskDeclaration{}
+	mi := &file_pluginv1_plugin_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TaskDeclaration) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TaskDeclaration) ProtoMessage() {}
+
+func (x *TaskDeclaration) ProtoReflect() protoreflect.Message {
+	mi := &file_pluginv1_plugin_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TaskDeclaration.ProtoReflect.Descriptor instead.
+func (*TaskDeclaration) Descriptor() ([]byte, []int) {
+	return file_pluginv1_plugin_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *TaskDeclaration) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *TaskDeclaration) GetTitle() string {
+	if x != nil {
+		return x.Title
+	}
+	return ""
+}
+
+func (x *TaskDeclaration) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
+func (x *TaskDeclaration) GetDefaultSchedule() *TaskSchedule {
+	if x != nil {
+		return x.DefaultSchedule
+	}
+	return nil
+}
+
+// TaskSchedule is a schedule: set exactly one of the fields.
+type TaskSchedule struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Run every this many minutes, 5 to 44640.
+	IntervalMinutes uint32 `protobuf:"varint,1,opt,name=interval_minutes,json=intervalMinutes,proto3" json:"interval_minutes,omitempty"`
+	// A five-field cron expression (minute hour day month weekday) in the server's time zone, for example "0 4 * * *".
+	Cron          string `protobuf:"bytes,2,opt,name=cron,proto3" json:"cron,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TaskSchedule) Reset() {
+	*x = TaskSchedule{}
+	mi := &file_pluginv1_plugin_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TaskSchedule) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TaskSchedule) ProtoMessage() {}
+
+func (x *TaskSchedule) ProtoReflect() protoreflect.Message {
+	mi := &file_pluginv1_plugin_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TaskSchedule.ProtoReflect.Descriptor instead.
+func (*TaskSchedule) Descriptor() ([]byte, []int) {
+	return file_pluginv1_plugin_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *TaskSchedule) GetIntervalMinutes() uint32 {
+	if x != nil {
+		return x.IntervalMinutes
+	}
+	return 0
+}
+
+func (x *TaskSchedule) GetCron() string {
+	if x != nil {
+		return x.Cron
+	}
+	return ""
+}
+
 // Attribution is the credit a data source requires, for example the text and logo required by the TMDB terms.
 type Attribution struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -320,7 +722,7 @@ type Attribution struct {
 
 func (x *Attribution) Reset() {
 	*x = Attribution{}
-	mi := &file_pluginv1_plugin_proto_msgTypes[2]
+	mi := &file_pluginv1_plugin_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -332,7 +734,7 @@ func (x *Attribution) String() string {
 func (*Attribution) ProtoMessage() {}
 
 func (x *Attribution) ProtoReflect() protoreflect.Message {
-	mi := &file_pluginv1_plugin_proto_msgTypes[2]
+	mi := &file_pluginv1_plugin_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -345,7 +747,7 @@ func (x *Attribution) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Attribution.ProtoReflect.Descriptor instead.
 func (*Attribution) Descriptor() ([]byte, []int) {
-	return file_pluginv1_plugin_proto_rawDescGZIP(), []int{2}
+	return file_pluginv1_plugin_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *Attribution) GetText() string {
@@ -392,6 +794,10 @@ type ConfigField struct {
 	//   int: a decimal integer.
 	//   select: one value from options.
 	//   multiselect: a JSON array of strings made of option values, for example ["en","ja"]; an empty array is [].
+	//   text: as is, lines separated by \n.
+	//   string_list: a JSON array of strings, for example ["a","b"]; an empty array is [].
+	//   ordered_multiselect: a JSON array of the chosen option values, highest priority first; unchosen options are
+	//   absent.
 	// Configuration values (ConfigureRequest.values) use the same encoding.
 	DefaultValue string `protobuf:"bytes,8,opt,name=default_value,json=defaultValue,proto3" json:"default_value,omitempty"`
 	// Hint text shown when the field is empty, in DescribeRequest.language.
@@ -401,15 +807,22 @@ type ConfigField struct {
 	// Options for select and multiselect, in display order.
 	Options []*ConfigOption `protobuf:"bytes,11,rep,name=options,proto3" json:"options,omitempty"`
 	// Lower and upper bounds for int (inclusive); unset means no limit.
-	Min           *int64 `protobuf:"varint,12,opt,name=min,proto3,oneof" json:"min,omitempty"`
-	Max           *int64 `protobuf:"varint,13,opt,name=max,proto3,oneof" json:"max,omitempty"`
+	Min *int64 `protobuf:"varint,12,opt,name=min,proto3,oneof" json:"min,omitempty"`
+	Max *int64 `protobuf:"varint,13,opt,name=max,proto3,oneof" json:"max,omitempty"`
+	// When set, the field is shown only while another field has one of the given values. A hidden field keeps its
+	// value and is still sent in Configure, but a hidden required field does not make the plugin need configuration.
+	VisibleWhen *ConfigCondition `protobuf:"bytes,14,opt,name=visible_when,json=visibleWhen,proto3" json:"visible_when,omitempty"`
+	// ConfigItem.id of one item of the field's group (ConfigGroup.items): the field is one of that item's settings and
+	// the admin console shows it when the item is opened. Empty means the field belongs to the group itself. The host
+	// ignores an item that the group does not list (the field is shown in the group). Host feature config_items.
+	Item          string `protobuf:"bytes,15,opt,name=item,proto3" json:"item,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ConfigField) Reset() {
 	*x = ConfigField{}
-	mi := &file_pluginv1_plugin_proto_msgTypes[3]
+	mi := &file_pluginv1_plugin_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -421,7 +834,7 @@ func (x *ConfigField) String() string {
 func (*ConfigField) ProtoMessage() {}
 
 func (x *ConfigField) ProtoReflect() protoreflect.Message {
-	mi := &file_pluginv1_plugin_proto_msgTypes[3]
+	mi := &file_pluginv1_plugin_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -434,7 +847,7 @@ func (x *ConfigField) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConfigField.ProtoReflect.Descriptor instead.
 func (*ConfigField) Descriptor() ([]byte, []int) {
-	return file_pluginv1_plugin_proto_rawDescGZIP(), []int{3}
+	return file_pluginv1_plugin_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *ConfigField) GetKey() string {
@@ -528,6 +941,78 @@ func (x *ConfigField) GetMax() int64 {
 	return 0
 }
 
+func (x *ConfigField) GetVisibleWhen() *ConfigCondition {
+	if x != nil {
+		return x.VisibleWhen
+	}
+	return nil
+}
+
+func (x *ConfigField) GetItem() string {
+	if x != nil {
+		return x.Item
+	}
+	return ""
+}
+
+// ConfigCondition makes a field depend on another field's current value.
+type ConfigCondition struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Key of a bool, select, string, int, multiselect or ordered_multiselect field of the same plugin. Conditions on
+	// other types, or on keys that do not exist, are ignored (the field is always shown).
+	Key string `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
+	// For bool, select, string and int: the field is shown when the other field's value, in its string encoding (for
+	// example "true"), is one of these. For multiselect and ordered_multiselect: the field is shown when any chosen
+	// option is one of these.
+	Values        []string `protobuf:"bytes,2,rep,name=values,proto3" json:"values,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ConfigCondition) Reset() {
+	*x = ConfigCondition{}
+	mi := &file_pluginv1_plugin_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ConfigCondition) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ConfigCondition) ProtoMessage() {}
+
+func (x *ConfigCondition) ProtoReflect() protoreflect.Message {
+	mi := &file_pluginv1_plugin_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ConfigCondition.ProtoReflect.Descriptor instead.
+func (*ConfigCondition) Descriptor() ([]byte, []int) {
+	return file_pluginv1_plugin_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *ConfigCondition) GetKey() string {
+	if x != nil {
+		return x.Key
+	}
+	return ""
+}
+
+func (x *ConfigCondition) GetValues() []string {
+	if x != nil {
+		return x.Values
+	}
+	return nil
+}
+
 // ConfigOption is one option of a select or multiselect.
 type ConfigOption struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -541,7 +1026,7 @@ type ConfigOption struct {
 
 func (x *ConfigOption) Reset() {
 	*x = ConfigOption{}
-	mi := &file_pluginv1_plugin_proto_msgTypes[4]
+	mi := &file_pluginv1_plugin_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -553,7 +1038,7 @@ func (x *ConfigOption) String() string {
 func (*ConfigOption) ProtoMessage() {}
 
 func (x *ConfigOption) ProtoReflect() protoreflect.Message {
-	mi := &file_pluginv1_plugin_proto_msgTypes[4]
+	mi := &file_pluginv1_plugin_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -566,7 +1051,7 @@ func (x *ConfigOption) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConfigOption.ProtoReflect.Descriptor instead.
 func (*ConfigOption) Descriptor() ([]byte, []int) {
-	return file_pluginv1_plugin_proto_rawDescGZIP(), []int{4}
+	return file_pluginv1_plugin_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *ConfigOption) GetValue() string {
@@ -592,14 +1077,24 @@ type ConfigGroup struct {
 	// Group title, in DescribeRequest.language.
 	Title string `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`
 	// Group description, in DescribeRequest.language; may be empty.
-	Description   string `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
+	Description string `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
+	// Settings most users never change. The admin console lists advanced groups last and keeps them collapsed.
+	Advanced bool `protobuf:"varint,4,opt,name=advanced,proto3" json:"advanced,omitempty"`
+	// Icon shown before the title, one of: general, source, person, image, translate, network, schedule, advanced. Other
+	// values show no icon.
+	Icon string `protobuf:"bytes,5,opt,name=icon,proto3" json:"icon,omitempty"`
+	// Items make the group a list of similar things that each have the same settings, for example one entry per data
+	// source. The admin console shows the list (searchable when it is long, with a mark on items whose settings differ
+	// from the defaults) and the settings of one item at a time; fields of the group without an item are shown above the
+	// list. At most 100 items, in display order. Host feature config_items.
+	Items         []*ConfigItem `protobuf:"bytes,6,rep,name=items,proto3" json:"items,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ConfigGroup) Reset() {
 	*x = ConfigGroup{}
-	mi := &file_pluginv1_plugin_proto_msgTypes[5]
+	mi := &file_pluginv1_plugin_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -611,7 +1106,7 @@ func (x *ConfigGroup) String() string {
 func (*ConfigGroup) ProtoMessage() {}
 
 func (x *ConfigGroup) ProtoReflect() protoreflect.Message {
-	mi := &file_pluginv1_plugin_proto_msgTypes[5]
+	mi := &file_pluginv1_plugin_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -624,7 +1119,7 @@ func (x *ConfigGroup) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConfigGroup.ProtoReflect.Descriptor instead.
 func (*ConfigGroup) Descriptor() ([]byte, []int) {
-	return file_pluginv1_plugin_proto_rawDescGZIP(), []int{5}
+	return file_pluginv1_plugin_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *ConfigGroup) GetKey() string {
@@ -648,6 +1143,92 @@ func (x *ConfigGroup) GetDescription() string {
 	return ""
 }
 
+func (x *ConfigGroup) GetAdvanced() bool {
+	if x != nil {
+		return x.Advanced
+	}
+	return false
+}
+
+func (x *ConfigGroup) GetIcon() string {
+	if x != nil {
+		return x.Icon
+	}
+	return ""
+}
+
+func (x *ConfigGroup) GetItems() []*ConfigItem {
+	if x != nil {
+		return x.Items
+	}
+	return nil
+}
+
+// ConfigItem is one entry of a group's list (ConfigGroup.items). Its settings are the fields whose item is its id.
+type ConfigItem struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Lowercase letter, then lowercase letters, digits or underscores, at most 48; unique within the group. It is only a
+	// reference: field keys stay as declared, so a plugin usually derives them from it (for example src_<id>_proxy).
+	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	// Display name, in DescribeRequest.language.
+	Label string `protobuf:"bytes,2,opt,name=label,proto3" json:"label,omitempty"`
+	// Optional short description, in DescribeRequest.language; plain text.
+	Description   string `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ConfigItem) Reset() {
+	*x = ConfigItem{}
+	mi := &file_pluginv1_plugin_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ConfigItem) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ConfigItem) ProtoMessage() {}
+
+func (x *ConfigItem) ProtoReflect() protoreflect.Message {
+	mi := &file_pluginv1_plugin_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ConfigItem.ProtoReflect.Descriptor instead.
+func (*ConfigItem) Descriptor() ([]byte, []int) {
+	return file_pluginv1_plugin_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *ConfigItem) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *ConfigItem) GetLabel() string {
+	if x != nil {
+		return x.Label
+	}
+	return ""
+}
+
+func (x *ConfigItem) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
 type ConfigureRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// The complete configuration values, keyed by ConfigField.key; the value encoding is described at
@@ -662,7 +1243,7 @@ type ConfigureRequest struct {
 
 func (x *ConfigureRequest) Reset() {
 	*x = ConfigureRequest{}
-	mi := &file_pluginv1_plugin_proto_msgTypes[6]
+	mi := &file_pluginv1_plugin_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -674,7 +1255,7 @@ func (x *ConfigureRequest) String() string {
 func (*ConfigureRequest) ProtoMessage() {}
 
 func (x *ConfigureRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_pluginv1_plugin_proto_msgTypes[6]
+	mi := &file_pluginv1_plugin_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -687,7 +1268,7 @@ func (x *ConfigureRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConfigureRequest.ProtoReflect.Descriptor instead.
 func (*ConfigureRequest) Descriptor() ([]byte, []int) {
-	return file_pluginv1_plugin_proto_rawDescGZIP(), []int{6}
+	return file_pluginv1_plugin_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *ConfigureRequest) GetValues() map[string]string {
@@ -717,7 +1298,7 @@ type ConfigureResponse struct {
 
 func (x *ConfigureResponse) Reset() {
 	*x = ConfigureResponse{}
-	mi := &file_pluginv1_plugin_proto_msgTypes[7]
+	mi := &file_pluginv1_plugin_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -729,7 +1310,7 @@ func (x *ConfigureResponse) String() string {
 func (*ConfigureResponse) ProtoMessage() {}
 
 func (x *ConfigureResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_pluginv1_plugin_proto_msgTypes[7]
+	mi := &file_pluginv1_plugin_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -742,7 +1323,7 @@ func (x *ConfigureResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConfigureResponse.ProtoReflect.Descriptor instead.
 func (*ConfigureResponse) Descriptor() ([]byte, []int) {
-	return file_pluginv1_plugin_proto_rawDescGZIP(), []int{7}
+	return file_pluginv1_plugin_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *ConfigureResponse) GetError() string {
@@ -765,7 +1346,7 @@ const file_pluginv1_plugin_proto_rawDesc = "" +
 	"\n" +
 	"\x15pluginv1/plugin.proto\x12\x11kryspal.plugin.v1\"-\n" +
 	"\x0fDescribeRequest\x12\x1a\n" +
-	"\blanguage\x18\x01 \x01(\tR\blanguage\"\x9d\x04\n" +
+	"\blanguage\x18\x01 \x01(\tR\blanguage\"\xe5\x06\n" +
 	"\bManifest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12 \n" +
@@ -780,11 +1361,39 @@ const file_pluginv1_plugin_proto_rawDesc = "" +
 	" \x01(\rR\x14suggestedConcurrency\x12 \n" +
 	"\vpermissions\x18\v \x03(\tR\vpermissions\x12\x1a\n" +
 	"\bfeatures\x18\f \x03(\tR\bfeatures\x12#\n" +
-	"\rcast_protocol\x18\r \x01(\tR\fcastProtocol\"P\n" +
+	"\rcast_protocol\x18\r \x01(\tR\fcastProtocol\x12M\n" +
+	"\x11image_fetch_rules\x18\x0e \x03(\v2!.kryspal.plugin.v1.ImageFetchRuleR\x0fimageFetchRules\x128\n" +
+	"\x05tasks\x18\x0f \x03(\v2\".kryspal.plugin.v1.TaskDeclarationR\x05tasks\x12L\n" +
+	"\x10attribute_labels\x18\x10 \x03(\v2!.kryspal.plugin.v1.AttributeLabelR\x0fattributeLabels\x12\x16\n" +
+	"\x06author\x18\x11 \x01(\tR\x06author\x12\x1a\n" +
+	"\bhomepage\x18\x12 \x01(\tR\bhomepage\x12;\n" +
+	"\x06checks\x18\x13 \x03(\v2#.kryspal.plugin.v1.CheckDeclarationR\x06checks\"\x8b\x01\n" +
+	"\x10CheckDeclaration\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
+	"\x05label\x18\x02 \x01(\tR\x05label\x12 \n" +
+	"\vdescription\x18\x03 \x01(\tR\vdescription\x12\x14\n" +
+	"\x05group\x18\x04 \x01(\tR\x05group\x12\x19\n" +
+	"\bper_item\x18\x05 \x01(\bR\aperItem\"8\n" +
+	"\x0eAttributeLabel\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05label\x18\x02 \x01(\tR\x05label\"_\n" +
+	"\x0eImageFetchRule\x12\x14\n" +
+	"\x05hosts\x18\x01 \x03(\tR\x05hosts\x12\x18\n" +
+	"\areferer\x18\x02 \x01(\tR\areferer\x12\x1d\n" +
+	"\n" +
+	"proxy_from\x18\x03 \x01(\tR\tproxyFrom\"\xa9\x01\n" +
+	"\x0fTaskDeclaration\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x14\n" +
+	"\x05title\x18\x02 \x01(\tR\x05title\x12 \n" +
+	"\vdescription\x18\x03 \x01(\tR\vdescription\x12J\n" +
+	"\x10default_schedule\x18\x04 \x01(\v2\x1f.kryspal.plugin.v1.TaskScheduleR\x0fdefaultSchedule\"M\n" +
+	"\fTaskSchedule\x12)\n" +
+	"\x10interval_minutes\x18\x01 \x01(\rR\x0fintervalMinutes\x12\x12\n" +
+	"\x04cron\x18\x02 \x01(\tR\x04cron\"P\n" +
 	"\vAttribution\x12\x12\n" +
 	"\x04text\x18\x01 \x01(\tR\x04text\x12\x19\n" +
 	"\blogo_url\x18\x02 \x01(\tR\alogoUrl\x12\x12\n" +
-	"\x04link\x18\x03 \x01(\tR\x04link\"\xb4\x03\n" +
+	"\x04link\x18\x03 \x01(\tR\x04link\"\x8f\x04\n" +
 	"\vConfigField\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05label\x18\x02 \x01(\tR\x05label\x12 \n" +
@@ -800,15 +1409,28 @@ const file_pluginv1_plugin_proto_rawDesc = "" +
 	" \x01(\tR\x05group\x129\n" +
 	"\aoptions\x18\v \x03(\v2\x1f.kryspal.plugin.v1.ConfigOptionR\aoptions\x12\x15\n" +
 	"\x03min\x18\f \x01(\x03H\x00R\x03min\x88\x01\x01\x12\x15\n" +
-	"\x03max\x18\r \x01(\x03H\x01R\x03max\x88\x01\x01B\x06\n" +
+	"\x03max\x18\r \x01(\x03H\x01R\x03max\x88\x01\x01\x12E\n" +
+	"\fvisible_when\x18\x0e \x01(\v2\".kryspal.plugin.v1.ConfigConditionR\vvisibleWhen\x12\x12\n" +
+	"\x04item\x18\x0f \x01(\tR\x04itemB\x06\n" +
 	"\x04_minB\x06\n" +
-	"\x04_max\":\n" +
+	"\x04_max\";\n" +
+	"\x0fConfigCondition\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x16\n" +
+	"\x06values\x18\x02 \x03(\tR\x06values\":\n" +
 	"\fConfigOption\x12\x14\n" +
 	"\x05value\x18\x01 \x01(\tR\x05value\x12\x14\n" +
-	"\x05label\x18\x02 \x01(\tR\x05label\"W\n" +
+	"\x05label\x18\x02 \x01(\tR\x05label\"\xbc\x01\n" +
 	"\vConfigGroup\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05title\x18\x02 \x01(\tR\x05title\x12 \n" +
+	"\vdescription\x18\x03 \x01(\tR\vdescription\x12\x1a\n" +
+	"\badvanced\x18\x04 \x01(\bR\badvanced\x12\x12\n" +
+	"\x04icon\x18\x05 \x01(\tR\x04icon\x123\n" +
+	"\x05items\x18\x06 \x03(\v2\x1d.kryspal.plugin.v1.ConfigItemR\x05items\"T\n" +
+	"\n" +
+	"ConfigItem\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
+	"\x05label\x18\x02 \x01(\tR\x05label\x12 \n" +
 	"\vdescription\x18\x03 \x01(\tR\vdescription\"\xb2\x01\n" +
 	"\x10ConfigureRequest\x12G\n" +
 	"\x06values\x18\x01 \x03(\v2/.kryspal.plugin.v1.ConfigureRequest.ValuesEntryR\x06values\x12\x1a\n" +
@@ -821,7 +1443,7 @@ const file_pluginv1_plugin_proto_rawDesc = "" +
 	"\ffield_errors\x18\x02 \x03(\v25.kryspal.plugin.v1.ConfigureResponse.FieldErrorsEntryR\vfieldErrors\x1a>\n" +
 	"\x10FieldErrorsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01*\xe8\x01\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01*\xd2\x02\n" +
 	"\x0fConfigFieldType\x12!\n" +
 	"\x1dCONFIG_FIELD_TYPE_UNSPECIFIED\x10\x00\x12\x1c\n" +
 	"\x18CONFIG_FIELD_TYPE_STRING\x10\x01\x12\x1c\n" +
@@ -829,7 +1451,10 @@ const file_pluginv1_plugin_proto_rawDesc = "" +
 	"\x16CONFIG_FIELD_TYPE_BOOL\x10\x03\x12\x19\n" +
 	"\x15CONFIG_FIELD_TYPE_INT\x10\x04\x12\x1c\n" +
 	"\x18CONFIG_FIELD_TYPE_SELECT\x10\x05\x12!\n" +
-	"\x1dCONFIG_FIELD_TYPE_MULTISELECT\x10\x062\xad\x01\n" +
+	"\x1dCONFIG_FIELD_TYPE_MULTISELECT\x10\x06\x12\x1a\n" +
+	"\x16CONFIG_FIELD_TYPE_TEXT\x10\a\x12!\n" +
+	"\x1dCONFIG_FIELD_TYPE_STRING_LIST\x10\b\x12)\n" +
+	"%CONFIG_FIELD_TYPE_ORDERED_MULTISELECT\x10\t2\xad\x01\n" +
 	"\x06Plugin\x12K\n" +
 	"\bDescribe\x12\".kryspal.plugin.v1.DescribeRequest\x1a\x1b.kryspal.plugin.v1.Manifest\x12V\n" +
 	"\tConfigure\x12#.kryspal.plugin.v1.ConfigureRequest\x1a$.kryspal.plugin.v1.ConfigureResponseB1Z/github.com/kryspal/plugin-sdk/pluginv1;pluginv1b\x06proto3"
@@ -847,37 +1472,51 @@ func file_pluginv1_plugin_proto_rawDescGZIP() []byte {
 }
 
 var file_pluginv1_plugin_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_pluginv1_plugin_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
+var file_pluginv1_plugin_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
 var file_pluginv1_plugin_proto_goTypes = []any{
 	(ConfigFieldType)(0),      // 0: kryspal.plugin.v1.ConfigFieldType
 	(*DescribeRequest)(nil),   // 1: kryspal.plugin.v1.DescribeRequest
 	(*Manifest)(nil),          // 2: kryspal.plugin.v1.Manifest
-	(*Attribution)(nil),       // 3: kryspal.plugin.v1.Attribution
-	(*ConfigField)(nil),       // 4: kryspal.plugin.v1.ConfigField
-	(*ConfigOption)(nil),      // 5: kryspal.plugin.v1.ConfigOption
-	(*ConfigGroup)(nil),       // 6: kryspal.plugin.v1.ConfigGroup
-	(*ConfigureRequest)(nil),  // 7: kryspal.plugin.v1.ConfigureRequest
-	(*ConfigureResponse)(nil), // 8: kryspal.plugin.v1.ConfigureResponse
-	nil,                       // 9: kryspal.plugin.v1.ConfigureRequest.ValuesEntry
-	nil,                       // 10: kryspal.plugin.v1.ConfigureResponse.FieldErrorsEntry
+	(*CheckDeclaration)(nil),  // 3: kryspal.plugin.v1.CheckDeclaration
+	(*AttributeLabel)(nil),    // 4: kryspal.plugin.v1.AttributeLabel
+	(*ImageFetchRule)(nil),    // 5: kryspal.plugin.v1.ImageFetchRule
+	(*TaskDeclaration)(nil),   // 6: kryspal.plugin.v1.TaskDeclaration
+	(*TaskSchedule)(nil),      // 7: kryspal.plugin.v1.TaskSchedule
+	(*Attribution)(nil),       // 8: kryspal.plugin.v1.Attribution
+	(*ConfigField)(nil),       // 9: kryspal.plugin.v1.ConfigField
+	(*ConfigCondition)(nil),   // 10: kryspal.plugin.v1.ConfigCondition
+	(*ConfigOption)(nil),      // 11: kryspal.plugin.v1.ConfigOption
+	(*ConfigGroup)(nil),       // 12: kryspal.plugin.v1.ConfigGroup
+	(*ConfigItem)(nil),        // 13: kryspal.plugin.v1.ConfigItem
+	(*ConfigureRequest)(nil),  // 14: kryspal.plugin.v1.ConfigureRequest
+	(*ConfigureResponse)(nil), // 15: kryspal.plugin.v1.ConfigureResponse
+	nil,                       // 16: kryspal.plugin.v1.ConfigureRequest.ValuesEntry
+	nil,                       // 17: kryspal.plugin.v1.ConfigureResponse.FieldErrorsEntry
 }
 var file_pluginv1_plugin_proto_depIdxs = []int32{
-	4,  // 0: kryspal.plugin.v1.Manifest.config_fields:type_name -> kryspal.plugin.v1.ConfigField
-	6,  // 1: kryspal.plugin.v1.Manifest.config_groups:type_name -> kryspal.plugin.v1.ConfigGroup
-	3,  // 2: kryspal.plugin.v1.Manifest.attribution:type_name -> kryspal.plugin.v1.Attribution
-	0,  // 3: kryspal.plugin.v1.ConfigField.type:type_name -> kryspal.plugin.v1.ConfigFieldType
-	5,  // 4: kryspal.plugin.v1.ConfigField.options:type_name -> kryspal.plugin.v1.ConfigOption
-	9,  // 5: kryspal.plugin.v1.ConfigureRequest.values:type_name -> kryspal.plugin.v1.ConfigureRequest.ValuesEntry
-	10, // 6: kryspal.plugin.v1.ConfigureResponse.field_errors:type_name -> kryspal.plugin.v1.ConfigureResponse.FieldErrorsEntry
-	1,  // 7: kryspal.plugin.v1.Plugin.Describe:input_type -> kryspal.plugin.v1.DescribeRequest
-	7,  // 8: kryspal.plugin.v1.Plugin.Configure:input_type -> kryspal.plugin.v1.ConfigureRequest
-	2,  // 9: kryspal.plugin.v1.Plugin.Describe:output_type -> kryspal.plugin.v1.Manifest
-	8,  // 10: kryspal.plugin.v1.Plugin.Configure:output_type -> kryspal.plugin.v1.ConfigureResponse
-	9,  // [9:11] is the sub-list for method output_type
-	7,  // [7:9] is the sub-list for method input_type
-	7,  // [7:7] is the sub-list for extension type_name
-	7,  // [7:7] is the sub-list for extension extendee
-	0,  // [0:7] is the sub-list for field type_name
+	9,  // 0: kryspal.plugin.v1.Manifest.config_fields:type_name -> kryspal.plugin.v1.ConfigField
+	12, // 1: kryspal.plugin.v1.Manifest.config_groups:type_name -> kryspal.plugin.v1.ConfigGroup
+	8,  // 2: kryspal.plugin.v1.Manifest.attribution:type_name -> kryspal.plugin.v1.Attribution
+	5,  // 3: kryspal.plugin.v1.Manifest.image_fetch_rules:type_name -> kryspal.plugin.v1.ImageFetchRule
+	6,  // 4: kryspal.plugin.v1.Manifest.tasks:type_name -> kryspal.plugin.v1.TaskDeclaration
+	4,  // 5: kryspal.plugin.v1.Manifest.attribute_labels:type_name -> kryspal.plugin.v1.AttributeLabel
+	3,  // 6: kryspal.plugin.v1.Manifest.checks:type_name -> kryspal.plugin.v1.CheckDeclaration
+	7,  // 7: kryspal.plugin.v1.TaskDeclaration.default_schedule:type_name -> kryspal.plugin.v1.TaskSchedule
+	0,  // 8: kryspal.plugin.v1.ConfigField.type:type_name -> kryspal.plugin.v1.ConfigFieldType
+	11, // 9: kryspal.plugin.v1.ConfigField.options:type_name -> kryspal.plugin.v1.ConfigOption
+	10, // 10: kryspal.plugin.v1.ConfigField.visible_when:type_name -> kryspal.plugin.v1.ConfigCondition
+	13, // 11: kryspal.plugin.v1.ConfigGroup.items:type_name -> kryspal.plugin.v1.ConfigItem
+	16, // 12: kryspal.plugin.v1.ConfigureRequest.values:type_name -> kryspal.plugin.v1.ConfigureRequest.ValuesEntry
+	17, // 13: kryspal.plugin.v1.ConfigureResponse.field_errors:type_name -> kryspal.plugin.v1.ConfigureResponse.FieldErrorsEntry
+	1,  // 14: kryspal.plugin.v1.Plugin.Describe:input_type -> kryspal.plugin.v1.DescribeRequest
+	14, // 15: kryspal.plugin.v1.Plugin.Configure:input_type -> kryspal.plugin.v1.ConfigureRequest
+	2,  // 16: kryspal.plugin.v1.Plugin.Describe:output_type -> kryspal.plugin.v1.Manifest
+	15, // 17: kryspal.plugin.v1.Plugin.Configure:output_type -> kryspal.plugin.v1.ConfigureResponse
+	16, // [16:18] is the sub-list for method output_type
+	14, // [14:16] is the sub-list for method input_type
+	14, // [14:14] is the sub-list for extension type_name
+	14, // [14:14] is the sub-list for extension extendee
+	0,  // [0:14] is the sub-list for field type_name
 }
 
 func init() { file_pluginv1_plugin_proto_init() }
@@ -885,14 +1524,14 @@ func file_pluginv1_plugin_proto_init() {
 	if File_pluginv1_plugin_proto != nil {
 		return
 	}
-	file_pluginv1_plugin_proto_msgTypes[3].OneofWrappers = []any{}
+	file_pluginv1_plugin_proto_msgTypes[8].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_pluginv1_plugin_proto_rawDesc), len(file_pluginv1_plugin_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   10,
+			NumMessages:   17,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -1,4 +1,4 @@
-// Kryspal Media Plugin protocol v1: segment providers (change 0122 part A).
+// Kryspal Media Plugin protocol v1: segment providers.
 //
 // Capabilities and the methods they map to:
 //   segments.provider  GetSegments

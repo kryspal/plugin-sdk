@@ -1,4 +1,4 @@
-// Kryspal Media Plugin protocol v1: danmaku providers (change 0122 part E).
+// Kryspal Media Plugin protocol v1: danmaku providers.
 //
 // Capabilities and the methods they map to:
 //   danmaku.provider  GetDanmaku

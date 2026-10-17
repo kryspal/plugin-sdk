@@ -10,8 +10,8 @@ import (
 	"github.com/kryspal/plugin-sdk/sdk"
 )
 
-// Demo implementations of the three services of change 0098: no network, fixed data, behavior driven by the input, so the
-// host and e2e tests can cover every path of the protocol.
+// Demo implementations of the image, subtitle and user sync services: no network, fixed data, behavior driven by the
+// input, so the host and e2e tests can cover every path of the protocol.
 
 // images implements ImageProvider: when the item's provider IDs include static=1001 it returns two images (filtered by
 // types).

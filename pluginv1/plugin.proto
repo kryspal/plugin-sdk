@@ -58,18 +58,89 @@ message Manifest {
   // Suggested limit on concurrent calls; 0 means no suggestion and the host uses the default of 4. Administrators
   // can override it.
   uint32 suggested_concurrency = 10;
-  // Host permissions the plugin needs (change 0103), for example ["llm"] (uses AI enhancement). The host ignores
+  // Host permissions the plugin needs, for example ["llm"] (uses AI enhancement). The host ignores
   // permissions it does not recognize; administrators allow each permission for each plugin individually, and
   // without that permission the plugin's calls to the Host service return PERMISSION_DENIED.
   repeated string permissions = 11;
-  // Codes of the premium features the plugin implements (for example "name-recognize"). Declaring them only
-  // means something for plugins signed by the official catalog: the host will later decide by license whether they
-  // can be enabled; third-party plugins need not declare them and are not affected by licensing. The host ignores
-  // codes it does not recognize.
+  // No longer used; the host ignores it. Paid plans gate capabilities, not plugins (PROTOCOL.md §11.5).
   repeated string features = 12;
-  // For plugins that declare the capability cast.target (change 0109): the protocol they speak, "dlna" or "chromecast",
+  // For plugins that declare the capability cast.target: the protocol they speak, "dlna" or "chromecast",
   // shown by the admin console. The host ignores values it does not recognize.
   string cast_protocol = 13;
+  // How the host downloads this plugin's images from hosts that require a Referer. At most 32 rules. May depend on
+  // the configuration: the host calls Describe again after each accepted Configure.
+  repeated ImageFetchRule image_fetch_rules = 14;
+  // Maintenance tasks the plugin offers (capability plugin.tasks), run by the host on a schedule or on demand.
+  repeated TaskDeclaration tasks = 15;
+  // Display names for the attribute keys the plugin sends (ItemMetadata.attributes, PersonMetadata.attributes), in
+  // DescribeRequest.language. Optional: keys without a label are shown as they are, and suggested keys are translated
+  // by the host whatever is declared here. A plugin may label only the languages it targets.
+  repeated AttributeLabel attribute_labels = 16;
+  // The plugin's author or publisher, plain text, at most 64 characters. Optional. Shown in the plugin center when
+  // the plugin has no catalog entry (development mode, manual installs); a catalog entry's owner takes precedence.
+  string author = 17;
+  // The plugin's project page, for example its source repository: an absolute https URL of at most 512 characters.
+  // Optional; same precedence as author (the catalog entry's homepage wins).
+  string homepage = 18;
+  // Checks an administrator can run from the plugin's settings page (capability plugin.checks), for example "test the
+  // API key" or "show the remaining quota". In DescribeRequest.language. At most 16.
+  repeated CheckDeclaration checks = 19;
+}
+
+// CheckDeclaration is one check shown as a button on the plugin's settings page.
+message CheckDeclaration {
+  // Unique within the plugin: a lowercase letter, then lowercase letters, digits and underscores, at most 48 characters.
+  string id = 1;
+  // Button text, in DescribeRequest.language.
+  string label = 2;
+  // What the check does, in DescribeRequest.language; may be empty.
+  string description = 3;
+  // ConfigGroup.key of the group the button belongs to; empty puts it at the top of the settings page.
+  string group = 4;
+  // The check is about one entry of the group's list (ConfigGroup.items), for example "Test this source": the admin
+  // console shows the button inside each entry and RunCheckRequest.item names the entry. Needs a group with items;
+  // otherwise the host shows the button once in the group and sends no item.
+  bool per_item = 5;
+}
+
+// AttributeLabel is the display name of one attribute key.
+message AttributeLabel {
+  string key = 1;
+  string label = 2;
+}
+
+// ImageFetchRule tells the host which Referer to send when it downloads an image from certain hosts.
+message ImageFetchRule {
+  // Host names the rule applies to, at most 16: an exact name (img.example.com) or a leading wildcard (*.example.com,
+  // which matches subdomains only). IP addresses and a lone * are not allowed.
+  repeated string hosts = 1;
+  // The Referer sent with matching downloads: an absolute https or http URL.
+  string referer = 2;
+  // Key of one of this plugin's settings (a string or secret field) whose value is a proxy URL (http, https or socks5).
+  // The host downloads images from matching hosts through that proxy. Empty: no plugin proxy; the host's
+  // own image download proxy, if the administrator set one, still applies. The host never logs or echoes the value.
+  string proxy_from = 3;
+}
+
+// TaskDeclaration is a task the plugin can run through TaskRunner.RunTask.
+message TaskDeclaration {
+  // Unique within the plugin: a lowercase letter, then lowercase letters, digits and underscores, at most 48
+  // characters. Do not rename it after release.
+  string name = 1;
+  // Title, in DescribeRequest.language.
+  string title = 2;
+  // Description, in DescribeRequest.language; may be empty.
+  string description = 3;
+  // The default schedule; unset means the task runs only when an administrator starts it.
+  TaskSchedule default_schedule = 4;
+}
+
+// TaskSchedule is a schedule: set exactly one of the fields.
+message TaskSchedule {
+  // Run every this many minutes, 5 to 44640.
+  uint32 interval_minutes = 1;
+  // A five-field cron expression (minute hour day month weekday) in the server's time zone, for example "0 4 * * *".
+  string cron = 2;
 }
 
 // Attribution is the credit a data source requires, for example the text and logo required by the TMDB terms.
@@ -99,6 +170,12 @@ enum ConfigFieldType {
   CONFIG_FIELD_TYPE_SELECT = 5;
   // Multiple choice from options.
   CONFIG_FIELD_TYPE_MULTISELECT = 6;
+  // Multi-line text, for example a mapping table with one entry per line. At most 64 KiB.
+  CONFIG_FIELD_TYPE_TEXT = 7;
+  // A list of strings the user adds, removes and reorders.
+  CONFIG_FIELD_TYPE_STRING_LIST = 8;
+  // Multiple choice from options in an order the user sets, for example data sources by priority.
+  CONFIG_FIELD_TYPE_ORDERED_MULTISELECT = 9;
 }
 
 // ConfigField declares one configuration field. The admin console generates the form from these declarations.
@@ -123,6 +200,10 @@ message ConfigField {
   //   int: a decimal integer.
   //   select: one value from options.
   //   multiselect: a JSON array of strings made of option values, for example ["en","ja"]; an empty array is [].
+  //   text: as is, lines separated by \n.
+  //   string_list: a JSON array of strings, for example ["a","b"]; an empty array is [].
+  //   ordered_multiselect: a JSON array of the chosen option values, highest priority first; unchosen options are
+  //   absent.
   // Configuration values (ConfigureRequest.values) use the same encoding.
   string default_value = 8;
   // Hint text shown when the field is empty, in DescribeRequest.language.
@@ -134,6 +215,24 @@ message ConfigField {
   // Lower and upper bounds for int (inclusive); unset means no limit.
   optional int64 min = 12;
   optional int64 max = 13;
+  // When set, the field is shown only while another field has one of the given values. A hidden field keeps its
+  // value and is still sent in Configure, but a hidden required field does not make the plugin need configuration.
+  ConfigCondition visible_when = 14;
+  // ConfigItem.id of one item of the field's group (ConfigGroup.items): the field is one of that item's settings and
+  // the admin console shows it when the item is opened. Empty means the field belongs to the group itself. The host
+  // ignores an item that the group does not list (the field is shown in the group). Host feature config_items.
+  string item = 15;
+}
+
+// ConfigCondition makes a field depend on another field's current value.
+message ConfigCondition {
+  // Key of a bool, select, string, int, multiselect or ordered_multiselect field of the same plugin. Conditions on
+  // other types, or on keys that do not exist, are ignored (the field is always shown).
+  string key = 1;
+  // For bool, select, string and int: the field is shown when the other field's value, in its string encoding (for
+  // example "true"), is one of these. For multiselect and ordered_multiselect: the field is shown when any chosen
+  // option is one of these.
+  repeated string values = 2;
 }
 
 // ConfigOption is one option of a select or multiselect.
@@ -152,6 +251,27 @@ message ConfigGroup {
   // Group title, in DescribeRequest.language.
   string title = 2;
   // Group description, in DescribeRequest.language; may be empty.
+  string description = 3;
+  // Settings most users never change. The admin console lists advanced groups last and keeps them collapsed.
+  bool advanced = 4;
+  // Icon shown before the title, one of: general, source, person, image, translate, network, schedule, advanced. Other
+  // values show no icon.
+  string icon = 5;
+  // Items make the group a list of similar things that each have the same settings, for example one entry per data
+  // source. The admin console shows the list (searchable when it is long, with a mark on items whose settings differ
+  // from the defaults) and the settings of one item at a time; fields of the group without an item are shown above the
+  // list. At most 100 items, in display order. Host feature config_items.
+  repeated ConfigItem items = 6;
+}
+
+// ConfigItem is one entry of a group's list (ConfigGroup.items). Its settings are the fields whose item is its id.
+message ConfigItem {
+  // Lowercase letter, then lowercase letters, digits or underscores, at most 48; unique within the group. It is only a
+  // reference: field keys stay as declared, so a plugin usually derives them from it (for example src_<id>_proxy).
+  string id = 1;
+  // Display name, in DescribeRequest.language.
+  string label = 2;
+  // Optional short description, in DescribeRequest.language; plain text.
   string description = 3;
 }
 

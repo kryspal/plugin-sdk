@@ -1,6 +1,6 @@
 // Package sdk is the Kryspal Media Plugin SDK for Go plugin authors: it performs the handshake, creates the Unix socket,
 // starts the gRPC server (including the standard health check), and shuts down gracefully on SIGTERM. See
-// pluginapi/PROTOCOL.md for the protocol specification.
+// PROTOCOL.md at the module root for the protocol specification.
 //
 // Minimal usage:
 //
@@ -47,7 +47,7 @@ import (
 var ErrNotLaunchedByHost = errors.New("this is a Kryspal Media plugin and must be started by the server, not run directly")
 
 // ErrHostTooOld reports that the plugin was started by an older host: older hosts pass MEDIASERVER_PLUGIN_* environment
-// variables (before the protocol rename, change 0098).
+// variables (before the protocol rename).
 var ErrHostTooOld = errors.New("this Kryspal Media plugin needs a newer server: the host speaks the pre-0098 plugin protocol (MEDIASERVER_PLUGIN_*); update the server")
 
 // legacyEnvCookie is the cookie environment variable hosts passed before the rename; it is used only to tell "host too
@@ -65,20 +65,24 @@ type Config struct {
 	// MetadataProvider is required when the plugin declares metadata.* capabilities; when nil, the service is not registered.
 	MetadataProvider pluginv1.MetadataProviderServer
 	// ImageProvider, SubtitleProvider and UserSync are required when the plugin declares the matching capabilities
-	// (images.*, subtitles.search, usersync.*); when nil, the service is not registered (change 0098).
+	// (images.*, subtitles.search, usersync.*); when nil, the service is not registered.
 	ImageProvider    pluginv1.ImageProviderServer
 	SubtitleProvider pluginv1.SubtitleProviderServer
 	UserSync         pluginv1.UserSyncServer
-	// Recognizer is required when the plugin declares media.recognize; when nil, the service is not registered (change 0121).
+	// Recognizer is required when the plugin declares media.recognize; when nil, the service is not registered.
 	Recognizer pluginv1.RecognizerServer
 	// SegmentProvider and DanmakuProvider are required when the plugin declares segments.* and danmaku.provider; when nil,
-	// they are not registered (change 0122).
+	// they are not registered.
 	SegmentProvider pluginv1.SegmentProviderServer
 	DanmakuProvider pluginv1.DanmakuProviderServer
-	// CastTarget is required when the plugin declares cast.target; when nil, it is not registered (change 0109).
+	// CastTarget is required when the plugin declares cast.target; when nil, it is not registered.
 	CastTarget pluginv1.CastTargetServer
-	// PersonAliasProvider is required when the plugin declares people.aliasmap; when nil, it is not registered (change 0149).
+	// PersonAliasProvider is required when the plugin declares people.aliasmap; when nil, it is not registered.
 	PersonAliasProvider pluginv1.PersonAliasProviderServer
+	// TaskRunner is required when the plugin declares plugin.tasks; when nil, it is not registered.
+	TaskRunner pluginv1.TaskRunnerServer
+	// Checker is required when the plugin declares plugin.checks; when nil, it is not registered.
+	Checker pluginv1.CheckerServer
 
 	// GracePeriod of 0 means DefaultGracePeriod.
 	GracePeriod time.Duration
@@ -211,6 +215,14 @@ func Serve(ctx context.Context, cfg Config) error {
 		pluginv1.RegisterPersonAliasProviderServer(srv, cfg.PersonAliasProvider)
 		hs.SetServingStatus(pluginv1.HealthServicePersonAliasProvider, healthpb.HealthCheckResponse_SERVING)
 	}
+	if cfg.TaskRunner != nil {
+		pluginv1.RegisterTaskRunnerServer(srv, cfg.TaskRunner)
+		hs.SetServingStatus(pluginv1.HealthServiceTaskRunner, healthpb.HealthCheckResponse_SERVING)
+	}
+	if cfg.Checker != nil {
+		pluginv1.RegisterCheckerServer(srv, cfg.Checker)
+		hs.SetServingStatus(pluginv1.HealthServiceChecker, healthpb.HealthCheckResponse_SERVING)
+	}
 	healthpb.RegisterHealthServer(srv, hs)
 
 	serveErr := make(chan error, 1)
@@ -262,7 +274,7 @@ func unaryInterceptor(ctx context.Context, req any, info *grpc.UnaryServerInfo, 
 	return nil, convertError(err, func(md metadata.MD) { _ = grpc.SetTrailer(ctx, md) })
 }
 
-// streamInterceptor does for streaming methods (GetAliasMap, change 0149) what unaryInterceptor does for unary ones.
+// streamInterceptor does for streaming methods (GetAliasMap) what unaryInterceptor does for unary ones.
 func streamInterceptor(srv any, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -300,7 +312,7 @@ func convertError(err error, setTrailer func(metadata.MD)) error {
 type RateLimitError struct {
 	RetryAfter time.Duration
 	Message    string
-	// Credential, when true, pauses only this one credential (retry-after-scope: credential, change 0098); otherwise the
+	// Credential, when true, pauses only this one credential (retry-after-scope: credential); otherwise the
 	// whole plugin is paused.
 	Credential bool
 }
@@ -319,13 +331,13 @@ func RateLimited(retryAfter time.Duration, msg string) error {
 }
 
 // RateLimitedCredential returns an upstream rate limit that affects only this one credential (e.g. an upstream per-user
-// quota): the host pauses only this member, while other members and the plugin as a whole carry on (change 0098).
+// quota): the host pauses only this member, while other members and the plugin as a whole carry on.
 func RateLimitedCredential(retryAfter time.Duration, msg string) error {
 	return &RateLimitError{RetryAfter: retryAfter, Message: msg, Credential: true}
 }
 
 // Unauthenticated returns UNAUTHENTICATED: this member's credential is no longer valid (revoked, or expired and not
-// refreshable). The host only marks this member's link as needing to be re-linked; the plugin stays online (change 0098).
+// refreshable). The host only marks this member's link as needing to be re-linked; the plugin stays online.
 func Unauthenticated(msg string) error {
 	return status.Error(codes.Unauthenticated, msg)
 }

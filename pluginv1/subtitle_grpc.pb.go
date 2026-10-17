@@ -1,4 +1,4 @@
-// Kryspal Media Plugin protocol v1: subtitle providers (change 0098).
+// Kryspal Media Plugin protocol v1: subtitle providers.
 //
 // Capability subtitles.search: Search, Download. The subtitle account (e.g. an OpenSubtitles username and password) is a
 // server-level setting configured by the administrator,

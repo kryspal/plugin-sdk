@@ -1,4 +1,4 @@
-// Kryspal Media Plugin protocol v1: person alias maps (change 0149).
+// Kryspal Media Plugin protocol v1: person alias maps.
 //
 // Capabilities and the methods they map to:
 //   people.aliasmap  GetAliasMap

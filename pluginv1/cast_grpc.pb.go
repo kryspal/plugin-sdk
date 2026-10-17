@@ -1,4 +1,4 @@
-// Kryspal Media Plugin protocol v1: cast targets (change 0109).
+// Kryspal Media Plugin protocol v1: cast targets.
 //
 // Capability cast.target: Discover, Probe, Prepare, Load, Control, Status. A plugin that declares it can find playback
 // devices on the local network (a DLNA television, a Chromecast), push a media URL to one and control it. The host owns

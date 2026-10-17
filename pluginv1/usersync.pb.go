@@ -1,4 +1,4 @@
-// Kryspal Media Plugin protocol v1: user sync (change 0098), e.g. Trakt's watched history and now-playing reports.
+// Kryspal Media Plugin protocol v1: user sync, e.g. Trakt's watched history and now-playing reports.
 //
 // Capabilities and the methods they map to:
 //   usersync.link                         BeginLink, PollLink, Unlink

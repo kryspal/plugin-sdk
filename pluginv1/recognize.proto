@@ -1,4 +1,4 @@
-// Kryspal Media Plugin protocol v1: name recognition (change 0121).
+// Kryspal Media Plugin protocol v1: name recognition.
 //
 // Capabilities and the methods they map to:
 //   media.recognize  Recognize
@@ -44,7 +44,7 @@ message RecognizeRequest {
   // The item's known provider IDs; the plugin can sometimes return them directly.
   map<string, string> provider_ids = 8;
   Languages languages = 9;
-  // The previous recognition result did not get a provider match (the host's second round, change 0121 revision). In
+  // The previous recognition result did not get a provider match (the host's second round). In
   // this round the plugin may switch to a more expensive method,
   // e.g. calling AI assist through the host (requires declaring the llm permission and the administrator's approval).
   // The host sends at most one second round per item.
@@ -86,4 +86,9 @@ message Recognition {
   double confidence = 15;
   // Codes of the rules that matched, e.g. "year.paren", "group.bracket" (for debugging and evaluation).
   repeated string evidence = 16;
+  // Optional: tags read from the name that the host stores on the item, kept apart from scraped and manual tags and
+  // replaced each time the host runs recognition for it, for example a release or subtitle mark. Only the candidate the
+  // host goes with counts. At most 16, each at most 32 characters. Facts the
+  // host measures itself (resolution, HDR, subtitle tracks) come from the media, so do not send them as tags.
+  repeated string tags = 17;
 }

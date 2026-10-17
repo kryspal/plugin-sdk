@@ -1,0 +1,35 @@
+// Kryspal Media Plugin protocol v1: plugin tasks.
+//
+// Capabilities and the methods they map to:
+//   plugin.tasks  RunTask
+// A plugin that declares plugin.tasks lists its tasks in Manifest.tasks. The host shows them in its task center and
+// calls RunTask only when a schedule is due or an administrator starts a task; enabling the plugin, saving its
+// settings or restarting it never runs a task.
+syntax = "proto3";
+
+package kryspal.plugin.v1;
+
+option go_package = "github.com/kryspal/plugin-sdk/pluginv1;pluginv1";
+
+// TaskRunner is implemented by plugins that declare the plugin.tasks capability.
+service TaskRunner {
+  // RunTask runs one declared task and returns when it is done. The deadline is 30 minutes; the call is canceled
+  // when the server shuts down or an administrator cancels the task, and the plugin should stop soon after. The same
+  // task never runs twice at once; different tasks of one plugin may run at the same time.
+  rpc RunTask(RunTaskRequest) returns (RunTaskResponse);
+}
+
+message RunTaskRequest {
+  // TaskDeclaration.name.
+  string name = 1;
+  // Language of RunTaskResponse.message, BCP 47; an empty string means English.
+  string language = 2;
+}
+
+message RunTaskResponse {
+  // One sentence for administrators about the result, for example "Updated 1203 entries"; may be empty. At most 500
+  // characters are kept.
+  string message = 1;
+  // Nothing needed doing (for example, the upstream had no changes); the task center shows the run as skipped.
+  bool nothing_to_do = 2;
+}

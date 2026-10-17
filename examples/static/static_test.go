@@ -241,7 +241,7 @@ func TestStaticPlugin(t *testing.T) {
 	})
 
 	t.Run("ServiceNamesAreKryspal", func(t *testing.T) {
-		// The wire name changed to kryspal.plugin.v1 (change 0098): calling with the old name must get UNIMPLEMENTED, not silently
+		// The wire name changed to kryspal.plugin.v1: calling with the old name must get UNIMPLEMENTED, not silently
 		// succeed.
 		err := conn.Invoke(ctx, "/mediaserver.plugin.v1.Plugin/Describe", &pluginv1.DescribeRequest{}, &pluginv1.Manifest{})
 		wantCode(t, err, codes.Unimplemented)

@@ -13,7 +13,7 @@ import (
 	pluginv1 "github.com/kryspal/plugin-sdk/pluginv1"
 )
 
-// fakeStream records the trailer a streaming handler sets (change 0149).
+// fakeStream records the trailer a streaming handler sets.
 type fakeStream struct {
 	grpc.ServerStream
 	trailer metadata.MD

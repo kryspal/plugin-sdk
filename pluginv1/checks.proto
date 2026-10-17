@@ -1,0 +1,61 @@
+// Kryspal Media Plugin protocol v1: settings checks.
+//
+// Capabilities and the methods they map to:
+//   plugin.checks  RunCheck
+// A plugin that declares plugin.checks lists its checks in Manifest.checks. The host shows each as a button on the
+// plugin's settings page and calls RunCheck only when an administrator presses it; checks never run on their own and
+// never decide whether settings can be saved.
+//
+// A check is for confirming settings: that a key or account is accepted, that a source can be reached, how much quota
+// is left. It must not download catalog data in bulk, write files, change the plugin's state or start other work. The
+// host only shows the result text: it stores nothing, changes no settings and records no task. The host enforces a
+// 30-second deadline, one running check per plugin and at most one run of the same check (for a per-item check, of
+// the same check on the same entry) every 10 seconds.
+syntax = "proto3";
+
+package kryspal.plugin.v1;
+
+option go_package = "github.com/kryspal/plugin-sdk/pluginv1;pluginv1";
+
+// Checker is implemented by plugins that declare the plugin.checks capability.
+service Checker {
+  // RunCheck runs one declared check against the given settings and reports what it found. The deadline is 30
+  // seconds; the host cancels the call when it passes. The plugin must not apply or keep the settings it receives.
+  rpc RunCheck(RunCheckRequest) returns (RunCheckResponse);
+}
+
+message RunCheckRequest {
+  // CheckDeclaration.id.
+  string id = 1;
+  // Language of the result messages, BCP 47; an empty string means English.
+  string language = 2;
+  // The settings to check, encoded as in ConfigureRequest: the values on the administrator's form, which may not be
+  // saved yet. Secret fields the administrator did not change carry the stored value.
+  map<string, string> values = 3;
+  // For a check declared with per_item: the ConfigItem.id of the entry the administrator is looking at. Empty for
+  // other checks. Check that entry only.
+  string item = 4;
+}
+
+message RunCheckResponse {
+  // One or more findings, in the order to show them. An empty list is shown as a plain success.
+  repeated CheckResult results = 1;
+}
+
+// CheckResult is one finding.
+message CheckResult {
+  CheckStatus status = 1;
+  // One line for administrators, for example "API key accepted" or "Daily quota: 18 of 20 downloads left". At most
+  // 500 characters are kept.
+  string message = 2;
+  // For a per_item check: the item this result belongs to (RunCheckRequest.item). The host links the result to that
+  // entry of the list. Empty when the check ran for the whole group.
+  string item = 3;
+}
+
+enum CheckStatus {
+  CHECK_STATUS_UNSPECIFIED = 0;
+  CHECK_STATUS_OK = 1;
+  CHECK_STATUS_WARNING = 2;
+  CHECK_STATUS_FAILED = 3;
+}

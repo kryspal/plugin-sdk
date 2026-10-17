@@ -1,4 +1,4 @@
-// Kryspal Media Plugin protocol v1: subtitle providers (change 0098).
+// Kryspal Media Plugin protocol v1: subtitle providers.
 //
 // Capability subtitles.search: Search, Download. The subtitle account (e.g. an OpenSubtitles username and password) is a
 // server-level setting configured by the administrator,
@@ -279,7 +279,7 @@ type SearchSubtitlesResponse struct {
 	Candidates []*SubtitleCandidate   `protobuf:"bytes,1,rep,name=candidates,proto3" json:"candidates,omitempty"`
 	// Remaining download quota of the configured account, when the plugin knows it (for example read after signing in),
 	// so the admin console can show it before the first download. Leave it unset when unknown; -1 also means unknown.
-	// Added in change 0146; older plugins do not send it and older hosts ignore it.
+	// Added within v1; older plugins do not send it and older hosts ignore it.
 	QuotaRemaining *int32 `protobuf:"varint,2,opt,name=quota_remaining,json=quotaRemaining,proto3,oneof" json:"quota_remaining,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
@@ -347,7 +347,26 @@ type SubtitleCandidate struct {
 	// 0 to 10; 0 means unknown.
 	Rating float64 `protobuf:"fixed64,8,opt,name=rating,proto3" json:"rating,omitempty"`
 	// The plugin's own score from 0 to 1; 0 means not supplied. The host does not rely on it.
-	Score         float64 `protobuf:"fixed64,9,opt,name=score,proto3" json:"score,omitempty"`
+	Score float64 `protobuf:"fixed64,9,opt,name=score,proto3" json:"score,omitempty"`
+	// The following help users and the host pick a subtitle that fits before downloading it. Fill in what the source
+	// provides; leave the rest at the default (unknown). Added within v1; older hosts ignore them.
+	// Size of the download in bytes; 0 means unknown.
+	SizeBytes int64 `protobuf:"varint,10,opt,name=size_bytes,json=sizeBytes,proto3" json:"size_bytes,omitempty"`
+	// Time of the last cue, in seconds, when the source gives it; 0 means unknown. The host compares it with the video's
+	// runtime.
+	DurationSeconds int32 `protobuf:"varint,11,opt,name=duration_seconds,json=durationSeconds,proto3" json:"duration_seconds,omitempty"`
+	// Frame rate the subtitle is timed for, for example 23.976; 0 means unknown. A mismatch makes cues drift.
+	FrameRate float64 `protobuf:"fixed64,12,opt,name=frame_rate,json=frameRate,proto3" json:"frame_rate,omitempty"`
+	// Upload date, YYYY-MM-DD; empty means unknown.
+	UploadedAt string `protobuf:"bytes,13,opt,name=uploaded_at,json=uploadedAt,proto3" json:"uploaded_at,omitempty"`
+	// The source marks it as machine translated.
+	MachineTranslated bool `protobuf:"varint,14,opt,name=machine_translated,json=machineTranslated,proto3" json:"machine_translated,omitempty"`
+	// The source marks it as coming from a trusted uploader or an official release.
+	Trusted bool `protobuf:"varint,15,opt,name=trusted,proto3" json:"trusted,omitempty"`
+	// Number of subtitle files in the download (for example one per episode in a season pack); 0 means unknown.
+	FileCount int32 `protobuf:"varint,16,opt,name=file_count,json=fileCount,proto3" json:"file_count,omitempty"`
+	// A short note from the source, for example "synced for the extended cut"; plain text, at most 200 characters.
+	Comment       string `protobuf:"bytes,17,opt,name=comment,proto3" json:"comment,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -443,6 +462,62 @@ func (x *SubtitleCandidate) GetScore() float64 {
 		return x.Score
 	}
 	return 0
+}
+
+func (x *SubtitleCandidate) GetSizeBytes() int64 {
+	if x != nil {
+		return x.SizeBytes
+	}
+	return 0
+}
+
+func (x *SubtitleCandidate) GetDurationSeconds() int32 {
+	if x != nil {
+		return x.DurationSeconds
+	}
+	return 0
+}
+
+func (x *SubtitleCandidate) GetFrameRate() float64 {
+	if x != nil {
+		return x.FrameRate
+	}
+	return 0
+}
+
+func (x *SubtitleCandidate) GetUploadedAt() string {
+	if x != nil {
+		return x.UploadedAt
+	}
+	return ""
+}
+
+func (x *SubtitleCandidate) GetMachineTranslated() bool {
+	if x != nil {
+		return x.MachineTranslated
+	}
+	return false
+}
+
+func (x *SubtitleCandidate) GetTrusted() bool {
+	if x != nil {
+		return x.Trusted
+	}
+	return false
+}
+
+func (x *SubtitleCandidate) GetFileCount() int32 {
+	if x != nil {
+		return x.FileCount
+	}
+	return 0
+}
+
+func (x *SubtitleCandidate) GetComment() string {
+	if x != nil {
+		return x.Comment
+	}
+	return ""
 }
 
 type DownloadSubtitleRequest struct {
@@ -641,7 +716,7 @@ const file_pluginv1_subtitle_proto_rawDesc = "" +
 	"candidates\x18\x01 \x03(\v2$.kryspal.plugin.v1.SubtitleCandidateR\n" +
 	"candidates\x12,\n" +
 	"\x0fquota_remaining\x18\x02 \x01(\x05H\x00R\x0equotaRemaining\x88\x01\x01B\x12\n" +
-	"\x10_quota_remaining\"\xb0\x03\n" +
+	"\x10_quota_remaining\"\xbc\x05\n" +
 	"\x11SubtitleCandidate\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1a\n" +
 	"\blanguage\x18\x02 \x01(\tR\blanguage\x12!\n" +
@@ -652,7 +727,20 @@ const file_pluginv1_subtitle_proto_rawDesc = "" +
 	"matched_by\x18\x06 \x01(\x0e2..kryspal.plugin.v1.SubtitleCandidate.MatchedByR\tmatchedBy\x12%\n" +
 	"\x0edownload_count\x18\a \x01(\x05R\rdownloadCount\x12\x16\n" +
 	"\x06rating\x18\b \x01(\x01R\x06rating\x12\x14\n" +
-	"\x05score\x18\t \x01(\x01R\x05score\"e\n" +
+	"\x05score\x18\t \x01(\x01R\x05score\x12\x1d\n" +
+	"\n" +
+	"size_bytes\x18\n" +
+	" \x01(\x03R\tsizeBytes\x12)\n" +
+	"\x10duration_seconds\x18\v \x01(\x05R\x0fdurationSeconds\x12\x1d\n" +
+	"\n" +
+	"frame_rate\x18\f \x01(\x01R\tframeRate\x12\x1f\n" +
+	"\vuploaded_at\x18\r \x01(\tR\n" +
+	"uploadedAt\x12-\n" +
+	"\x12machine_translated\x18\x0e \x01(\bR\x11machineTranslated\x12\x18\n" +
+	"\atrusted\x18\x0f \x01(\bR\atrusted\x12\x1d\n" +
+	"\n" +
+	"file_count\x18\x10 \x01(\x05R\tfileCount\x12\x18\n" +
+	"\acomment\x18\x11 \x01(\tR\acomment\"e\n" +
 	"\tMatchedBy\x12\x1a\n" +
 	"\x16MATCHED_BY_UNSPECIFIED\x10\x00\x12\x13\n" +
 	"\x0fMATCHED_BY_HASH\x10\x01\x12\x12\n" +

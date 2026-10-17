@@ -22,8 +22,15 @@ const (
 	EnvProtocols = "KRYSPAL_PLUGIN_PROTOCOLS"
 	// EnvSocketDir is the 0700 directory the host created for this plugin; the plugin creates its Unix socket in it.
 	EnvSocketDir = "KRYSPAL_PLUGIN_SOCKET_DIR"
+	// EnvDataDir is the plugin's own data directory (the same path as HOME): keep caches and other files here. It is
+	// kept across upgrades and removed on uninstall. Hosts before SDK v0.2.0 do not set it; use DataDir, which falls
+	// back to HOME.
+	EnvDataDir = "KRYSPAL_PLUGIN_DATA_DIR"
+	// EnvHostFeatures lists, comma-separated, the compatible protocol additions the host stores and uses (the
+	// HostFeature* values). Older hosts do not set it; see HostFeatures.
+	EnvHostFeatures = "KRYSPAL_HOST_FEATURES"
 	// EnvHostSocket and EnvHostToken are the Unix socket path and one-time token of the service the host offers to plugins
-	// (Host, change 0103). They differ on every process start; older hosts do not set them, in which case the SDK's Host()
+	// (Host). They differ on every process start; older hosts do not set them, in which case the SDK's Host()
 	// returns ErrHostUnavailable and the plugin should degrade gracefully.
 	EnvHostSocket = "KRYSPAL_HOST_SOCKET"
 	EnvHostToken  = "KRYSPAL_HOST_TOKEN"
@@ -135,4 +142,56 @@ func NegotiateProtocol(host, plugin []int) (int, error) {
 		return 0, fmt.Errorf("%w: no common protocol version (host %v, plugin %v)", ErrHandshake, host, plugin)
 	}
 	return best, nil
+}
+
+// DataDir returns the plugin's own data directory: EnvDataDir when the host sets it, otherwise HOME (older hosts give
+// the plugin its own HOME with the same meaning). getenv is usually os.Getenv; an empty result means the plugin was not
+// started by a host.
+func DataDir(getenv func(string) string) string {
+	if d := getenv(EnvDataDir); d != "" {
+		return d
+	}
+	return getenv("HOME")
+}
+
+// Values of EnvHostFeatures. Each names a compatible addition to protocol v1 that an older host ignores, so a plugin
+// can tell whether the host will keep what it sends (for example, to put the same facts into the overview for hosts
+// that drop attributes).
+const (
+	HostFeatureAttributes = "attributes" // ItemMetadata.attributes and PersonMetadata.attributes
+	HostFeaturePhoto      = "photo"      // IMAGE_TYPE_PHOTO for people
+	// HostFeatureConfigTypes: the setting types text, string_list and ordered_multiselect, and ConfigField.visible_when.
+	HostFeatureConfigTypes = "config_types"
+	// HostFeatureImageReferer: Manifest.image_fetch_rules.
+	HostFeatureImageReferer = "image_referer"
+	// HostFeatureTasks: the host schedules and runs Manifest.tasks (capability plugin.tasks). Without it, a plugin that
+	// needs periodic work runs its own timer.
+	HostFeatureTasks = "tasks"
+	// HostFeatureImageCrop: Image.crop, Image.focus and Image.crop_hint. Without it the host uses the whole image, so a
+	// plugin that needs a crop (for example a portrait poster cut from a wide cover) should send an uncropped image only
+	// where it fits.
+	HostFeatureImageCrop = "image_crop"
+	// HostFeatureConfigItems: ConfigGroup.items and ConfigField.item. Without it the host shows an item's fields as
+	// ordinary fields of the group, so a plugin with many items may fall back to a select plus visible_when.
+	HostFeatureConfigItems = "config_items"
+	// HostFeatureItemChecks: the host shows a per_item check (§7.9) next to every entry of the group's list and calls
+	// RunCheck with RunCheckRequest.item. Without it the host runs the check once for the whole group with an empty
+	// item, so a plugin should then test every entry the user configured.
+	HostFeatureItemChecks = "item_checks"
+	// HostFeatureScrapeNotices: the host shows Notice entries from metadata and image results to the user and fetches
+	// again after retry_after_seconds when a result says incomplete. Without it notices are ignored and
+	// an incomplete result is final.
+	HostFeatureScrapeNotices = "scrape_notices"
+)
+
+// HostFeatures returns the features listed in EnvHostFeatures. The result is empty, not nil, when the variable is
+// missing (a host older than SDK v0.2.0): such a host supports none of them. getenv is usually os.Getenv.
+func HostFeatures(getenv func(string) string) map[string]bool {
+	out := map[string]bool{}
+	for _, f := range strings.Split(getenv(EnvHostFeatures), ",") {
+		if f = strings.TrimSpace(f); f != "" {
+			out[f] = true
+		}
+	}
+	return out
 }

@@ -1,4 +1,4 @@
-// Package i18n is a localization helper for plugin authors (change 0057): it picks a string table by the BCP 47 language
+// Package i18n is a localization helper for plugin authors: it picks a string table by the BCP 47 language
 // tag the host sends, and when that language is missing it looks strings up along a fixed fallback chain that always ends
 // in English. It depends only on the standard library.
 //

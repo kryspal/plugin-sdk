@@ -1,4 +1,4 @@
-// Kryspal Media Plugin protocol v1: name recognition (change 0121).
+// Kryspal Media Plugin protocol v1: name recognition.
 //
 // Capabilities and the methods they map to:
 //   media.recognize  Recognize
@@ -100,7 +100,7 @@ type RecognizeRequest struct {
 	// The item's known provider IDs; the plugin can sometimes return them directly.
 	ProviderIds map[string]string `protobuf:"bytes,8,rep,name=provider_ids,json=providerIds,proto3" json:"provider_ids,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	Languages   *Languages        `protobuf:"bytes,9,opt,name=languages,proto3" json:"languages,omitempty"`
-	// The previous recognition result did not get a provider match (the host's second round, change 0121 revision). In
+	// The previous recognition result did not get a provider match (the host's second round). In
 	// this round the plugin may switch to a more expensive method,
 	// e.g. calling AI assist through the host (requires declaring the llm permission and the administrator's approval).
 	// The host sends at most one second round per item.
@@ -291,7 +291,12 @@ type Recognition struct {
 	// 0–1.
 	Confidence float64 `protobuf:"fixed64,15,opt,name=confidence,proto3" json:"confidence,omitempty"`
 	// Codes of the rules that matched, e.g. "year.paren", "group.bracket" (for debugging and evaluation).
-	Evidence      []string `protobuf:"bytes,16,rep,name=evidence,proto3" json:"evidence,omitempty"`
+	Evidence []string `protobuf:"bytes,16,rep,name=evidence,proto3" json:"evidence,omitempty"`
+	// Optional: tags read from the name that the host stores on the item, kept apart from scraped and manual tags and
+	// replaced each time the host runs recognition for it, for example a release or subtitle mark. Only the candidate the
+	// host goes with counts. At most 16, each at most 32 characters. Facts the
+	// host measures itself (resolution, HDR, subtitle tracks) come from the media, so do not send them as tags.
+	Tags          []string `protobuf:"bytes,17,rep,name=tags,proto3" json:"tags,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -438,6 +443,13 @@ func (x *Recognition) GetEvidence() []string {
 	return nil
 }
 
+func (x *Recognition) GetTags() []string {
+	if x != nil {
+		return x.Tags
+	}
+	return nil
+}
+
 var File_pluginv1_recognize_proto protoreflect.FileDescriptor
 
 const file_pluginv1_recognize_proto_rawDesc = "" +
@@ -462,7 +474,7 @@ const file_pluginv1_recognize_proto_rawDesc = "" +
 	"\n" +
 	"candidates\x18\x01 \x03(\v2\x1e.kryspal.plugin.v1.RecognitionR\n" +
 	"candidates\x12%\n" +
-	"\x0eparser_version\x18\x02 \x01(\tR\rparserVersion\"\x81\x06\n" +
+	"\x0eparser_version\x18\x02 \x01(\tR\rparserVersion\"\x95\x06\n" +
 	"\vRecognition\x12/\n" +
 	"\x04type\x18\x01 \x01(\x0e2\x1b.kryspal.plugin.v1.ItemTypeR\x04type\x124\n" +
 	"\x06titles\x18\x02 \x03(\v2\x1c.kryspal.plugin.v1.TitleHintR\x06titles\x12\x12\n" +
@@ -484,7 +496,8 @@ const file_pluginv1_recognize_proto_rawDesc = "" +
 	"\n" +
 	"confidence\x18\x0f \x01(\x01R\n" +
 	"confidence\x12\x1a\n" +
-	"\bevidence\x18\x10 \x03(\tR\bevidence\x1a>\n" +
+	"\bevidence\x18\x10 \x03(\tR\bevidence\x12\x12\n" +
+	"\x04tags\x18\x11 \x03(\tR\x04tags\x1a>\n" +
 	"\x10IdentifiersEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01B\t\n" +

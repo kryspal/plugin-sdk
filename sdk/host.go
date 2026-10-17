@@ -16,7 +16,7 @@ import (
 	pluginv1 "github.com/kryspal/plugin-sdk/pluginv1"
 )
 
-// The service the host offers to plugins (Host, change 0103): plugins call back into the host.
+// The service the host offers to plugins (Host): plugins call back into the host.
 
 // ErrHostUnavailable reports that the host does not offer the Host service (the environment variables KRYSPAL_HOST_SOCKET
 // and KRYSPAL_HOST_TOKEN are absent): the plugin is running on an older host that does not know the Host service. The

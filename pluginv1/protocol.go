@@ -1,6 +1,6 @@
 // Package pluginv1 holds the gRPC definitions of the Kryspal Media Plugin protocol v1 (generated from plugin.proto,
 // metadata.proto, image.proto, subtitle.proto, usersync.proto, recognize.proto, segments.proto, danmaku.proto and
-// host.proto) and the protocol constants. See pluginapi/PROTOCOL.md for the specification.
+// host.proto) and the protocol constants. See PROTOCOL.md at the module root for the specification.
 //
 // Apart from this file, every *.pb.go file is generated; regenerate them with pluginapi/gen.sh, do not edit them by hand.
 package pluginv1
@@ -17,7 +17,7 @@ import (
 const ProtocolVersion = 1
 
 // SDKMarker is the value with which a plugin catalog version entry (CatalogVersion.sdk) declares "this version is built
-// for the kryspal.plugin.v1 protocol" (change 0098). A version without this field (or with a different value) was built
+// for the kryspal.plugin.v1 protocol". A version without this field (or with a different value) was built
 // for the protocol before the rename; newer hosts list it as not installable and say why.
 const SDKMarker = "kryspal-plugin/1"
 
@@ -27,50 +27,54 @@ const (
 	CapabilityMetadataSeries     = "metadata.series"     // series, including seasons and episodes: Search, GetItem
 	CapabilityMetadataPerson     = "metadata.person"     // people: GetPerson
 	CapabilityMetadataCollection = "metadata.collection" // collections: GetCollection
-	CapabilityMetadataTrailers   = "metadata.trailers"   // trailers: GetItem returns ItemMetadata.trailers (change 0022)
-	// CapabilityMetadataPersonSearch: look up people by name and title hints: SearchPerson (change 0079)
+	CapabilityMetadataTrailers   = "metadata.trailers"   // trailers: GetItem returns ItemMetadata.trailers
+	// CapabilityMetadataPersonSearch: look up people by name and title hints: SearchPerson
 	CapabilityMetadataPersonSearch = "metadata.person.search"
 	// CapabilityMetadataSearchHints: Search reads the name recognition hints (SearchRequest fields 7–13) and fills in
-	// SearchCandidate.matched_title and reasons (change 0121). Plugins that do not declare it receive only name and year.
+	// SearchCandidate.matched_title and reasons. Plugins that do not declare it receive only name and year.
 	CapabilityMetadataSearchHints = "metadata.search.hints"
-	// CapabilityMetadataSeriesAbsolute: GetItem accepts an episode's absolute episode number (GetItemRequest.absolute_episode_number, change 0121).
+	// CapabilityMetadataSeriesAbsolute: GetItem accepts an episode's absolute episode number (GetItemRequest.absolute_episode_number).
 	CapabilityMetadataSeriesAbsolute = "metadata.series.absolute"
 
-	// Images (change 0098): GetImages.
+	// Images: GetImages.
 	CapabilityImagesMovie  = "images.movie"
 	CapabilityImagesSeries = "images.series"
-	// CapabilityImagesPerson: GetImages(ITEM_TYPE_PERSON) returns a person's photos; the request carries provider_ids, name and aliases (change 0156).
+	// CapabilityImagesPerson: GetImages(ITEM_TYPE_PERSON) returns a person's photos; the request carries provider_ids, name and aliases.
 	CapabilityImagesPerson = "images.person"
-	// Subtitles (change 0098): Search, Download.
+	// Subtitles: Search, Download.
 	CapabilitySubtitlesSearch = "subtitles.search"
-	// User sync (change 0098): member linking, now-playing reports (scrobbling), two-way sync of watched state.
+	// User sync: member linking, now-playing reports (scrobbling), two-way sync of watched state.
 	CapabilityUserSyncLink        = "usersync.link"
 	CapabilityUserSyncScrobble    = "usersync.scrobble"
 	CapabilityUserSyncWatchedPull = "usersync.watched.pull"
 	CapabilityUserSyncWatchedPush = "usersync.watched.push"
-	// Name recognition (change 0121): Recognize.
+	// Name recognition: Recognize.
 	CapabilityMediaRecognize = "media.recognize"
-	// Segment providers (change 0122 part A): GetSegments, SubmitSegments.
+	// Segment providers: GetSegments, SubmitSegments.
 	CapabilitySegmentsProvider = "segments.provider"
 	CapabilitySegmentsSubmit   = "segments.submit"
-	// Danmaku providers (change 0122 part E): GetDanmaku.
+	// Danmaku providers: GetDanmaku.
 	CapabilityDanmakuProvider = "danmaku.provider"
-	// Cast targets (change 0109): Discover, Probe, Prepare, Load, Control, Status.
+	// Cast targets: Discover, Probe, Prepare, Load, Control, Status.
 	CapabilityCastTarget = "cast.target"
-	// Person alias maps (change 0149): GetAliasMap.
+	// Person alias maps: GetAliasMap.
 	CapabilityPeopleAliasMap = "people.aliasmap"
+	// Plugin tasks: RunTask for the tasks in Manifest.tasks.
+	CapabilityPluginTasks = "plugin.tasks"
+	// Settings checks: RunCheck for the checks in Manifest.checks.
+	CapabilityPluginChecks = "plugin.checks"
 )
 
-// Permissions (Manifest.permissions, change 0103). The host ignores permissions it does not recognize.
+// Permissions (Manifest.permissions). The host ignores permissions it does not recognize.
 const (
 	// PermissionLLM: use AI assist (Host.LLMComplete).
 	PermissionLLM = "llm"
-	// PermissionLAN: the plugin sends multicast and connects to devices on the local network (change 0109). Disclosed to the
+	// PermissionLAN: the plugin sends multicast and connects to devices on the local network. Disclosed to the
 	// administrator; enabling the plugin is the consent, unlike llm which is allowed per plugin.
 	PermissionLAN = "network.lan"
 )
 
-// Fixed codes of the Host service (gRPC status messages, change 0103; they do not vary by language).
+// Fixed codes of the Host service (gRPC status messages; they do not vary by language).
 const (
 	CodeAIAssistDisabled   = "ai_assist_disabled"
 	CodeAIAssistNotAllowed = "ai_assist_not_allowed"
@@ -92,13 +96,15 @@ const (
 	HealthServiceDanmakuProvider     = "kryspal.plugin.v1.DanmakuProvider"
 	HealthServicePersonAliasProvider = "kryspal.plugin.v1.PersonAliasProvider"
 	HealthServiceCastTarget          = "kryspal.plugin.v1.CastTarget"
+	HealthServiceTaskRunner          = "kryspal.plugin.v1.TaskRunner"
+	HealthServiceChecker             = "kryspal.plugin.v1.Checker"
 )
 
 // TrailerRetryAfter is the trailer key attached to a RESOURCE_EXHAUSTED error; its value is a positive decimal number of
 // seconds. The host pauses the whole plugin until then; when it is missing or unparsable, the host uses DefaultRetryAfter.
 const TrailerRetryAfter = "retry-after-seconds"
 
-// TrailerRetryAfterScope is an optional trailer key attached to a RESOURCE_EXHAUSTED error (change 0098): the scope of
+// TrailerRetryAfterScope is an optional trailer key attached to a RESOURCE_EXHAUSTED error: the scope of
 // the rate limit. Its value is RetryScopePlugin (the default, pauses the whole plugin) or RetryScopeCredential (pauses only
 // this one credential, e.g. Trakt's per-user quota).
 const TrailerRetryAfterScope = "retry-after-scope"

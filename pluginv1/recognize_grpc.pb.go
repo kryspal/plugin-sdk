@@ -1,4 +1,4 @@
-// Kryspal Media Plugin protocol v1: name recognition (change 0121).
+// Kryspal Media Plugin protocol v1: name recognition.
 //
 // Capabilities and the methods they map to:
 //   media.recognize  Recognize

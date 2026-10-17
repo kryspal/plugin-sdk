@@ -53,3 +53,31 @@ func TestProtocols(t *testing.T) {
 		t.Fatalf("Negotiate no overlap err = %v", err)
 	}
 }
+
+func TestDataDir(t *testing.T) {
+	env := func(m map[string]string) func(string) string { return func(k string) string { return m[k] } }
+	if got := pluginapi.DataDir(env(map[string]string{pluginapi.EnvDataDir: "/data/p", "HOME": "/home/p"})); got != "/data/p" {
+		t.Fatalf("DataDir with %s = %q, want /data/p", pluginapi.EnvDataDir, got)
+	}
+	if got := pluginapi.DataDir(env(map[string]string{"HOME": "/home/p"})); got != "/home/p" {
+		t.Fatalf("DataDir on an older host = %q, want HOME /home/p", got)
+	}
+}
+
+func TestHostFeatures(t *testing.T) {
+	env := func(v string) func(string) string {
+		return func(k string) string {
+			if k == pluginapi.EnvHostFeatures {
+				return v
+			}
+			return ""
+		}
+	}
+	got := pluginapi.HostFeatures(env(" attributes, photo ,,future "))
+	if !got[pluginapi.HostFeatureAttributes] || !got[pluginapi.HostFeaturePhoto] || !got["future"] || len(got) != 3 {
+		t.Fatalf("HostFeatures = %v", got)
+	}
+	if got := pluginapi.HostFeatures(env("")); got == nil || len(got) != 0 {
+		t.Fatalf("HostFeatures on an older host = %v, want an empty non-nil map", got)
+	}
+}

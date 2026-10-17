@@ -13,6 +13,7 @@ Kryspal Media Plugin protocol v1: a plugin is a standalone executable that the s
 | `sdk/` | SDK for Go plugin authors: `sdk.Main(sdk.Config{Plugin: p, MetadataProvider: p})` |
 | `plugintest/` | Conformance suite: runs a plugin binary the way the host does and checks the protocol contract |
 | `examples/minimal/` | The quickstart plugin: one capability, no configuration |
+| `examples/people/` | People and recognition: `GetPerson` with a gallery and attributes, `SearchPerson` confirmed by works, person images, a `Recognizer` for catalog codes, host features |
 | `examples/static/` | Example plugin that returns fixed data; the tests compile it on the spot and start it the way the host does |
 | `gen.sh` | Regenerates `v1/*.pb.go` with pinned generator versions |
 
@@ -33,26 +34,59 @@ frozen. Outside this repository, the import paths are `github.com/kryspal/plugin
 2. Copy [`examples/minimal/main.go`](examples/minimal/main.go): a movie metadata provider that declares one capability
    (`metadata.movie`), needs no configuration and knows one title.
 3. Build a static binary: `CGO_ENABLED=0 go build -trimpath -o minimal .`
-4. Check it with the conformance suite (below), then package it with a catalog entry (`PROTOCOL.md` §9) and add the
-   catalog to the server.
+4. Check it with the conformance suite (below).
+5. Try it on your own server: start the server with `MEDIASERVER_DEV_PLUGINS` pointing at a directory of builds
+   (`PROTOCOL.md` §9.5); no catalog or signature is needed.
+6. Package it with a catalog entry (`PROTOCOL.md` §9) and add the catalog to the server.
 
 ### Conformance suite
 
-`plugintest.Run` starts a built plugin binary the way the server does and checks the protocol contract: refusing to run
-without the cookie or a shared protocol version, the handshake line and socket location, the health check, `Describe`
-(required fields, only text changes with the language), `Configure` with your test configuration, an optional metadata
-round trip (`Search`, then `GetItem` on the first candidate) and shutdown on `SIGTERM`.
+`plugintest.RunSource` builds your plugin's main package and runs it the way the server does; `plugintest.Run` does
+the same with a binary you built yourself. Both take the path of a **main package or a binary**, never a source file.
+The suite checks:
+
+- refusing to run without the cookie or a shared protocol version, the handshake line and socket location;
+- the health check, `Describe` (required fields, only text changes with the language) and `Configure` with your test
+  configuration;
+- with `Options.Metadata`: `Search`, then `GetItem` on the first candidate; item images must be HTTPS with a known type,
+  and attributes must follow the rules in `PROTOCOL.md` §7;
+- with `images.movie` or `images.series` declared: `GetImages` with the item's provider IDs;
+- with `metadata.person` declared: `GetPerson` (for `Options.Person`, or the first credit of the item), whose
+  `provider_ids` must contain the person's own ID, and `GetImages` for the person when `images.person` is declared;
+- with `media.recognize` declared: an empty path returns no candidates and no error; with `Options.Recognize`, a known
+  path is recognized, the answer is the same twice, at most three candidates, and `parser_version` is set;
+- shutdown on `SIGTERM`.
 
 ```go
 func TestConformance(t *testing.T) {
-	plugintest.Run(t, "./minimal", plugintest.Options{
+	plugintest.RunSource(t, ".", plugintest.Options{
 		Metadata: &plugintest.MetadataCase{Type: pluginv1.ItemType_ITEM_TYPE_MOVIE, Name: "Big Buck Bunny", Year: 2008},
 	})
 }
 ```
 
-Not covered yet: images, subtitles, user sync, recognition, segments, danmaku, alias maps, cast targets and the `Host`
-service.
+Point the plugin at a fake upstream with `Options.Setup` (runs before the plugin starts) and `Options.Env` (extra
+environment variables; the host's own variables cannot be replaced):
+
+```go
+plugintest.RunSource(t, ".", plugintest.Options{
+	Setup: func(t *testing.T) map[string]string {
+		srv := httptest.NewTLSServer(fakeUpstream())
+		t.Cleanup(srv.Close)
+		return map[string]string{"MYPLUGIN_BASE_URL": srv.URL}
+	},
+	Metadata: &plugintest.MetadataCase{Type: pluginv1.ItemType_ITEM_TYPE_MOVIE, Name: "Sample Movie"},
+})
+```
+
+For anything the suite does not cover (subtitles, user sync, segments, danmaku, alias maps, cast targets, your own edge
+cases), `plugintest.Start` starts the plugin the same way and returns a gRPC connection to it; the plugin is stopped when
+the test ends:
+
+```go
+conn := plugintest.Start(t, plugintest.Build(t, "."), plugintest.Options{})
+resp, err := pluginv1.NewSubtitleProviderClient(conn).Search(t.Context(), req)
+```
 
 The plugin cannot be run by hand: it exits with "this is a Kryspal Media plugin" unless the server starts it (§2).
 

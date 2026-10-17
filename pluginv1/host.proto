@@ -8,7 +8,7 @@
 // permissions declared in the plugin manifest and against what the administrator allowed. A plugin never gets the key,
 // the BaseURL or other plugins' usage.
 //
-// Once this file is published it only accepts compatible additions (change 0103).
+// Once this file is published it only accepts compatible additions.
 syntax = "proto3";
 
 package kryspal.plugin.v1;

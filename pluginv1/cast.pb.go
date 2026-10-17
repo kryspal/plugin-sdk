@@ -1,4 +1,4 @@
-// Kryspal Media Plugin protocol v1: cast targets (change 0109).
+// Kryspal Media Plugin protocol v1: cast targets.
 //
 // Capability cast.target: Discover, Probe, Prepare, Load, Control, Status. A plugin that declares it can find playback
 // devices on the local network (a DLNA television, a Chromecast), push a media URL to one and control it. The host owns
@@ -791,7 +791,7 @@ type PrepareRequest struct {
 	state  protoimpl.MessageState `protogen:"open.v1"`
 	Device *Device                `protobuf:"bytes,1,opt,name=device,proto3" json:"device,omitempty"`
 	Media  *Media                 `protobuf:"bytes,2,opt,name=media,proto3" json:"media,omitempty"`
-	// Text the administrator entered for this device or this plugin, passed on unchanged (device overrides, change 0109 first version).
+	// Text the administrator entered for this device or this plugin, passed on unchanged (device overrides).
 	Options       string `protobuf:"bytes,3,opt,name=options,proto3" json:"options,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
