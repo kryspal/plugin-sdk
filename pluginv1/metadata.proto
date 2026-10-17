@@ -183,7 +183,7 @@ message GetItemRequest {
 // Notice tells the user what happened at one data source during a request. The host shows notices in
 // the item's refresh history and in the identify dialog, as plain text, and keeps only the latest set per plugin.
 message Notice {
-  // The source as the user knows it, at most 48 characters, for example "JavDB" or "TMDB".
+  // The source as the user knows it, at most 48 characters, for example "TVDB" or "TMDB".
   string source = 1;
   NoticeStatus status = 2;
   // One sentence for the user, at most 200 characters, plain text. Say what to do when there is something to do:
@@ -371,7 +371,7 @@ message Image {
   // host works out the rectangle from the actual size after it downloads the image. Ignored when crop is set. For
   // example, a wide cover with the front on the right half sets {aspect: 0.6667, x: 1} on the poster.
   ImageCropHint crop_hint = 10;
-  // Optional: the data source this image came from, as the user knows it, at most 48 characters, for example "JavDB".
+  // Optional: the data source this image came from, as the user knows it, at most 48 characters, for example "TVDB".
   // Use the same name as Notice.source. Plugins that read a single source may leave it empty.
   string source = 11;
 }

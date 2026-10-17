@@ -1168,7 +1168,7 @@ func (x *GetItemRequest) GetAbsoluteEpisodeNumber() int32 {
 // the item's refresh history and in the identify dialog, as plain text, and keeps only the latest set per plugin.
 type Notice struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// The source as the user knows it, at most 48 characters, for example "JavDB" or "TMDB".
+	// The source as the user knows it, at most 48 characters, for example "TVDB" or "TMDB".
 	Source string       `protobuf:"bytes,1,opt,name=source,proto3" json:"source,omitempty"`
 	Status NoticeStatus `protobuf:"varint,2,opt,name=status,proto3,enum=kryspal.plugin.v1.NoticeStatus" json:"status,omitempty"`
 	// One sentence for the user, at most 200 characters, plain text. Say what to do when there is something to do:
@@ -1779,7 +1779,7 @@ type Image struct {
 	// host works out the rectangle from the actual size after it downloads the image. Ignored when crop is set. For
 	// example, a wide cover with the front on the right half sets {aspect: 0.6667, x: 1} on the poster.
 	CropHint *ImageCropHint `protobuf:"bytes,10,opt,name=crop_hint,json=cropHint,proto3" json:"crop_hint,omitempty"`
-	// Optional: the data source this image came from, as the user knows it, at most 48 characters, for example "JavDB".
+	// Optional: the data source this image came from, as the user knows it, at most 48 characters, for example "TVDB".
 	// Use the same name as Notice.source. Plugins that read a single source may leave it empty.
 	Source        string `protobuf:"bytes,11,opt,name=source,proto3" json:"source,omitempty"`
 	unknownFields protoimpl.UnknownFields
