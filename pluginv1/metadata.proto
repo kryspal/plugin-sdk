@@ -282,6 +282,12 @@ message ItemMetadata {
   // Seconds until the host should fetch again when incomplete is true; the host clamps it to 60..86400 and uses 600
   // when zero.
   uint32 retry_after_seconds = 35;
+  // Optional: which data source each field came from, for plugins that combine several sources into one result. Keys
+  // are field names of this message (for example "name", "overview", "credits", "genres", "premiere_date"), or
+  // "attributes.<key>" for a single attribute; values are the source as the user knows it, at most 48 characters, the
+  // same name as Notice.source. At most 64 entries. Images carry their own Image.source. Leave it empty when every
+  // field comes from one source. Shown to the user next to each field (PROTOCOL.md §7.10).
+  map<string, string> field_sources = 36;
 }
 
 // Rating is one source's rating.
@@ -365,6 +371,9 @@ message Image {
   // host works out the rectangle from the actual size after it downloads the image. Ignored when crop is set. For
   // example, a wide cover with the front on the right half sets {aspect: 0.6667, x: 1} on the poster.
   ImageCropHint crop_hint = 10;
+  // Optional: the data source this image came from, as the user knows it, at most 48 characters, for example "JavDB".
+  // Use the same name as Notice.source. Plugins that read a single source may leave it empty.
+  string source = 11;
 }
 
 // ImageCropHint asks for the largest part of the image with the given aspect ratio, placed by x and y.
@@ -505,6 +514,9 @@ message PersonMetadata {
   repeated Notice notices = 14;
   bool incomplete = 15;
   uint32 retry_after_seconds = 16;
+  // Same as ItemMetadata.field_sources, with field names of this message (for example "name", "overview",
+  // "birth_date", "attributes.height").
+  map<string, string> field_sources = 17;
 }
 
 // Link is an external page of a person.

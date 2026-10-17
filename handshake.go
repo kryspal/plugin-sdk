@@ -182,6 +182,10 @@ const (
 	// again after retry_after_seconds when a result says incomplete. Without it notices are ignored and
 	// an incomplete result is final.
 	HostFeatureScrapeNotices = "scrape_notices"
+	// HostFeatureFieldSources: the host stores ItemMetadata.field_sources, PersonMetadata.field_sources and
+	// Image.source next to each field's provenance and shows them (§7.10). Without it they are ignored; sending them is
+	// harmless.
+	HostFeatureFieldSources = "field_sources"
 )
 
 // HostFeatures returns the features listed in EnvHostFeatures. The result is empty, not nil, when the variable is

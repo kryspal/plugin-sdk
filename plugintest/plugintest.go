@@ -245,6 +245,7 @@ func metadataRoundTrip(ctx context.Context, t *testing.T, conn *grpc.ClientConn,
 	}
 	checkImages(t, "ItemMetadata.images", item.GetImages(), nil)
 	checkAttributes(t, "ItemMetadata.attributes", item.GetAttributes())
+	checkFieldSources(t, "ItemMetadata.field_sources", item, item.GetFieldSources())
 	checkNotices(t, "ItemMetadata.notices", item.GetNotices(), item.GetIncomplete(), item.GetRetryAfterSeconds())
 	return item
 }

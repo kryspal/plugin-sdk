@@ -4,11 +4,13 @@ import (
 	"context"
 	"net/url"
 	"slices"
+	"strings"
 	"testing"
 	"unicode/utf8"
 
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protoreflect"
 
 	pluginv1 "github.com/kryspal/plugin-sdk/pluginv1"
 )
@@ -19,6 +21,8 @@ const (
 	maxAttributeValueRunes = 256
 	maxAttributeKeyLen     = 64
 	maxRecognitions        = 3
+	maxFieldSources        = 64 // PROTOCOL.md §7.10
+	maxSourceNameRunes     = 48
 )
 
 func declares(m *pluginv1.Manifest, capability string) bool {
@@ -88,6 +92,7 @@ func personRoundTrip(ctx context.Context, t *testing.T, conn *grpc.ClientConn, m
 	personTypes := []pluginv1.ImageType{pluginv1.ImageType_IMAGE_TYPE_PRIMARY, pluginv1.ImageType_IMAGE_TYPE_PHOTO}
 	checkImages(t, "PersonMetadata.images", p.GetImages(), personTypes)
 	checkAttributes(t, "PersonMetadata.attributes", p.GetAttributes())
+	checkFieldSources(t, "PersonMetadata.field_sources", p, p.GetFieldSources())
 	checkNotices(t, "PersonMetadata.notices", p.GetNotices(), p.GetIncomplete(), p.GetRetryAfterSeconds())
 
 	if !declares(m, pluginv1.CapabilityImagesPerson) {
@@ -168,6 +173,34 @@ func checkImages(t *testing.T, what string, images []*pluginv1.Image, allowed []
 			t.Errorf("%s[%d]: type %v is not a known image type", what, i, typ)
 		} else if len(allowed) > 0 && !slices.Contains(allowed, typ) {
 			t.Errorf("%s[%d]: type %v is not allowed here; want one of %v", what, i, typ, allowed)
+		}
+		if n := utf8.RuneCountInString(img.GetSource()); n > maxSourceNameRunes {
+			t.Errorf("%s[%d]: source has %d characters; at most %d are kept", what, i, n, maxSourceNameRunes)
+		}
+	}
+}
+
+// checkFieldSources reports field_sources entries the host would drop or cut (PROTOCOL.md §7.10): keys must be field
+// names of msg, or "attributes." followed by a valid attribute key; values are non-empty source names of at most 48
+// characters.
+func checkFieldSources(t *testing.T, what string, msg proto.Message, sources map[string]string) {
+	t.Helper()
+	if len(sources) > maxFieldSources {
+		t.Errorf("%s has %d entries; at most %d are kept", what, len(sources), maxFieldSources)
+	}
+	fields := msg.ProtoReflect().Descriptor().Fields()
+	for k, v := range sources {
+		if attr, ok := strings.CutPrefix(k, "attributes."); ok {
+			if !validAttributeKey(attr) {
+				t.Errorf("%s: key %q names an invalid attribute key", what, k)
+			}
+		} else if k == "field_sources" || fields.ByName(protoreflect.Name(k)) == nil {
+			t.Errorf("%s: key %q is not a field of %s", what, k, fields.Get(0).ContainingMessage().Name())
+		}
+		if v == "" {
+			t.Errorf("%s[%q]: empty source name; leave the entry out instead", what, k)
+		} else if n := utf8.RuneCountInString(v); n > maxSourceNameRunes {
+			t.Errorf("%s[%q]: source name has %d characters; at most %d are kept", what, k, n, maxSourceNameRunes)
 		}
 	}
 }

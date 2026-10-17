@@ -108,6 +108,9 @@ func (pl *plugin) GetPerson(_ context.Context, req *pluginv1.GetPersonRequest) (
 		ProviderIds: map[string]string{"people": p.id},
 		Images:      personImages(p.id),
 		Attributes:  p.attributes,
+		// This example pretends the agency fact came from a second source; say so (PROTOCOL.md §7.10). A plugin that
+		// reads one source leaves field_sources empty.
+		FieldSources: map[string]string{"attributes.agency": "Agency Directory"},
 	}
 	// A host without attributes drops them; put the facts where it still shows them.
 	if !pl.features[pluginapi.HostFeatureAttributes] {

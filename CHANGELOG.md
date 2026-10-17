@@ -62,6 +62,9 @@ Compatible additions to protocol v1; plugins built with v0.1.0 keep working.
 - Documentation: testing a plugin on your own server with `MEDIASERVER_DEV_PLUGINS` (§9.5); setting groups and when
   to split a plugin; several images per type; where person images come from and how they are merged; the data
   directory's `cache/` convention; which provider IDs `PersonWork` carries; product codes.
+- `ItemMetadata.field_sources`, `PersonMetadata.field_sources` and `Image.source`: for plugins that combine several
+  data sources, which source each field and image came from, shown to administrators next to the field
+  (`PROTOCOL.md` §7.10, host feature `field_sources`). Optional; single-source plugins leave them empty.
 
 ## v0.1.0 (2026-10-14)
 

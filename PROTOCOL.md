@@ -345,6 +345,17 @@ A plugin that declares `plugin.checks` lists checks in `Manifest.checks`, for ex
 - The host enforces a 30-second deadline, one running check per plugin and at most one run of the same check every 10 seconds (for a per-entry check, of the same check on the same entry). A timeout or an error is shown as a failed result.
 - `CheckResult.item`: for a `per_item` check, the entry the result belongs to; the host links the result to that entry. Hosts with `item_checks` also offer "run this check for every entry": each entry gets its own run, timeout and cooldown, and the results form one table.
 
+### 7.10 Field sources
+
+A plugin that combines several data sources into one result can say where each field came from, so administrators see "Overview: JavDB" next to the field and know which source to look at when a value is wrong.
+
+- `ItemMetadata.field_sources` and `PersonMetadata.field_sources` map a field name to a source name. Keys are the proto field names of that message, for example `name`, `original_title`, `overview`, `genres`, `tags`, `studios`, `credits`, `premiere_date`, `community_rating`, `ratings`, `product_code`; `attributes.<key>` names a single attribute. Values are the source as the user knows it, at most 48 characters, the same name the plugin uses in `Notice.source`.
+- `Image.source` names the source of one image, with the same rules.
+- Everything is optional. Leave the map empty when the whole result comes from one source (a single-source plugin such as TMDB needs neither); the host already records which plugin wrote each field. Fill in only the fields you actually took from a source.
+- At most 64 entries. The host drops entries whose key is not a field of the message (or `attributes.` followed by a valid attribute key), whose value is empty, and values longer than 48 characters are cut.
+- Display only: the host stores the name next to the field's provenance (plugin and time) and does not use it to merge, rank or filter. When an administrator edits a field, the field's source becomes the administrator and the plugin's source name is cleared.
+- Hosts without the `field_sources` feature (§11.6) ignore both; sending them is harmless.
+
 ## 8. Errors
 
 Errors are expressed as gRPC status codes:
@@ -535,5 +546,6 @@ Additions to v1 are compatible: an older host ignores fields it does not know, s
 | `config_items` | `ConfigGroup.items` and `ConfigField.item` (§5.2) |
 | `item_checks` | `CheckDeclaration.per_item` and `RunCheckRequest.item` (§7.9): the host offers the check per entry; without it the host calls the check once with an empty `item` |
 | `scrape_notices` | `notices`, `incomplete` and `retry_after_seconds` on `ItemMetadata`, `PersonMetadata` and `GetImagesResponse` (§7.2) |
+| `field_sources` | `ItemMetadata.field_sources`, `PersonMetadata.field_sources` and `Image.source` are stored and shown next to each field (§7.10) |
 
 The variable is missing on hosts older than SDK v0.2.0, which support none of them. A plugin may use this to put the same facts where an older host still shows them (for example, in the overview), but it should still send the new fields. Go plugins call `pluginapi.HostFeatures(os.Getenv)`. In `plugintest`, every feature is announced; set `KRYSPAL_HOST_FEATURES` to an empty string in `Options.Env` to test against an older host.
