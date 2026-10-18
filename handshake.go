@@ -160,6 +160,9 @@ func DataDir(getenv func(string) string) string {
 const (
 	HostFeatureAttributes = "attributes" // ItemMetadata.attributes and PersonMetadata.attributes
 	HostFeaturePhoto      = "photo"      // IMAGE_TYPE_PHOTO for people
+	// HostFeatureStill: IMAGE_TYPE_STILL for items. Without it the host skips STILL images, so a plugin sends its stills
+	// as BACKDROP images after the main backdrop instead.
+	HostFeatureStill = "still"
 	// HostFeatureConfigTypes: the setting types text, string_list and ordered_multiselect, and ConfigField.visible_when.
 	HostFeatureConfigTypes = "config_types"
 	// HostFeatureImageReferer: Manifest.image_fetch_rules.

@@ -346,7 +346,7 @@ const (
 	ImageType_IMAGE_TYPE_UNSPECIFIED ImageType = 0
 	// Poster, or a person's photo.
 	ImageType_IMAGE_TYPE_PRIMARY ImageType = 1
-	// Background (fanart).
+	// Background (fanart). An item has one main backdrop; see IMAGE_TYPE_STILL for the others.
 	ImageType_IMAGE_TYPE_BACKDROP ImageType = 2
 	// clearlogo.
 	ImageType_IMAGE_TYPE_LOGO ImageType = 3
@@ -359,6 +359,10 @@ const (
 	// One of several photos of a person (a gallery), in order of preference. A person's main photo stays PRIMARY. A host
 	// that does not know this value skips the image.
 	ImageType_IMAGE_TYPE_PHOTO ImageType = 8
+	// One of several stills of an item (scene images or screenshots), in order of preference. Stills never become the
+	// main backdrop. Without STILL images the host keeps the older rule: the first BACKDROP is the main backdrop and the
+	// other BACKDROP images are stills. A host that does not know this value skips the image.
+	ImageType_IMAGE_TYPE_STILL ImageType = 9
 )
 
 // Enum value maps for ImageType.
@@ -373,6 +377,7 @@ var (
 		6: "IMAGE_TYPE_ART",
 		7: "IMAGE_TYPE_DISC",
 		8: "IMAGE_TYPE_PHOTO",
+		9: "IMAGE_TYPE_STILL",
 	}
 	ImageType_value = map[string]int32{
 		"IMAGE_TYPE_UNSPECIFIED": 0,
@@ -384,6 +389,7 @@ var (
 		"IMAGE_TYPE_ART":         6,
 		"IMAGE_TYPE_DISC":        7,
 		"IMAGE_TYPE_PHOTO":       8,
+		"IMAGE_TYPE_STILL":       9,
 	}
 )
 
@@ -3219,7 +3225,7 @@ const file_pluginv1_metadata_proto_rawDesc = "" +
 	"\fSeriesStatus\x12\x1d\n" +
 	"\x19SERIES_STATUS_UNSPECIFIED\x10\x00\x12\x1c\n" +
 	"\x18SERIES_STATUS_CONTINUING\x10\x01\x12\x17\n" +
-	"\x13SERIES_STATUS_ENDED\x10\x02*\xd9\x01\n" +
+	"\x13SERIES_STATUS_ENDED\x10\x02*\xef\x01\n" +
 	"\tImageType\x12\x1a\n" +
 	"\x16IMAGE_TYPE_UNSPECIFIED\x10\x00\x12\x16\n" +
 	"\x12IMAGE_TYPE_PRIMARY\x10\x01\x12\x17\n" +
@@ -3229,7 +3235,8 @@ const file_pluginv1_metadata_proto_rawDesc = "" +
 	"\x11IMAGE_TYPE_BANNER\x10\x05\x12\x12\n" +
 	"\x0eIMAGE_TYPE_ART\x10\x06\x12\x13\n" +
 	"\x0fIMAGE_TYPE_DISC\x10\a\x12\x14\n" +
-	"\x10IMAGE_TYPE_PHOTO\x10\b*\xc2\x01\n" +
+	"\x10IMAGE_TYPE_PHOTO\x10\b\x12\x14\n" +
+	"\x10IMAGE_TYPE_STILL\x10\t*\xc2\x01\n" +
 	"\n" +
 	"PersonKind\x12\x1b\n" +
 	"\x17PERSON_KIND_UNSPECIFIED\x10\x00\x12\x15\n" +

@@ -38,7 +38,8 @@ type GetImagesRequest struct {
 	// The item's known provider IDs, e.g. {"tmdb": "550", "imdb": "tt0137523"}. The plugin picks the keys it recognizes.
 	// For a person these are the person's IDs (e.g. {"tmdb": "287"}); they may be empty when only the name is known.
 	ProviderIds map[string]string `protobuf:"bytes,2,rep,name=provider_ids,json=providerIds,proto3" json:"provider_ids,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	// Only these types; empty means all. A person has IMAGE_TYPE_PRIMARY (the main photo) and IMAGE_TYPE_PHOTO (the gallery).
+	// Only these types; empty means all. A person has IMAGE_TYPE_PRIMARY (the main photo) and IMAGE_TYPE_PHOTO (the gallery);
+	// an item may have IMAGE_TYPE_STILL (stills) besides one main IMAGE_TYPE_BACKDROP.
 	Types     []ImageType `protobuf:"varint,3,rep,packed,name=types,proto3,enum=kryspal.plugin.v1.ImageType" json:"types,omitempty"`
 	Languages *Languages  `protobuf:"bytes,4,opt,name=languages,proto3" json:"languages,omitempty"`
 	// Maximum number of images to return per type; 0 lets the plugin decide.

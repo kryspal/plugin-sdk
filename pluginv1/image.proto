@@ -28,7 +28,8 @@ message GetImagesRequest {
   // The item's known provider IDs, e.g. {"tmdb": "550", "imdb": "tt0137523"}. The plugin picks the keys it recognizes.
   // For a person these are the person's IDs (e.g. {"tmdb": "287"}); they may be empty when only the name is known.
   map<string, string> provider_ids = 2;
-  // Only these types; empty means all. A person has IMAGE_TYPE_PRIMARY (the main photo) and IMAGE_TYPE_PHOTO (the gallery).
+  // Only these types; empty means all. A person has IMAGE_TYPE_PRIMARY (the main photo) and IMAGE_TYPE_PHOTO (the gallery);
+  // an item may have IMAGE_TYPE_STILL (stills) besides one main IMAGE_TYPE_BACKDROP.
   repeated ImageType types = 3;
   Languages languages = 4;
   // Maximum number of images to return per type; 0 lets the plugin decide.

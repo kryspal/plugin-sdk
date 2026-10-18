@@ -329,7 +329,7 @@ enum ImageType {
   IMAGE_TYPE_UNSPECIFIED = 0;
   // Poster, or a person's photo.
   IMAGE_TYPE_PRIMARY = 1;
-  // Background (fanart).
+  // Background (fanart). An item has one main backdrop; see IMAGE_TYPE_STILL for the others.
   IMAGE_TYPE_BACKDROP = 2;
   // clearlogo.
   IMAGE_TYPE_LOGO = 3;
@@ -342,6 +342,10 @@ enum ImageType {
   // One of several photos of a person (a gallery), in order of preference. A person's main photo stays PRIMARY. A host
   // that does not know this value skips the image.
   IMAGE_TYPE_PHOTO = 8;
+  // One of several stills of an item (scene images or screenshots), in order of preference. Stills never become the
+  // main backdrop. Without STILL images the host keeps the older rule: the first BACKDROP is the main backdrop and the
+  // other BACKDROP images are stills. A host that does not know this value skips the image.
+  IMAGE_TYPE_STILL = 9;
 }
 
 // Image is a remote image. When there are several of the same type, they are in order of preference and the first
