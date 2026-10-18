@@ -5,7 +5,7 @@ All notable changes to the Kryspal Media Plugin SDK. The protocol major version 
 
 ## v0.3.1 (unreleased)
 
-Documentation: `PROTOCOL.md` states that the key of a plugin's own provider ID must equal the plugin ID; that `Credit.image_url` is stored as a placeholder avatar that a later primary image replaces; that apart from stills and person photos only the first image of each type is used; that the host never makes a thumb out of a backdrop; and which subtitle candidates the host downloads automatically, what `SubtitleTarget.provider_ids` carries and how subtitle files are named. No change to the protocol or the code.
+Documentation: `PROTOCOL.md` states that the key of a plugin's own provider ID must equal the plugin ID; that `Credit.image_url` is stored as a placeholder avatar that a later primary image replaces; that apart from stills and person photos only the first image of each type is used; that the host never makes a thumb out of a backdrop; and when and which subtitle candidates the host downloads automatically (ids is trusted without a score; quota reserve), what `SubtitleTarget.provider_ids` carries and how subtitle files are named. No change to the protocol or the code.
 
 ## v0.3.0 (2026-10-18)
 
