@@ -3,13 +3,17 @@
 All notable changes to the Kryspal Media Plugin SDK. The protocol major version is `v1` (proto package
 `kryspal.plugin.v1`); within v1 only compatible additions are made (new fields, RPCs, services, capabilities).
 
-## Unreleased
+## v0.3.0 (2026-10-18)
 
 Compatible additions to protocol v1; plugins built with v0.2.x keep working.
 
 - `IMAGE_TYPE_STILL`: an item's stills (scene images, screenshots). They are always stills, never the main backdrop.
   Without them the host keeps the older rule: the first `IMAGE_TYPE_BACKDROP` is the main backdrop and the others are
   stills. Host feature `still` (`pluginapi.HostFeatureStill`) tells whether the host keeps them.
+
+## v0.2.1 (2026-10-18)
+
+Documentation: neutral examples. Comments and `PROTOCOL.md` use generic source names in their examples. No change to the protocol or the code.
 
 ## v0.2.0 (2026-10-17)
 
