@@ -91,4 +91,8 @@ message Recognition {
   // host goes with counts. At most 16, each at most 32 characters. Facts the
   // host measures itself (resolution, HDR, subtitle tracks) come from the media, so do not send them as tags.
   repeated string tags = 17;
+  // season, episode and episode_end above come from a rule the user wrote, not a guess, so the host uses them as the
+  // item's numbering instead of its own parse of the name. Send it only for numbers a user rule
+  // produced, and only when the host declares HostFeatureConfirmedNumbering.
+  bool numbering_confirmed = 18;
 }

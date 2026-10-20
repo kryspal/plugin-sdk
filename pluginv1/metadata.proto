@@ -163,6 +163,10 @@ message SearchCandidate {
   // regardless of score; several confirmed candidates are treated as ambiguous. Hosts without the feature ignore it,
   // so plugins should still send a score.
   bool confirmed = 12;
+  // Where this candidate came from, for display: a site or catalogue name such as one of the sources a plugin
+  // aggregates. The host shows it next to the candidate in the identify dialog and never uses it for matching. Leave it
+  // empty when the plugin has a single source. Older hosts ignore it.
+  string source = 13;
 }
 
 message GetItemRequest {

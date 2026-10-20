@@ -3,6 +3,28 @@
 All notable changes to the Kryspal Media Plugin SDK. The protocol major version is `v1` (proto package
 `kryspal.plugin.v1`); within v1 only compatible additions are made (new fields, RPCs, services, capabilities).
 
+## v0.5.0 (unreleased)
+
+Compatible additions to protocol v1; plugins built with v0.4.x keep working. The additions take effect on host 0.9.7
+and later; older hosts ignore the new fields.
+
+- `Recognition.numbering_confirmed` (field 18), host 0.9.7: the season, episode and episode end of a recognition came
+  from a rule the user wrote, not a guess, so the host uses them as the item's numbering in place of its own parse of
+  the name; a season folder still decides the season of the files inside it, and NFO numbers still come first. Send it
+  only for numbers a user rule produced, and only when the host declares the host feature `confirmed_numbering`
+  (`pluginapi.HostFeatureConfirmedNumbering`).
+- `SearchCandidate.source` (field 13), host 0.9.7: where a candidate came from, for display only, such as one of the
+  sites a plugin aggregates. The host shows it next to the candidate in the identify dialog and never uses it for
+  matching; leave it empty when the plugin has a single source.
+- `Manifest.suggested_badge_rules` follows the configuration, host 0.9.7: the host reads it again from the `Describe`
+  after every accepted `Configure`, like `image_fetch_rules`, `attribute_labels` and `tasks`, so badges can follow tags
+  the user renamed or added. Changing the suggestions never touches a rule the administrator already added. Hosts
+  before 0.9.7 read it only at start (`PROTOCOL.md` §5.1, §7.2).
+- Documentation (`PROTOCOL.md`), since 0.9.6: a person's backdrop comes only from the data source (`PersonMetadata.
+  images`); backdrops from `GetImages(ITEM_TYPE_PERSON)` are offered in the manual picker and never used for automatic
+  fills (§7.2); field `description`s are read only at start, so they cannot show what the current settings do, and a
+  check (`plugin.checks`) is the place for that (§7.2).
+
 ## v0.4.0 (2026-10-20)
 
 Compatible additions to protocol v1; plugins built with v0.3.x keep working.

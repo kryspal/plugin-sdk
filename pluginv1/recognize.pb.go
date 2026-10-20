@@ -296,9 +296,13 @@ type Recognition struct {
 	// replaced each time the host runs recognition for it, for example a release or subtitle mark. Only the candidate the
 	// host goes with counts. At most 16, each at most 32 characters. Facts the
 	// host measures itself (resolution, HDR, subtitle tracks) come from the media, so do not send them as tags.
-	Tags          []string `protobuf:"bytes,17,rep,name=tags,proto3" json:"tags,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Tags []string `protobuf:"bytes,17,rep,name=tags,proto3" json:"tags,omitempty"`
+	// season, episode and episode_end above come from a rule the user wrote, not a guess, so the host uses them as the
+	// item's numbering instead of its own parse of the name. Send it only for numbers a user rule
+	// produced, and only when the host declares HostFeatureConfirmedNumbering.
+	NumberingConfirmed bool `protobuf:"varint,18,opt,name=numbering_confirmed,json=numberingConfirmed,proto3" json:"numbering_confirmed,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *Recognition) Reset() {
@@ -450,6 +454,13 @@ func (x *Recognition) GetTags() []string {
 	return nil
 }
 
+func (x *Recognition) GetNumberingConfirmed() bool {
+	if x != nil {
+		return x.NumberingConfirmed
+	}
+	return false
+}
+
 var File_pluginv1_recognize_proto protoreflect.FileDescriptor
 
 const file_pluginv1_recognize_proto_rawDesc = "" +
@@ -474,7 +485,7 @@ const file_pluginv1_recognize_proto_rawDesc = "" +
 	"\n" +
 	"candidates\x18\x01 \x03(\v2\x1e.kryspal.plugin.v1.RecognitionR\n" +
 	"candidates\x12%\n" +
-	"\x0eparser_version\x18\x02 \x01(\tR\rparserVersion\"\x95\x06\n" +
+	"\x0eparser_version\x18\x02 \x01(\tR\rparserVersion\"\xc6\x06\n" +
 	"\vRecognition\x12/\n" +
 	"\x04type\x18\x01 \x01(\x0e2\x1b.kryspal.plugin.v1.ItemTypeR\x04type\x124\n" +
 	"\x06titles\x18\x02 \x03(\v2\x1c.kryspal.plugin.v1.TitleHintR\x06titles\x12\x12\n" +
@@ -497,7 +508,8 @@ const file_pluginv1_recognize_proto_rawDesc = "" +
 	"confidence\x18\x0f \x01(\x01R\n" +
 	"confidence\x12\x1a\n" +
 	"\bevidence\x18\x10 \x03(\tR\bevidence\x12\x12\n" +
-	"\x04tags\x18\x11 \x03(\tR\x04tags\x1a>\n" +
+	"\x04tags\x18\x11 \x03(\tR\x04tags\x12/\n" +
+	"\x13numbering_confirmed\x18\x12 \x01(\bR\x12numberingConfirmed\x1a>\n" +
 	"\x10IdentifiersEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01B\t\n" +

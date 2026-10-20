@@ -962,7 +962,11 @@ type SearchCandidate struct {
 	// A host that declares the host feature search_confirmed applies a single confirmed candidate automatically,
 	// regardless of score; several confirmed candidates are treated as ambiguous. Hosts without the feature ignore it,
 	// so plugins should still send a score.
-	Confirmed     bool `protobuf:"varint,12,opt,name=confirmed,proto3" json:"confirmed,omitempty"`
+	Confirmed bool `protobuf:"varint,12,opt,name=confirmed,proto3" json:"confirmed,omitempty"`
+	// Where this candidate came from, for display: a site or catalogue name such as one of the sources a plugin
+	// aggregates. The host shows it next to the candidate in the identify dialog and never uses it for matching. Leave it
+	// empty when the plugin has a single source. Older hosts ignore it.
+	Source        string `protobuf:"bytes,13,opt,name=source,proto3" json:"source,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1079,6 +1083,13 @@ func (x *SearchCandidate) GetConfirmed() bool {
 		return x.Confirmed
 	}
 	return false
+}
+
+func (x *SearchCandidate) GetSource() string {
+	if x != nil {
+		return x.Source
+	}
+	return ""
 }
 
 type GetItemRequest struct {
@@ -2986,7 +2997,7 @@ const file_pluginv1_metadata_proto_rawDesc = "" +
 	"\n" +
 	"candidates\x18\x01 \x03(\v2\".kryspal.plugin.v1.SearchCandidateR\n" +
 	"candidates\x123\n" +
-	"\anotices\x18\x02 \x03(\v2\x19.kryspal.plugin.v1.NoticeR\anotices\"\xe3\x03\n" +
+	"\anotices\x18\x02 \x03(\v2\x19.kryspal.plugin.v1.NoticeR\anotices\"\xfb\x03\n" +
 	"\x0fSearchCandidate\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12/\n" +
 	"\x04type\x18\x02 \x01(\x0e2\x1b.kryspal.plugin.v1.ItemTypeR\x04type\x12\x12\n" +
@@ -3000,7 +3011,8 @@ const file_pluginv1_metadata_proto_rawDesc = "" +
 	"\rmatched_title\x18\n" +
 	" \x01(\tR\fmatchedTitle\x12\x18\n" +
 	"\areasons\x18\v \x03(\tR\areasons\x12\x1c\n" +
-	"\tconfirmed\x18\f \x01(\bR\tconfirmed\x1a>\n" +
+	"\tconfirmed\x18\f \x01(\bR\tconfirmed\x12\x16\n" +
+	"\x06source\x18\r \x01(\tR\x06source\x1a>\n" +
 	"\x10ProviderIdsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xfe\x02\n" +

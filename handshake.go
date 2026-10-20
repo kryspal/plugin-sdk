@@ -206,6 +206,10 @@ const (
 	// HostFeatureBadgeSuggestions: Manifest.suggested_badge_rules. The host lists them on its badge settings for the
 	// administrator to add; it never enables them by itself. Without it they are ignored.
 	HostFeatureBadgeSuggestions = "badge_suggestions"
+	// HostFeatureConfirmedNumbering: Recognition.numbering_confirmed. The host takes a confirmed season,
+	// episode and episode_end as an episode's numbering in place of its own parse; a season folder still decides the
+	// season of the files inside it, and NFO numbers still come first. Without it the field is ignored.
+	HostFeatureConfirmedNumbering = "confirmed_numbering"
 )
 
 // HostFeatures returns the features listed in EnvHostFeatures. The result is empty, not nil, when the variable is
