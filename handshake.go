@@ -192,9 +192,8 @@ const (
 	// HostFeaturePersonBackdrop: the host stores a person's IMAGE_TYPE_BACKDROP (PersonMetadata.images and
 	// GetImages with ITEM_TYPE_PERSON) as the person's backdrop and only fills a missing one. Older hosts take every
 	// person image as a photo candidate, so send person backdrops only when the host declares this.
-	// Automatic fills use only the backdrops in PersonMetadata.images (what the metadata source thinks fits);
-	// GetImages with ITEM_TYPE_PERSON and IMAGE_TYPE_BACKDROP serves the manual picker only, so it may offer looser
-	// candidates such as tagged stills.
+	// Automatic fills use only the backdrops in PersonMetadata.images (what the metadata source thinks fits); the host
+	// does not fill person backdrops from GetImages with ITEM_TYPE_PERSON and IMAGE_TYPE_BACKDROP.
 	HostFeaturePersonBackdrop = "person_backdrop"
 	// HostFeatureAutoFillLimit: the host stores and uses the setting key autofill_daily_limit (a plugin's daily limit
 	// for automatic subtitle downloads, 0 means unlimited). Declare the key, only to give it a default, when the host
