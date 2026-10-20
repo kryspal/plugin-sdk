@@ -52,8 +52,8 @@ func TestTheSuiteCatchesBrokenAnswers(t *testing.T) {
 		t.Skip("builds the test plugin once per case")
 	}
 	cases := map[string][]string{
-		"person":    {"want the person's own ID", `key "Height"`, "at most 256 are kept"},
-		"images":    {"is not an absolute HTTPS URL", "IMAGE_TYPE_BACKDROP is not allowed here"},
+		"person":    {`want the person's own ID under the plugin ID, "full": "p1"`, `key "Height"`, "at most 256 are kept"},
+		"images":    {"is not an absolute HTTPS URL", "IMAGE_TYPE_LOGO is not allowed here"},
 		"recognize": {"parser_version is empty"},
 		"manifest": {
 			`visible_when refers to "names" of type`, `default contains "c", which is not an option`,

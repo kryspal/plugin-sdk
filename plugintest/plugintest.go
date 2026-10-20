@@ -264,10 +264,13 @@ func socketDir(t *testing.T) string {
 	return dir
 }
 
-// hostFeatures are the features a current host announces in EnvHostFeatures.
+// hostFeatures are the features a current host announces in EnvHostFeatures. field_sources is not among them: the
+// host does not store field sources yet.
 var hostFeatures = []string{
-	pluginapi.HostFeatureAttributes, pluginapi.HostFeaturePhoto, pluginapi.HostFeatureConfigTypes, pluginapi.HostFeatureImageReferer,
-	pluginapi.HostFeatureTasks, pluginapi.HostFeatureImageCrop, pluginapi.HostFeatureConfigItems,
+	pluginapi.HostFeatureAttributes, pluginapi.HostFeaturePhoto, pluginapi.HostFeatureStill, pluginapi.HostFeatureConfigTypes,
+	pluginapi.HostFeatureImageReferer, pluginapi.HostFeatureTasks, pluginapi.HostFeatureImageCrop, pluginapi.HostFeatureConfigItems,
+	pluginapi.HostFeatureItemChecks, pluginapi.HostFeatureScrapeNotices, pluginapi.HostFeaturePersonBackdrop,
+	pluginapi.HostFeatureAutoFillLimit, pluginapi.HostFeatureSearchConfirmed, pluginapi.HostFeatureBadgeSuggestions,
 }
 
 // hostEnv is the clean environment the host passes (PROTOCOL.md §2.1), followed by the test's extra variables.

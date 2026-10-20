@@ -346,7 +346,8 @@ const (
 	ImageType_IMAGE_TYPE_UNSPECIFIED ImageType = 0
 	// Poster, or a person's photo.
 	ImageType_IMAGE_TYPE_PRIMARY ImageType = 1
-	// Background (fanart). An item has one main backdrop; see IMAGE_TYPE_STILL for the others.
+	// Background (fanart). An item has one main backdrop; see IMAGE_TYPE_STILL for the others. A person has at most one
+	// backdrop, kept by hosts that declare the host feature person_backdrop.
 	ImageType_IMAGE_TYPE_BACKDROP ImageType = 2
 	// clearlogo.
 	ImageType_IMAGE_TYPE_LOGO ImageType = 3
@@ -956,7 +957,12 @@ type SearchCandidate struct {
 	MatchedTitle string `protobuf:"bytes,10,opt,name=matched_title,json=matchedTitle,proto3" json:"matched_title,omitempty"`
 	// Codes of the scoring reasons, for example title.exact, title.alias, year.release_date, shape.ok, region.match
 	// (for debugging and evaluation).
-	Reasons       []string `protobuf:"bytes,11,rep,name=reasons,proto3" json:"reasons,omitempty"`
+	Reasons []string `protobuf:"bytes,11,rep,name=reasons,proto3" json:"reasons,omitempty"`
+	// The plugin is certain this candidate is the item, for example an exact code or ID match read from the file name.
+	// A host that declares the host feature search_confirmed applies a single confirmed candidate automatically,
+	// regardless of score; several confirmed candidates are treated as ambiguous. Hosts without the feature ignore it,
+	// so plugins should still send a score.
+	Confirmed     bool `protobuf:"varint,12,opt,name=confirmed,proto3" json:"confirmed,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1066,6 +1072,13 @@ func (x *SearchCandidate) GetReasons() []string {
 		return x.Reasons
 	}
 	return nil
+}
+
+func (x *SearchCandidate) GetConfirmed() bool {
+	if x != nil {
+		return x.Confirmed
+	}
+	return false
 }
 
 type GetItemRequest struct {
@@ -2571,7 +2584,8 @@ type PersonMetadata struct {
 	ProviderIds map[string]string `protobuf:"bytes,10,rep,name=provider_ids,json=providerIds,proto3" json:"provider_ids,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	// Social and external pages.
 	Links []*Link `protobuf:"bytes,11,rep,name=links,proto3" json:"links,omitempty"`
-	// PRIMARY is the main photo; PHOTO images form the person's gallery.
+	// PRIMARY is the main photo; PHOTO images form the person's gallery; on hosts with the host feature person_backdrop,
+	// one BACKDROP is the person's backdrop.
 	Images []*Image `protobuf:"bytes,12,rep,name=images,proto3" json:"images,omitempty"`
 	// Extra public facts about the person that no field above covers, for example height. Same rules as
 	// ItemMetadata.attributes.
@@ -2972,7 +2986,7 @@ const file_pluginv1_metadata_proto_rawDesc = "" +
 	"\n" +
 	"candidates\x18\x01 \x03(\v2\".kryspal.plugin.v1.SearchCandidateR\n" +
 	"candidates\x123\n" +
-	"\anotices\x18\x02 \x03(\v2\x19.kryspal.plugin.v1.NoticeR\anotices\"\xc5\x03\n" +
+	"\anotices\x18\x02 \x03(\v2\x19.kryspal.plugin.v1.NoticeR\anotices\"\xe3\x03\n" +
 	"\x0fSearchCandidate\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12/\n" +
 	"\x04type\x18\x02 \x01(\x0e2\x1b.kryspal.plugin.v1.ItemTypeR\x04type\x12\x12\n" +
@@ -2985,7 +2999,8 @@ const file_pluginv1_metadata_proto_rawDesc = "" +
 	"\x05score\x18\t \x01(\x01R\x05score\x12#\n" +
 	"\rmatched_title\x18\n" +
 	" \x01(\tR\fmatchedTitle\x12\x18\n" +
-	"\areasons\x18\v \x03(\tR\areasons\x1a>\n" +
+	"\areasons\x18\v \x03(\tR\areasons\x12\x1c\n" +
+	"\tconfirmed\x18\f \x01(\bR\tconfirmed\x1a>\n" +
 	"\x10ProviderIdsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xfe\x02\n" +

@@ -3,6 +3,7 @@ package plugintest
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net"
 	"net/netip"
 	"net/url"
@@ -11,6 +12,7 @@ import (
 	"strings"
 	"testing"
 	"time"
+	"unicode"
 	"unicode/utf8"
 
 	"google.golang.org/grpc"
@@ -35,12 +37,18 @@ const (
 	maxConfigGroups       = 50
 	maxConfigOptions      = 200
 	maxConfigItems        = 100
+	maxBadgeSuggestions   = 16
+	maxBadgeTagLen        = 32
+	maxBadgeTextLen       = 8
 )
 
-var taskNameRE = regexp.MustCompile(`^[a-z][a-z0-9_]{0,47}$`)
+var (
+	taskNameRE   = regexp.MustCompile(`^[a-z][a-z0-9_]{0,47}$`)
+	badgeColorRE = regexp.MustCompile(`^#[0-9a-fA-F]{6}$`)
+)
 
-// checkManifest reports declarations the host would ignore or reject: setting fields, image fetch rules, tasks and
-// attribute labels.
+// checkManifest reports declarations the host would ignore or reject: setting fields, image fetch rules, tasks,
+// attribute labels and suggested badge rules.
 func checkManifest(t *testing.T, m *pluginv1.Manifest) {
 	t.Helper()
 	checkConfigItems(t, m)
@@ -186,6 +194,31 @@ func checkManifest(t *testing.T, m *pluginv1.Manifest) {
 			t.Errorf("attribute label for %q: %q must be 1 to %d characters", l.GetKey(), l.GetLabel(), maxAttributeLabelLen)
 		}
 	}
+	for _, p := range badgeSuggestionProblems(m.GetSuggestedBadgeRules()) {
+		t.Error(p)
+	}
+}
+
+// badgeSuggestionProblems lists the suggested badge rules the host would skip (§5.1).
+func badgeSuggestionProblems(rules []*pluginv1.SuggestedBadgeRule) []string {
+	var out []string
+	if n := len(rules); n > maxBadgeSuggestions {
+		out = append(out, fmt.Sprintf("%d suggested_badge_rules; the host keeps the first %d", n, maxBadgeSuggestions))
+	}
+	badText := func(s string, limit int) bool {
+		return s == "" || s != strings.TrimSpace(s) || utf8.RuneCountInString(s) > limit || strings.ContainsFunc(s, unicode.IsControl)
+	}
+	for i, r := range rules {
+		switch {
+		case badText(r.GetTag(), maxBadgeTagLen):
+			out = append(out, fmt.Sprintf("suggested badge rule %d: tag %q must be 1 to %d characters without control characters or surrounding spaces", i, r.GetTag(), maxBadgeTagLen))
+		case badText(r.GetText(), maxBadgeTextLen):
+			out = append(out, fmt.Sprintf("suggested badge rule %d: text %q must be 1 to %d characters without control characters or surrounding spaces", i, r.GetText(), maxBadgeTextLen))
+		case r.GetColor() != "" && !badgeColorRE.MatchString(r.GetColor()):
+			out = append(out, fmt.Sprintf("suggested badge rule %d: color %q is not #RRGGBB", i, r.GetColor()))
+		}
+	}
+	return out
 }
 
 // checkFieldDefault checks the default value's encoding for the newer field types.

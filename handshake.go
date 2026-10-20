@@ -189,6 +189,21 @@ const (
 	// Image.source next to each field's provenance and shows them (§7.10). Without it they are ignored; sending them is
 	// harmless.
 	HostFeatureFieldSources = "field_sources"
+	// HostFeaturePersonBackdrop: the host stores a person's IMAGE_TYPE_BACKDROP (PersonMetadata.images and
+	// GetImages with ITEM_TYPE_PERSON) as the person's backdrop and only fills a missing one. Older hosts take every
+	// person image as a photo candidate, so send person backdrops only when the host declares this.
+	HostFeaturePersonBackdrop = "person_backdrop"
+	// HostFeatureAutoFillLimit: the host stores and uses the setting key autofill_daily_limit (a plugin's daily limit
+	// for automatic subtitle downloads, 0 means unlimited). Declare the key, only to give it a default, when the host
+	// declares this; on older hosts it would be a setting with no effect.
+	HostFeatureAutoFillLimit = "autofill_limit"
+	// HostFeatureSearchConfirmed: SearchCandidate.confirmed. The host applies a single confirmed candidate
+	// automatically whatever its score; several confirmed candidates are ambiguous and left for the user to choose.
+	// Without it the host judges candidates by its own scoring only, so a plugin still sends a score.
+	HostFeatureSearchConfirmed = "search_confirmed"
+	// HostFeatureBadgeSuggestions: Manifest.suggested_badge_rules. The host lists them on its badge settings for the
+	// administrator to add; it never enables them by itself. Without it they are ignored.
+	HostFeatureBadgeSuggestions = "badge_suggestions"
 )
 
 // HostFeatures returns the features listed in EnvHostFeatures. The result is empty, not nil, when the variable is

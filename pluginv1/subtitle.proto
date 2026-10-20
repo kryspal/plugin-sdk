@@ -41,7 +41,8 @@ message SubtitleTarget {
   int32 year = 3;
   optional int32 season_number = 4;
   optional int32 episode_number = 5;
-  // imdb, tmdb, tvdb (of the item itself or of its series).
+  // Every provider ID the server knows for the item, keys in lowercase and unfiltered: other sites' IDs (for example
+  // imdb, tmdb, tvdb) and your own IDs under your plugin ID. For an episode these are the series' IDs.
   map<string, string> provider_ids = 6;
   // Video file name (without the path).
   string file_name = 7;
@@ -82,7 +83,8 @@ message SubtitleCandidate {
   int32 download_count = 7;
   // 0 to 10; 0 means unknown.
   double rating = 8;
-  // The plugin's own score from 0 to 1; 0 means not supplied. The host does not rely on it.
+  // The plugin's own score from 0 to 1; 0 means not supplied. Automatic download takes a candidate matched by name
+  // only with a score of at least 0.8; hash and ids matches do not need a score (PROTOCOL.md §7.2).
   double score = 9;
   // The following help users and the host pick a subtitle that fits before downloading it. Fill in what the source
   // provides; leave the rest at the default (unknown). Added within v1; older hosts ignore them.

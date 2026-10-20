@@ -85,11 +85,13 @@ func personRoundTrip(ctx context.Context, t *testing.T, conn *grpc.ClientConn, m
 	if p.GetId() != id || p.GetName() == "" {
 		t.Errorf("GetPerson(%q) = id %q name %q; want the same id and a name", id, p.GetId(), p.GetName())
 	}
-	// The host matches people across items and providers by provider_ids; the plugin's own ID must be among them.
-	if !slices.Contains(mapValues(p.GetProviderIds()), id) {
-		t.Errorf("GetPerson(%q).provider_ids = %v; want the person's own ID among the values", id, p.GetProviderIds())
+	// The host looks up the ID this plugin can fetch under the plugin ID (PROTOCOL.md §7): the person's own ID must be
+	// there, not under another key.
+	if key := strings.ToLower(m.GetId()); p.GetProviderIds()[key] != id {
+		t.Errorf("GetPerson(%q).provider_ids = %v; want the person's own ID under the plugin ID, %q: %q", id, p.GetProviderIds(), key, id)
 	}
-	personTypes := []pluginv1.ImageType{pluginv1.ImageType_IMAGE_TYPE_PRIMARY, pluginv1.ImageType_IMAGE_TYPE_PHOTO}
+	personTypes := []pluginv1.ImageType{pluginv1.ImageType_IMAGE_TYPE_PRIMARY, pluginv1.ImageType_IMAGE_TYPE_PHOTO,
+		pluginv1.ImageType_IMAGE_TYPE_BACKDROP}
 	checkImages(t, "PersonMetadata.images", p.GetImages(), personTypes)
 	checkAttributes(t, "PersonMetadata.attributes", p.GetAttributes())
 	checkFieldSources(t, "PersonMetadata.field_sources", p, p.GetFieldSources())
@@ -231,14 +233,6 @@ func validAttributeKey(k string) bool {
 		}
 	}
 	return true
-}
-
-func mapValues(m map[string]string) []string {
-	out := make([]string, 0, len(m))
-	for _, v := range m {
-		out = append(out, v)
-	}
-	return out
 }
 
 // Limits on notices and retry_after_seconds (PROTOCOL.md §7.2): the host cuts what breaks them.

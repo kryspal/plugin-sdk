@@ -1,6 +1,6 @@
 // Kryspal Media Plugin protocol v1: the plugin's own description and configuration.
 //
-// The specification of the handshake, error codes, health checks and the plugin catalog is in pluginapi/PROTOCOL.md.
+// The specification of the handshake, error codes, health checks and the plugin catalog is in ../PROTOCOL.md.
 // Once this file is published it only accepts compatible additions: field numbers and types do not change, and
 // deleted numbers are never reused. Incompatible changes go into kryspal.plugin.v2.
 

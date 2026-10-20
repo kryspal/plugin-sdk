@@ -1,6 +1,6 @@
 // Kryspal Media Plugin protocol v1: the plugin's own description and configuration.
 //
-// The specification of the handshake, error codes, health checks and the plugin catalog is in pluginapi/PROTOCOL.md.
+// The specification of the handshake, error codes, health checks and the plugin catalog is in ../PROTOCOL.md.
 // Once this file is published it only accepts compatible additions: field numbers and types do not change, and
 // deleted numbers are never reused. Incompatible changes go into kryspal.plugin.v2.
 
@@ -206,9 +206,14 @@ type Manifest struct {
 	Homepage string `protobuf:"bytes,18,opt,name=homepage,proto3" json:"homepage,omitempty"`
 	// Checks an administrator can run from the plugin's settings page (capability plugin.checks), for example "test the
 	// API key" or "show the remaining quota". In DescribeRequest.language. At most 16.
-	Checks        []*CheckDeclaration `protobuf:"bytes,19,rep,name=checks,proto3" json:"checks,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Checks []*CheckDeclaration `protobuf:"bytes,19,rep,name=checks,proto3" json:"checks,omitempty"`
+	// Badge rules the plugin suggests for the tags it produces (Recognition.tags, ItemMetadata.tags). At most 16; the
+	// host skips invalid entries and the rest after the 16th without failing the plugin. The host never enables them
+	// by itself: it lists them on its badge settings and the administrator adds the ones they want. Hosts that do not
+	// declare the host feature badge_suggestions ignore this field.
+	SuggestedBadgeRules []*SuggestedBadgeRule `protobuf:"bytes,20,rep,name=suggested_badge_rules,json=suggestedBadgeRules,proto3" json:"suggested_badge_rules,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *Manifest) Reset() {
@@ -370,6 +375,13 @@ func (x *Manifest) GetHomepage() string {
 func (x *Manifest) GetChecks() []*CheckDeclaration {
 	if x != nil {
 		return x.Checks
+	}
+	return nil
+}
+
+func (x *Manifest) GetSuggestedBadgeRules() []*SuggestedBadgeRule {
+	if x != nil {
+		return x.SuggestedBadgeRules
 	}
 	return nil
 }
@@ -1340,13 +1352,79 @@ func (x *ConfigureResponse) GetFieldErrors() map[string]string {
 	return nil
 }
 
+// SuggestedBadgeRule suggests one poster badge: show text on items whose tags include tag.
+type SuggestedBadgeRule struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The tag value to match, compared case-insensitively with the item's tags. Required; at most 32 characters, no
+	// control characters, no leading or trailing spaces.
+	Tag string `protobuf:"bytes,1,opt,name=tag,proto3" json:"tag,omitempty"`
+	// The badge text. Required; at most 8 characters, no control characters, no leading or trailing spaces. CJK text is
+	// allowed, but the host draws badges into images with its own font and may refuse characters the font cannot draw.
+	Text string `protobuf:"bytes,2,opt,name=text,proto3" json:"text,omitempty"`
+	// Background color as #RRGGBB; empty uses the host's default.
+	Color         string `protobuf:"bytes,3,opt,name=color,proto3" json:"color,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SuggestedBadgeRule) Reset() {
+	*x = SuggestedBadgeRule{}
+	mi := &file_pluginv1_plugin_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SuggestedBadgeRule) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SuggestedBadgeRule) ProtoMessage() {}
+
+func (x *SuggestedBadgeRule) ProtoReflect() protoreflect.Message {
+	mi := &file_pluginv1_plugin_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SuggestedBadgeRule.ProtoReflect.Descriptor instead.
+func (*SuggestedBadgeRule) Descriptor() ([]byte, []int) {
+	return file_pluginv1_plugin_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *SuggestedBadgeRule) GetTag() string {
+	if x != nil {
+		return x.Tag
+	}
+	return ""
+}
+
+func (x *SuggestedBadgeRule) GetText() string {
+	if x != nil {
+		return x.Text
+	}
+	return ""
+}
+
+func (x *SuggestedBadgeRule) GetColor() string {
+	if x != nil {
+		return x.Color
+	}
+	return ""
+}
+
 var File_pluginv1_plugin_proto protoreflect.FileDescriptor
 
 const file_pluginv1_plugin_proto_rawDesc = "" +
 	"\n" +
 	"\x15pluginv1/plugin.proto\x12\x11kryspal.plugin.v1\"-\n" +
 	"\x0fDescribeRequest\x12\x1a\n" +
-	"\blanguage\x18\x01 \x01(\tR\blanguage\"\xe5\x06\n" +
+	"\blanguage\x18\x01 \x01(\tR\blanguage\"\xc0\a\n" +
 	"\bManifest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12 \n" +
@@ -1367,7 +1445,8 @@ const file_pluginv1_plugin_proto_rawDesc = "" +
 	"\x10attribute_labels\x18\x10 \x03(\v2!.kryspal.plugin.v1.AttributeLabelR\x0fattributeLabels\x12\x16\n" +
 	"\x06author\x18\x11 \x01(\tR\x06author\x12\x1a\n" +
 	"\bhomepage\x18\x12 \x01(\tR\bhomepage\x12;\n" +
-	"\x06checks\x18\x13 \x03(\v2#.kryspal.plugin.v1.CheckDeclarationR\x06checks\"\x8b\x01\n" +
+	"\x06checks\x18\x13 \x03(\v2#.kryspal.plugin.v1.CheckDeclarationR\x06checks\x12Y\n" +
+	"\x15suggested_badge_rules\x18\x14 \x03(\v2%.kryspal.plugin.v1.SuggestedBadgeRuleR\x13suggestedBadgeRules\"\x8b\x01\n" +
 	"\x10CheckDeclaration\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05label\x18\x02 \x01(\tR\x05label\x12 \n" +
@@ -1443,7 +1522,11 @@ const file_pluginv1_plugin_proto_rawDesc = "" +
 	"\ffield_errors\x18\x02 \x03(\v25.kryspal.plugin.v1.ConfigureResponse.FieldErrorsEntryR\vfieldErrors\x1a>\n" +
 	"\x10FieldErrorsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01*\xd2\x02\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"P\n" +
+	"\x12SuggestedBadgeRule\x12\x10\n" +
+	"\x03tag\x18\x01 \x01(\tR\x03tag\x12\x12\n" +
+	"\x04text\x18\x02 \x01(\tR\x04text\x12\x14\n" +
+	"\x05color\x18\x03 \x01(\tR\x05color*\xd2\x02\n" +
 	"\x0fConfigFieldType\x12!\n" +
 	"\x1dCONFIG_FIELD_TYPE_UNSPECIFIED\x10\x00\x12\x1c\n" +
 	"\x18CONFIG_FIELD_TYPE_STRING\x10\x01\x12\x1c\n" +
@@ -1472,26 +1555,27 @@ func file_pluginv1_plugin_proto_rawDescGZIP() []byte {
 }
 
 var file_pluginv1_plugin_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_pluginv1_plugin_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
+var file_pluginv1_plugin_proto_msgTypes = make([]protoimpl.MessageInfo, 18)
 var file_pluginv1_plugin_proto_goTypes = []any{
-	(ConfigFieldType)(0),      // 0: kryspal.plugin.v1.ConfigFieldType
-	(*DescribeRequest)(nil),   // 1: kryspal.plugin.v1.DescribeRequest
-	(*Manifest)(nil),          // 2: kryspal.plugin.v1.Manifest
-	(*CheckDeclaration)(nil),  // 3: kryspal.plugin.v1.CheckDeclaration
-	(*AttributeLabel)(nil),    // 4: kryspal.plugin.v1.AttributeLabel
-	(*ImageFetchRule)(nil),    // 5: kryspal.plugin.v1.ImageFetchRule
-	(*TaskDeclaration)(nil),   // 6: kryspal.plugin.v1.TaskDeclaration
-	(*TaskSchedule)(nil),      // 7: kryspal.plugin.v1.TaskSchedule
-	(*Attribution)(nil),       // 8: kryspal.plugin.v1.Attribution
-	(*ConfigField)(nil),       // 9: kryspal.plugin.v1.ConfigField
-	(*ConfigCondition)(nil),   // 10: kryspal.plugin.v1.ConfigCondition
-	(*ConfigOption)(nil),      // 11: kryspal.plugin.v1.ConfigOption
-	(*ConfigGroup)(nil),       // 12: kryspal.plugin.v1.ConfigGroup
-	(*ConfigItem)(nil),        // 13: kryspal.plugin.v1.ConfigItem
-	(*ConfigureRequest)(nil),  // 14: kryspal.plugin.v1.ConfigureRequest
-	(*ConfigureResponse)(nil), // 15: kryspal.plugin.v1.ConfigureResponse
-	nil,                       // 16: kryspal.plugin.v1.ConfigureRequest.ValuesEntry
-	nil,                       // 17: kryspal.plugin.v1.ConfigureResponse.FieldErrorsEntry
+	(ConfigFieldType)(0),       // 0: kryspal.plugin.v1.ConfigFieldType
+	(*DescribeRequest)(nil),    // 1: kryspal.plugin.v1.DescribeRequest
+	(*Manifest)(nil),           // 2: kryspal.plugin.v1.Manifest
+	(*CheckDeclaration)(nil),   // 3: kryspal.plugin.v1.CheckDeclaration
+	(*AttributeLabel)(nil),     // 4: kryspal.plugin.v1.AttributeLabel
+	(*ImageFetchRule)(nil),     // 5: kryspal.plugin.v1.ImageFetchRule
+	(*TaskDeclaration)(nil),    // 6: kryspal.plugin.v1.TaskDeclaration
+	(*TaskSchedule)(nil),       // 7: kryspal.plugin.v1.TaskSchedule
+	(*Attribution)(nil),        // 8: kryspal.plugin.v1.Attribution
+	(*ConfigField)(nil),        // 9: kryspal.plugin.v1.ConfigField
+	(*ConfigCondition)(nil),    // 10: kryspal.plugin.v1.ConfigCondition
+	(*ConfigOption)(nil),       // 11: kryspal.plugin.v1.ConfigOption
+	(*ConfigGroup)(nil),        // 12: kryspal.plugin.v1.ConfigGroup
+	(*ConfigItem)(nil),         // 13: kryspal.plugin.v1.ConfigItem
+	(*ConfigureRequest)(nil),   // 14: kryspal.plugin.v1.ConfigureRequest
+	(*ConfigureResponse)(nil),  // 15: kryspal.plugin.v1.ConfigureResponse
+	(*SuggestedBadgeRule)(nil), // 16: kryspal.plugin.v1.SuggestedBadgeRule
+	nil,                        // 17: kryspal.plugin.v1.ConfigureRequest.ValuesEntry
+	nil,                        // 18: kryspal.plugin.v1.ConfigureResponse.FieldErrorsEntry
 }
 var file_pluginv1_plugin_proto_depIdxs = []int32{
 	9,  // 0: kryspal.plugin.v1.Manifest.config_fields:type_name -> kryspal.plugin.v1.ConfigField
@@ -1501,22 +1585,23 @@ var file_pluginv1_plugin_proto_depIdxs = []int32{
 	6,  // 4: kryspal.plugin.v1.Manifest.tasks:type_name -> kryspal.plugin.v1.TaskDeclaration
 	4,  // 5: kryspal.plugin.v1.Manifest.attribute_labels:type_name -> kryspal.plugin.v1.AttributeLabel
 	3,  // 6: kryspal.plugin.v1.Manifest.checks:type_name -> kryspal.plugin.v1.CheckDeclaration
-	7,  // 7: kryspal.plugin.v1.TaskDeclaration.default_schedule:type_name -> kryspal.plugin.v1.TaskSchedule
-	0,  // 8: kryspal.plugin.v1.ConfigField.type:type_name -> kryspal.plugin.v1.ConfigFieldType
-	11, // 9: kryspal.plugin.v1.ConfigField.options:type_name -> kryspal.plugin.v1.ConfigOption
-	10, // 10: kryspal.plugin.v1.ConfigField.visible_when:type_name -> kryspal.plugin.v1.ConfigCondition
-	13, // 11: kryspal.plugin.v1.ConfigGroup.items:type_name -> kryspal.plugin.v1.ConfigItem
-	16, // 12: kryspal.plugin.v1.ConfigureRequest.values:type_name -> kryspal.plugin.v1.ConfigureRequest.ValuesEntry
-	17, // 13: kryspal.plugin.v1.ConfigureResponse.field_errors:type_name -> kryspal.plugin.v1.ConfigureResponse.FieldErrorsEntry
-	1,  // 14: kryspal.plugin.v1.Plugin.Describe:input_type -> kryspal.plugin.v1.DescribeRequest
-	14, // 15: kryspal.plugin.v1.Plugin.Configure:input_type -> kryspal.plugin.v1.ConfigureRequest
-	2,  // 16: kryspal.plugin.v1.Plugin.Describe:output_type -> kryspal.plugin.v1.Manifest
-	15, // 17: kryspal.plugin.v1.Plugin.Configure:output_type -> kryspal.plugin.v1.ConfigureResponse
-	16, // [16:18] is the sub-list for method output_type
-	14, // [14:16] is the sub-list for method input_type
-	14, // [14:14] is the sub-list for extension type_name
-	14, // [14:14] is the sub-list for extension extendee
-	0,  // [0:14] is the sub-list for field type_name
+	16, // 7: kryspal.plugin.v1.Manifest.suggested_badge_rules:type_name -> kryspal.plugin.v1.SuggestedBadgeRule
+	7,  // 8: kryspal.plugin.v1.TaskDeclaration.default_schedule:type_name -> kryspal.plugin.v1.TaskSchedule
+	0,  // 9: kryspal.plugin.v1.ConfigField.type:type_name -> kryspal.plugin.v1.ConfigFieldType
+	11, // 10: kryspal.plugin.v1.ConfigField.options:type_name -> kryspal.plugin.v1.ConfigOption
+	10, // 11: kryspal.plugin.v1.ConfigField.visible_when:type_name -> kryspal.plugin.v1.ConfigCondition
+	13, // 12: kryspal.plugin.v1.ConfigGroup.items:type_name -> kryspal.plugin.v1.ConfigItem
+	17, // 13: kryspal.plugin.v1.ConfigureRequest.values:type_name -> kryspal.plugin.v1.ConfigureRequest.ValuesEntry
+	18, // 14: kryspal.plugin.v1.ConfigureResponse.field_errors:type_name -> kryspal.plugin.v1.ConfigureResponse.FieldErrorsEntry
+	1,  // 15: kryspal.plugin.v1.Plugin.Describe:input_type -> kryspal.plugin.v1.DescribeRequest
+	14, // 16: kryspal.plugin.v1.Plugin.Configure:input_type -> kryspal.plugin.v1.ConfigureRequest
+	2,  // 17: kryspal.plugin.v1.Plugin.Describe:output_type -> kryspal.plugin.v1.Manifest
+	15, // 18: kryspal.plugin.v1.Plugin.Configure:output_type -> kryspal.plugin.v1.ConfigureResponse
+	17, // [17:19] is the sub-list for method output_type
+	15, // [15:17] is the sub-list for method input_type
+	15, // [15:15] is the sub-list for extension type_name
+	15, // [15:15] is the sub-list for extension extendee
+	0,  // [0:15] is the sub-list for field type_name
 }
 
 func init() { file_pluginv1_plugin_proto_init() }
@@ -1531,7 +1616,7 @@ func file_pluginv1_plugin_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_pluginv1_plugin_proto_rawDesc), len(file_pluginv1_plugin_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   17,
+			NumMessages:   18,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

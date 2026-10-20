@@ -1,6 +1,6 @@
 // Kryspal Media Plugin protocol v1: the plugin's own description and configuration.
 //
-// The specification of the handshake, error codes, health checks and the plugin catalog is in pluginapi/PROTOCOL.md.
+// The specification of the handshake, error codes, health checks and the plugin catalog is in ../PROTOCOL.md.
 // Once this file is published it only accepts compatible additions: field numbers and types do not change, and
 // deleted numbers are never reused. Incompatible changes go into kryspal.plugin.v2.
 syntax = "proto3";
@@ -85,6 +85,11 @@ message Manifest {
   // Checks an administrator can run from the plugin's settings page (capability plugin.checks), for example "test the
   // API key" or "show the remaining quota". In DescribeRequest.language. At most 16.
   repeated CheckDeclaration checks = 19;
+  // Badge rules the plugin suggests for the tags it produces (Recognition.tags, ItemMetadata.tags). At most 16; the
+  // host skips invalid entries and the rest after the 16th without failing the plugin. The host never enables them
+  // by itself: it lists them on its badge settings and the administrator adds the ones they want. Hosts that do not
+  // declare the host feature badge_suggestions ignore this field.
+  repeated SuggestedBadgeRule suggested_badge_rules = 20;
 }
 
 // CheckDeclaration is one check shown as a button on the plugin's settings page.
@@ -290,4 +295,16 @@ message ConfigureResponse {
   // Errors for individual fields, keyed by ConfigField.key, for example api_token → "Invalid API key"; same language
   // as above.
   map<string, string> field_errors = 2;
+}
+
+// SuggestedBadgeRule suggests one poster badge: show text on items whose tags include tag.
+message SuggestedBadgeRule {
+  // The tag value to match, compared case-insensitively with the item's tags. Required; at most 32 characters, no
+  // control characters, no leading or trailing spaces.
+  string tag = 1;
+  // The badge text. Required; at most 8 characters, no control characters, no leading or trailing spaces. CJK text is
+  // allowed, but the host draws badges into images with its own font and may refuse characters the font cannot draw.
+  string text = 2;
+  // Background color as #RRGGBB; empty uses the host's default.
+  string color = 3;
 }

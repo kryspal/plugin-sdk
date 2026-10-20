@@ -52,7 +52,8 @@ The suite checks:
   and attributes must follow the rules in `PROTOCOL.md` §7;
 - with `images.movie` or `images.series` declared: `GetImages` with the item's provider IDs;
 - with `metadata.person` declared: `GetPerson` (for `Options.Person`, or the first credit of the item), whose
-  `provider_ids` must contain the person's own ID, and `GetImages` for the person when `images.person` is declared;
+  `provider_ids` must hold the person's own ID under the plugin ID, with person images of type `IMAGE_TYPE_PRIMARY`,
+  `IMAGE_TYPE_PHOTO` or `IMAGE_TYPE_BACKDROP`, and `GetImages` for the person when `images.person` is declared;
 - with `media.recognize` declared: an empty path returns no candidates and no error; with `Options.Recognize`, a known
   path is recognized, the answer is the same twice, at most three candidates, and `parser_version` is set;
 - shutdown on `SIGTERM`.

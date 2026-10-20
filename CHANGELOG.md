@@ -3,6 +3,33 @@
 All notable changes to the Kryspal Media Plugin SDK. The protocol major version is `v1` (proto package
 `kryspal.plugin.v1`); within v1 only compatible additions are made (new fields, RPCs, services, capabilities).
 
+## Unreleased
+
+Compatible additions to protocol v1; plugins built with v0.3.x keep working.
+
+- `SearchCandidate.confirmed`: the plugin is certain a candidate is the item (for example an exact code or ID read
+  from the file name). The host applies a single confirmed candidate automatically whatever its score; several are
+  ambiguous. Host feature `search_confirmed` (`pluginapi.HostFeatureSearchConfirmed`).
+- `Manifest.suggested_badge_rules`: poster badges a plugin suggests for the tags it produces; the administrator adds
+  them, the host never enables them by itself. Host feature `badge_suggestions`
+  (`pluginapi.HostFeatureBadgeSuggestions`). `plugintest` reports entries the host would skip.
+- Person backdrops: a person's `IMAGE_TYPE_BACKDROP` in `PersonMetadata.images` or `GetImages(ITEM_TYPE_PERSON)` is
+  kept as the person's one backdrop, filling only a missing one. Host feature `person_backdrop`
+  (`pluginapi.HostFeaturePersonBackdrop`); send person backdrops only when the host declares it.
+- Host feature `autofill_limit` (`pluginapi.HostFeatureAutoFillLimit`): the host-owned setting `autofill_daily_limit`
+  limits automatic subtitle downloads per plugin; a subtitle plugin may declare the key only to give its default.
+- `plugintest`: the person's own ID must be in `provider_ids` under the plugin ID (a different key used to pass);
+  person images may be `IMAGE_TYPE_BACKDROP`; the plugin sees the same host features as on a current host.
+- Documentation (`PROTOCOL.md`): how the host reads log levels and where administrators see plugin logs (§2.3); which
+  declarations are read only when the process starts, before the settings arrive, and that option labels changing
+  with the settings are not supported (§5.1, §7.2); stored settings equal to a default follow the default (§5.2);
+  person ID stability and the `works` sent to `SearchPerson` (§7); how concurrency slots are shared and that a call's
+  deadline starts once it has a slot (§7.1); `incomplete` on `GetPerson` is asked again on hosts from 0.9.6 on
+  (§7.2); recognition tags of matched items follow `parser_version` (§7.4); when plugin tasks appear, disappear and
+  follow `default_schedule` (§7.8); the package size and entry limits (§9.4); the `still`, `person_backdrop` and
+  `autofill_limit` rows of the host feature table (§11.6). Proto comments: `SubtitleTarget.provider_ids` carries every
+  provider ID, `SubtitleCandidate.score` is used by automatic download, and `plugin.proto` points to `../PROTOCOL.md`.
+
 ## v0.3.1 (2026-10-19)
 
 Documentation: `PROTOCOL.md` states that the key of a plugin's own provider ID must equal the plugin ID; that `Credit.image_url` is stored as a placeholder avatar that a later primary image replaces; that apart from stills and person photos only the first image of each type is used; that the host never makes a thumb out of a backdrop; and when and which subtitle candidates the host downloads automatically (ids is trusted without a score; quota reserve), what `SubtitleTarget.provider_ids` carries and how subtitle files are named. No change to the protocol or the code.

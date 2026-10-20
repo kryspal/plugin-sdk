@@ -130,8 +130,13 @@ func (p *provider) GetPerson(_ context.Context, req *pluginv1.GetPersonRequest) 
 		},
 		Attributes: map[string]string{"height_cm": "170"},
 	}
+	// A host that keeps person backdrops gets one; older hosts would take it for a photo.
+	if p.features[pluginapi.HostFeaturePersonBackdrop] {
+		person.Images = append(person.Images, &pluginv1.Image{Type: pluginv1.ImageType_IMAGE_TYPE_BACKDROP, Url: "https://images.example.com/p1-wide.jpg"})
+	}
 	if p.broken == "person" {
-		person.ProviderIds = map[string]string{"other": "x"}
+		// The right ID under a key other than the plugin ID: the host would not find it.
+		person.ProviderIds = map[string]string{"short": "p1"}
 		person.Attributes["Height"] = strings.Repeat("x", 300)
 	}
 	return person, nil
@@ -141,7 +146,7 @@ func (p *provider) GetImages(_ context.Context, req *pluginv1.GetImagesRequest) 
 	if req.GetType() == pluginv1.ItemType_ITEM_TYPE_PERSON {
 		img := &pluginv1.Image{Type: pluginv1.ImageType_IMAGE_TYPE_PHOTO, Url: "https://images.example.com/p1-b.jpg"}
 		if p.broken == "images" {
-			img = &pluginv1.Image{Type: pluginv1.ImageType_IMAGE_TYPE_BACKDROP, Url: "http://images.example.com/p1-b.jpg"}
+			img = &pluginv1.Image{Type: pluginv1.ImageType_IMAGE_TYPE_LOGO, Url: "http://images.example.com/p1-b.jpg"}
 		}
 		return &pluginv1.GetImagesResponse{Images: []*pluginv1.Image{img}}, nil
 	}

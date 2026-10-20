@@ -158,6 +158,11 @@ message SearchCandidate {
   // Codes of the scoring reasons, for example title.exact, title.alias, year.release_date, shape.ok, region.match
   // (for debugging and evaluation).
   repeated string reasons = 11;
+  // The plugin is certain this candidate is the item, for example an exact code or ID match read from the file name.
+  // A host that declares the host feature search_confirmed applies a single confirmed candidate automatically,
+  // regardless of score; several confirmed candidates are treated as ambiguous. Hosts without the feature ignore it,
+  // so plugins should still send a score.
+  bool confirmed = 12;
 }
 
 message GetItemRequest {
@@ -329,7 +334,8 @@ enum ImageType {
   IMAGE_TYPE_UNSPECIFIED = 0;
   // Poster, or a person's photo.
   IMAGE_TYPE_PRIMARY = 1;
-  // Background (fanart). An item has one main backdrop; see IMAGE_TYPE_STILL for the others.
+  // Background (fanart). An item has one main backdrop; see IMAGE_TYPE_STILL for the others. A person has at most one
+  // backdrop, kept by hosts that declare the host feature person_backdrop.
   IMAGE_TYPE_BACKDROP = 2;
   // clearlogo.
   IMAGE_TYPE_LOGO = 3;
@@ -509,7 +515,8 @@ message PersonMetadata {
   map<string, string> provider_ids = 10;
   // Social and external pages.
   repeated Link links = 11;
-  // PRIMARY is the main photo; PHOTO images form the person's gallery.
+  // PRIMARY is the main photo; PHOTO images form the person's gallery; on hosts with the host feature person_backdrop,
+  // one BACKDROP is the person's backdrop.
   repeated Image images = 12;
   // Extra public facts about the person that no field above covers, for example height. Same rules as
   // ItemMetadata.attributes.

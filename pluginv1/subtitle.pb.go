@@ -161,7 +161,8 @@ type SubtitleTarget struct {
 	Year          int32    `protobuf:"varint,3,opt,name=year,proto3" json:"year,omitempty"`
 	SeasonNumber  *int32   `protobuf:"varint,4,opt,name=season_number,json=seasonNumber,proto3,oneof" json:"season_number,omitempty"`
 	EpisodeNumber *int32   `protobuf:"varint,5,opt,name=episode_number,json=episodeNumber,proto3,oneof" json:"episode_number,omitempty"`
-	// imdb, tmdb, tvdb (of the item itself or of its series).
+	// Every provider ID the server knows for the item, keys in lowercase and unfiltered: other sites' IDs (for example
+	// imdb, tmdb, tvdb) and your own IDs under your plugin ID. For an episode these are the series' IDs.
 	ProviderIds map[string]string `protobuf:"bytes,6,rep,name=provider_ids,json=providerIds,proto3" json:"provider_ids,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	// Video file name (without the path).
 	FileName string `protobuf:"bytes,7,opt,name=file_name,json=fileName,proto3" json:"file_name,omitempty"`
@@ -346,7 +347,8 @@ type SubtitleCandidate struct {
 	DownloadCount int32 `protobuf:"varint,7,opt,name=download_count,json=downloadCount,proto3" json:"download_count,omitempty"`
 	// 0 to 10; 0 means unknown.
 	Rating float64 `protobuf:"fixed64,8,opt,name=rating,proto3" json:"rating,omitempty"`
-	// The plugin's own score from 0 to 1; 0 means not supplied. The host does not rely on it.
+	// The plugin's own score from 0 to 1; 0 means not supplied. Automatic download takes a candidate matched by name
+	// only with a score of at least 0.8; hash and ids matches do not need a score (PROTOCOL.md §7.2).
 	Score float64 `protobuf:"fixed64,9,opt,name=score,proto3" json:"score,omitempty"`
 	// The following help users and the host pick a subtitle that fits before downloading it. Fill in what the source
 	// provides; leave the rest at the default (unknown). Added within v1; older hosts ignore them.
