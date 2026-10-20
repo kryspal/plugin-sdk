@@ -20,10 +20,11 @@ and later; older hosts ignore the new fields.
   after every accepted `Configure`, like `image_fetch_rules`, `attribute_labels` and `tasks`, so badges can follow tags
   the user renamed or added. Changing the suggestions never touches a rule the administrator already added. Hosts
   before 0.9.7 read it only at start (`PROTOCOL.md` §5.1, §7.2).
-- Documentation (`PROTOCOL.md`), since 0.9.6: a person's backdrop comes only from the data source (`PersonMetadata.
-  images`); backdrops from `GetImages(ITEM_TYPE_PERSON)` are offered in the manual picker and never used for automatic
-  fills (§7.2); field `description`s are read only at start, so they cannot show what the current settings do, and a
-  check (`plugin.checks`) is the place for that (§7.2).
+- Documentation (`PROTOCOL.md`), since 0.9.6: the host fills a missing person backdrop only from the data source's
+  own backdrops in `PersonMetadata.images`; backdrops from `GetImages(ITEM_TYPE_PERSON)` are not used for it (§7.2);
+  field `description`s are read only at start, so they cannot show what the current settings do, and a check
+  (`plugin.checks`) is the place for that (§7.2); `SearchCandidate.source` (§7) and `numbering_confirmed` with the
+  `confirmed_numbering` row of the host feature table (§7.4, §11.6) are described in the protocol text.
 
 ## v0.4.0 (2026-10-20)
 
