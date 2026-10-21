@@ -3,7 +3,7 @@
 All notable changes to the Kryspal Media Plugin SDK. The protocol major version is `v1` (proto package
 `kryspal.plugin.v1`); within v1 only compatible additions are made (new fields, RPCs, services, capabilities).
 
-## v0.5.0 (unreleased)
+## v0.5.0 (2026-10-21)
 
 Compatible additions to protocol v1; plugins built with v0.4.x keep working. The additions take effect on host 0.9.7
 and later; older hosts ignore the new fields.
