@@ -3,6 +3,16 @@
 All notable changes to the Kryspal Media Plugin SDK. The protocol major version is `v1` (proto package
 `kryspal.plugin.v1`); within v1 only compatible additions are made (new fields, RPCs, services, capabilities).
 
+## Unreleased
+
+- `sdk/httpclient`: the HTTP client most plugins need for an upstream service: a cap on parallel requests (`MaxConcurrent`), a
+  minimum interval between request starts, a recognizable User-Agent, a cap on the answer size, `Retry-After` in seconds or as an
+  HTTP date, and the shared mapping of failures (5xx and connection errors `UNAVAILABLE`, 429 a rate limit, 401 `UNAUTHENTICATED`,
+  403 `FAILED_PRECONDITION` (the upstream refused the configured key), 404 `NOT_FOUND`). Error messages never carry the URL.
+  Optional; nothing in the protocol changes.
+- `plugintest.Upstream`: a fake upstream service for plugin tests (routes, sequences, statuses, rate limits, and the recorded
+  requests); a request no route matches fails the test.
+
 ## v0.5.0 (2026-10-21)
 
 Compatible additions to protocol v1; plugins built with v0.4.x keep working. The additions take effect on host 0.9.7
