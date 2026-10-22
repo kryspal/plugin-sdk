@@ -11,7 +11,7 @@
 //
 // The suite covers the handshake, the health check, Describe, Configure and shutdown, and for the capabilities the
 // manifest declares: one metadata round trip, item and person images, person provider IDs and name recognition.
-// Subtitles, user sync, segments, danmaku, alias maps, cast targets and the Host service are not covered yet; use Start
+// Subtitle downloads, user sync, segments, danmaku, alias maps, cast targets and the Host service are not covered yet; use Start
 // to get a connection to the running plugin and test them yourself.
 package plugintest
 

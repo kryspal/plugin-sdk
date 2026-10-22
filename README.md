@@ -86,7 +86,22 @@ plugintest.RunSource(t, ".", plugintest.Options{
 })
 ```
 
-For anything the suite does not cover (subtitles, user sync, segments, danmaku, alias maps, cast targets, your own edge
+`plugintest.NewUpstream` is a scripted fake service that records the requests it gets. A plugin that only accepts an
+`https` base URL needs `plugintest.NewTLSUpstream`, whose self-signed certificate the plugin trusts through
+`SSL_CERT_FILE`. Go reads that variable only on Linux and other Unix systems, so on macOS and Windows the test
+is skipped with a message; run it on Linux (for example in CI):
+
+```go
+up := plugintest.NewTLSUpstream(t)
+up.Handle("GET /subtitles", plugintest.JSON(200, answer))
+plugintest.Run(t, bin, plugintest.Options{
+	Config:    map[string]string{"base_url": up.URL},
+	Env:       up.Env(),
+	Subtitles: &plugintest.SubtitleCase{Type: pluginv1.ItemType_ITEM_TYPE_MOVIE, Title: "Sample Movie", Year: 2020},
+})
+```
+
+For anything the suite does not cover (user sync, segments, danmaku, alias maps, cast targets, your own edge
 cases), `plugintest.Start` starts the plugin the same way and returns a gRPC connection to it; the plugin is stopped when
 the test ends:
 

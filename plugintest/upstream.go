@@ -2,9 +2,13 @@ package plugintest
 
 import (
 	"encoding/json"
+	"encoding/pem"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
+	"runtime"
 	"sync"
 	"testing"
 )
@@ -20,8 +24,11 @@ import (
 //
 // A request no route matches is answered with 404 and makes the test fail.
 type Upstream struct {
-	// URL is the base address of the fake service, without a trailing slash. It is plain HTTP on the loopback address.
+	// URL is the base address of the fake service, without a trailing slash: plain HTTP on the loopback address, or HTTPS
+	// for NewTLSUpstream.
 	URL string
+	// CertFile is the PEM file with the certificate of a NewTLSUpstream service (empty for plain HTTP).
+	CertFile string
 
 	t    *testing.T
 	mux  *http.ServeMux
@@ -46,6 +53,39 @@ func NewUpstream(t *testing.T) *Upstream {
 	t.Cleanup(srv.Close)
 	u.URL = srv.URL
 	return u
+}
+
+// NewTLSUpstream is NewUpstream over HTTPS, for plugins that only accept an https base URL. Its certificate is self-signed,
+// so a plugin trusts it only when its environment names the certificate file: pass Env() in Options.Env, or set the
+// variable in Options.Setup. Go reads SSL_CERT_FILE only on Linux and other Unix systems; on macOS and Windows it checks
+// certificates with the system and ignores the variable, so NewTLSUpstream skips the test there (t.Skip) instead of
+// letting it fail. Run such tests on Linux, for example in CI.
+//
+//	up := plugintest.NewTLSUpstream(t)
+//	plugintest.Run(t, bin, plugintest.Options{Config: map[string]string{"base_url": up.URL}, Env: up.Env()})
+func NewTLSUpstream(t *testing.T) *Upstream {
+	t.Helper()
+	if runtime.GOOS == "darwin" || runtime.GOOS == "windows" {
+		t.Skipf("NewTLSUpstream needs SSL_CERT_FILE, which Go ignores on %s; run this test on Linux", runtime.GOOS)
+	}
+	u := &Upstream{t: t, mux: http.NewServeMux()}
+	srv := httptest.NewTLSServer(http.HandlerFunc(u.serve))
+	t.Cleanup(srv.Close)
+	pemBytes := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: srv.Certificate().Raw})
+	u.CertFile = filepath.Join(t.TempDir(), "upstream-cert.pem")
+	if err := os.WriteFile(u.CertFile, pemBytes, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	u.URL = srv.URL
+	return u
+}
+
+// Env is the environment that makes a plugin trust this service's certificate (SSL_CERT_FILE), empty for plain HTTP.
+func (u *Upstream) Env() map[string]string {
+	if u.CertFile == "" {
+		return nil
+	}
+	return map[string]string{"SSL_CERT_FILE": u.CertFile}
 }
 
 func (u *Upstream) serve(w http.ResponseWriter, r *http.Request) {

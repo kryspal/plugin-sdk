@@ -17,6 +17,10 @@ All notable changes to the Kryspal Media Plugin SDK. The protocol major version 
 - `SearchRequest.recognition` and `GetItemRequest.recognition` (host feature `recognition_hint`): the recognition result
   passed on as it is.
 
+- `plugintest.NewTLSUpstream`: the fake upstream over HTTPS, for plugins that only accept an `https` base URL. Its
+  self-signed certificate is written to `Upstream.CertFile`; pass `Upstream.Env()` (`SSL_CERT_FILE`) in `Options.Env`
+  and the plugin trusts it. This works on Linux and other Unix systems only (Go ignores `SSL_CERT_FILE` on macOS and
+  Windows), so the test is skipped there.
 - `plugintest`: an ID that is kept under a key other than the plugin ID is reported for search candidates, `GetItem` and
   its credits (`provider_ids`, PROTOCOL §7); `Options.PersonSearch` checks `SearchPerson` candidates; `Options.Subtitles`
   checks the subtitle `Search` answer (IDs, language, format, `matched_by`, ranges, comment length, limit); the manifest check
