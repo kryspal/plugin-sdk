@@ -1,12 +1,15 @@
 package plugintest_test
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"os/exec"
 	"strings"
 	"testing"
+
+	"google.golang.org/grpc"
 
 	"github.com/kryspal/plugin-sdk/plugintest"
 	pluginv1 "github.com/kryspal/plugin-sdk/pluginv1"
@@ -19,10 +22,33 @@ func TestRunAgainstTheMinimalExample(t *testing.T) {
 	})
 }
 
+// libraryCases check the full plugin's tone setting on a metadata request and on a recognition request.
+func libraryCases() []plugintest.LibraryCase {
+	return []plugintest.LibraryCase{
+		{
+			Name: "tone in the item", Key: "tone", A: "loud", B: "quiet",
+			Call: func(ctx context.Context, conn *grpc.ClientConn, lib *pluginv1.LibraryContext) (string, string, error) {
+				item, err := pluginv1.NewMetadataProviderClient(conn).GetItem(ctx, &pluginv1.GetItemRequest{Type: pluginv1.ItemType_ITEM_TYPE_MOVIE, Id: "m1", Library: lib})
+				return item.GetAttributes()["tone"], "", err
+			},
+		},
+		{
+			Name: "tone in the parser version", Key: "tone", A: "loud", B: "quiet",
+			Call: func(ctx context.Context, conn *grpc.ClientConn, lib *pluginv1.LibraryContext) (string, string, error) {
+				resp, err := pluginv1.NewRecognizerClient(conn).Recognize(ctx, &pluginv1.RecognizeRequest{Path: []string{"SMP-001 Sample.mkv"}, Library: lib})
+				return resp.GetCandidates()[0].GetIdentifiers()["product_code"], resp.GetParserVersion(), err
+			},
+		},
+	}
+}
+
 func fullOptions() plugintest.Options {
 	return plugintest.Options{
-		Metadata:  &plugintest.MetadataCase{Type: pluginv1.ItemType_ITEM_TYPE_MOVIE, Name: "Sample Movie", Year: 2020},
-		Recognize: &plugintest.RecognizeCase{Type: pluginv1.ItemType_ITEM_TYPE_MOVIE, Path: []string{"SMP-001 Sample.mkv"}},
+		LibraryCases: libraryCases(),
+		Metadata:     &plugintest.MetadataCase{Type: pluginv1.ItemType_ITEM_TYPE_MOVIE, Name: "Sample Movie", Year: 2020},
+		PersonSearch: &plugintest.PersonSearchCase{Name: "Sample Person"},
+		Subtitles:    &plugintest.SubtitleCase{Type: pluginv1.ItemType_ITEM_TYPE_MOVIE, Title: "Sample Movie", Year: 2020},
+		Recognize:    &plugintest.RecognizeCase{Type: pluginv1.ItemType_ITEM_TYPE_MOVIE, Path: []string{"SMP-001 Sample.mkv"}},
 		// GetItem fails unless the variable from Setup reaches the plugin.
 		Setup: func(t *testing.T) map[string]string {
 			srv := httptest.NewTLSServer(http.NotFoundHandler())
@@ -52,9 +78,16 @@ func TestTheSuiteCatchesBrokenAnswers(t *testing.T) {
 		t.Skip("builds the test plugin once per case")
 	}
 	cases := map[string][]string{
-		"person":    {`want the person's own ID under the plugin ID, "full": "p1"`, `key "Height"`, "at most 256 are kept"},
+		"person": {`want the person's own ID under the plugin ID, "full": "p1"`, `key "Height"`, "at most 256 are kept"},
+		"keys": {
+			`SearchCandidate 0: provider_ids = map[short:m1]`, `GetItem(m1): provider_ids = map[short:m1]; want the entry's own ID under the plugin ID, "full": "m1"; the ID is there under the key "short"`,
+			`GetItem credit 0 (Sample Person)`, `SearchPerson candidate 0`,
+		},
+		"subtitles": {"matched_by is not set", `format ".SRT"`, "score 1.5 is outside 0–1"},
+		"autofill":  {`field "autofill_daily_limit": default "5000" is not an integer from 0 to 1000`},
 		"images":    {"is not an absolute HTTPS URL", "IMAGE_TYPE_LOGO is not allowed here"},
 		"recognize": {"parser_version is empty"},
+		"library":   {"keeps a library's values", "mixes up the settings"},
 		"manifest": {
 			`visible_when refers to "names" of type`, `default contains "c", which is not an option`,
 			`host "10.0.0.1" is a private network address, so the manifest must declare the permission network.lan`,

@@ -49,11 +49,17 @@ The suite checks:
 - the health check, `Describe` (required fields, only text changes with the language) and `Configure` with your test
   configuration;
 - with `Options.Metadata`: `Search`, then `GetItem` on the first candidate; item images must be HTTPS with a known type,
-  and attributes must follow the rules in `PROTOCOL.md` §7;
+  and attributes must follow the rules in `PROTOCOL.md` §7; an ID of the entry that is kept under a key other than the
+  plugin ID is reported, for candidates, the item and its credits;
 - with `images.movie` or `images.series` declared: `GetImages` with the item's provider IDs;
 - with `metadata.person` declared: `GetPerson` (for `Options.Person`, or the first credit of the item), whose
   `provider_ids` must hold the person's own ID under the plugin ID, with person images of type `IMAGE_TYPE_PRIMARY`,
   `IMAGE_TYPE_PHOTO` or `IMAGE_TYPE_BACKDROP`, and `GetImages` for the person when `images.person` is declared;
+- with `Options.PersonSearch` (`metadata.person.search`): `SearchPerson` candidates have an ID, a name and their own ID under the plugin ID;
+- with `Options.Subtitles` (`subtitles.search`): the subtitle `Search` answer has unique IDs, a language, a lowercase
+  format, a `matched_by`, scores and ratings in range, a short comment, and keeps to the limit; a field
+  `autofill_daily_limit` in the manifest is an `int` with a default of 0 to 1000, only on subtitle providers and only
+  when the host lists `autofill_limit`;
 - with `media.recognize` declared: an empty path returns no candidates and no error; with `Options.Recognize`, a known
   path is recognized, the answer is the same twice, at most three candidates, and `parser_version` is set;
 - shutdown on `SIGTERM`.
@@ -127,6 +133,8 @@ func main() {
   When `T` cannot find a key it returns the key itself, so a missing translation is obvious at a glance; every key needs at least `en`. See `examples/static` for a complete example and `examples/static/i18n_test.go` for a test example (English contains no Han characters; Simplified and Traditional Chinese are not mixed).
 - Versions: releases are `v0.x` until the API is frozen; `v1.0.0` follows the freeze.
 - **Images, subtitles, user sync**: the `ImageProvider`, `SubtitleProvider` and `UserSync` fields of `sdk.Config` (required when the matching capability is declared). Error helpers: `sdk.Unauthenticated` (the credential is no longer valid), `sdk.RateLimitedCredential` (rate-limits only this credential); `examples/static/services.go` demonstrates all three services. Plugins are stateless: the host passes the credential in on every call, and updates come back with the response.
+- **Two `Search` methods**: the metadata `Search` and the subtitle `Search` have the same name, so one Go type cannot serve both. Implement `MetadataProviderServer` and `SubtitleProviderServer` on two separate types and pass them in `sdk.Config.MetadataProvider` and `sdk.Config.SubtitleProvider`.
+- **Subtitle limits**: the scheduled automatic-download task makes at most 1000 searches per run, 3 seconds apart (across all libraries), and downloads at most `autofill_daily_limit` subtitles per day from each plugin (default 10, 0 means no limit; PROTOCOL §7.2). A plugin whose source has no download quota declares an `int` field with the key `autofill_daily_limit` and the default `"0"`, and only when the host lists the feature `autofill_limit`.
 
 ## Licensing for plugin authors
 

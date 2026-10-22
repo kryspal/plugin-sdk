@@ -210,6 +210,13 @@ const (
 	// episode and episode_end as an episode's numbering in place of its own parse; a season folder still decides the
 	// season of the files inside it, and NFO numbers still come first. Without it the field is ignored.
 	HostFeatureConfirmedNumbering = "confirmed_numbering"
+	// HostFeatureLibraryConfig: ConfigField.library_override, LibraryContext in requests, and Configure with dry_run
+	// for per-library settings. Without it requests carry no LibraryContext and plugins use their global settings only.
+	HostFeatureLibraryConfig = "library_config"
+	// HostFeatureRecognitionHint: SearchRequest.recognition and GetItemRequest.recognition. The host also writes the
+	// provider IDs a recognition plugin found into the item's provider IDs (not over manual or NFO ones). Without it
+	// recognition results reach metadata plugins only as titles and known IDs.
+	HostFeatureRecognitionHint = "recognition_hint"
 )
 
 // HostFeatures returns the features listed in EnvHostFeatures. The result is empty, not nil, when the variable is

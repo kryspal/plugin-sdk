@@ -827,9 +827,14 @@ type ConfigField struct {
 	// ConfigItem.id of one item of the field's group (ConfigGroup.items): the field is one of that item's settings and
 	// the admin console shows it when the item is opened. Empty means the field belongs to the group itself. The host
 	// ignores an item that the group does not list (the field is shown in the group). Host feature config_items.
-	Item          string `protobuf:"bytes,15,opt,name=item,proto3" json:"item,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Item string `protobuf:"bytes,15,opt,name=item,proto3" json:"item,omitempty"`
+	// The field may be overridden per library (host feature library_config): the library settings page shows it with
+	// "Use the plugin setting" as the default, and requests for that library carry the override in
+	// LibraryContext.overrides. Not allowed on secret or required fields. At most 32 fields per plugin. A library's
+	// language comes from the request's languages, so do not declare a per-library language field.
+	LibraryOverride bool `protobuf:"varint,16,opt,name=library_override,json=libraryOverride,proto3" json:"library_override,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *ConfigField) Reset() {
@@ -965,6 +970,13 @@ func (x *ConfigField) GetItem() string {
 		return x.Item
 	}
 	return ""
+}
+
+func (x *ConfigField) GetLibraryOverride() bool {
+	if x != nil {
+		return x.LibraryOverride
+	}
+	return false
 }
 
 // ConfigCondition makes a field depend on another field's current value.
@@ -1248,7 +1260,15 @@ type ConfigureRequest struct {
 	// for the plugin. Secret fields are in plain text.
 	Values map[string]string `protobuf:"bytes,1,rep,name=values,proto3" json:"values,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	// Language of error messages, BCP 47; an empty string means English.
-	Language      string `protobuf:"bytes,2,opt,name=language,proto3" json:"language,omitempty"`
+	Language string `protobuf:"bytes,2,opt,name=language,proto3" json:"language,omitempty"`
+	// Set only with dry_run: the library whose overrides (library.overrides) are being saved. values holds the
+	// plugin's global configuration as usual.
+	Library *LibraryContext `protobuf:"bytes,3,opt,name=library,proto3" json:"library,omitempty"`
+	// Check the values (with library's overrides on top, when set) and report problems as for a normal Configure, but
+	// do not apply anything and have no side effects. The host sends it when an administrator saves per-library
+	// settings, only while the plugin is running (it never wakes an idle plugin for it). A plugin that does not support
+	// it returns UNIMPLEMENTED and the host then checks only types, options and bounds. Host feature library_config.
+	DryRun        bool `protobuf:"varint,4,opt,name=dry_run,json=dryRun,proto3" json:"dry_run,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1297,6 +1317,81 @@ func (x *ConfigureRequest) GetLanguage() string {
 	return ""
 }
 
+func (x *ConfigureRequest) GetLibrary() *LibraryContext {
+	if x != nil {
+		return x.Library
+	}
+	return nil
+}
+
+func (x *ConfigureRequest) GetDryRun() bool {
+	if x != nil {
+		return x.DryRun
+	}
+	return false
+}
+
+// LibraryContext tells the plugin which library a request is for and which settings that library overrides (host
+// feature library_config). Use the values only for this request: never store them in the plugin's state, because
+// requests for different libraries run in parallel. Read them through the SDK's effective settings view, which puts
+// the overrides on top of the last global Configure values.
+type LibraryContext struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Opaque, stable library identifier; use it only as a cache key or for logging.
+	LibraryId string `protobuf:"bytes,1,opt,name=library_id,json=libraryId,proto3" json:"library_id,omitempty"`
+	// Only the keys this library overrides (fields with library_override), in the ConfigureRequest.values encoding.
+	// A key that is present overrides the global value even when its value is empty; a key that is absent means "use
+	// the plugin setting". Ignore unknown keys and values that no longer fit the field (for example a removed option)
+	// and fall back to the global value; never fail the request because of them.
+	Overrides     map[string]string `protobuf:"bytes,2,rep,name=overrides,proto3" json:"overrides,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *LibraryContext) Reset() {
+	*x = LibraryContext{}
+	mi := &file_pluginv1_plugin_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LibraryContext) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LibraryContext) ProtoMessage() {}
+
+func (x *LibraryContext) ProtoReflect() protoreflect.Message {
+	mi := &file_pluginv1_plugin_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LibraryContext.ProtoReflect.Descriptor instead.
+func (*LibraryContext) Descriptor() ([]byte, []int) {
+	return file_pluginv1_plugin_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *LibraryContext) GetLibraryId() string {
+	if x != nil {
+		return x.LibraryId
+	}
+	return ""
+}
+
+func (x *LibraryContext) GetOverrides() map[string]string {
+	if x != nil {
+		return x.Overrides
+	}
+	return nil
+}
+
 type ConfigureResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Overall error, in ConfigureRequest.language; an empty string means there is no overall error.
@@ -1310,7 +1405,7 @@ type ConfigureResponse struct {
 
 func (x *ConfigureResponse) Reset() {
 	*x = ConfigureResponse{}
-	mi := &file_pluginv1_plugin_proto_msgTypes[14]
+	mi := &file_pluginv1_plugin_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1322,7 +1417,7 @@ func (x *ConfigureResponse) String() string {
 func (*ConfigureResponse) ProtoMessage() {}
 
 func (x *ConfigureResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_pluginv1_plugin_proto_msgTypes[14]
+	mi := &file_pluginv1_plugin_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1335,7 +1430,7 @@ func (x *ConfigureResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConfigureResponse.ProtoReflect.Descriptor instead.
 func (*ConfigureResponse) Descriptor() ([]byte, []int) {
-	return file_pluginv1_plugin_proto_rawDescGZIP(), []int{14}
+	return file_pluginv1_plugin_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *ConfigureResponse) GetError() string {
@@ -1369,7 +1464,7 @@ type SuggestedBadgeRule struct {
 
 func (x *SuggestedBadgeRule) Reset() {
 	*x = SuggestedBadgeRule{}
-	mi := &file_pluginv1_plugin_proto_msgTypes[15]
+	mi := &file_pluginv1_plugin_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1381,7 +1476,7 @@ func (x *SuggestedBadgeRule) String() string {
 func (*SuggestedBadgeRule) ProtoMessage() {}
 
 func (x *SuggestedBadgeRule) ProtoReflect() protoreflect.Message {
-	mi := &file_pluginv1_plugin_proto_msgTypes[15]
+	mi := &file_pluginv1_plugin_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1394,7 +1489,7 @@ func (x *SuggestedBadgeRule) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SuggestedBadgeRule.ProtoReflect.Descriptor instead.
 func (*SuggestedBadgeRule) Descriptor() ([]byte, []int) {
-	return file_pluginv1_plugin_proto_rawDescGZIP(), []int{15}
+	return file_pluginv1_plugin_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *SuggestedBadgeRule) GetTag() string {
@@ -1472,7 +1567,7 @@ const file_pluginv1_plugin_proto_rawDesc = "" +
 	"\vAttribution\x12\x12\n" +
 	"\x04text\x18\x01 \x01(\tR\x04text\x12\x19\n" +
 	"\blogo_url\x18\x02 \x01(\tR\alogoUrl\x12\x12\n" +
-	"\x04link\x18\x03 \x01(\tR\x04link\"\x8f\x04\n" +
+	"\x04link\x18\x03 \x01(\tR\x04link\"\xba\x04\n" +
 	"\vConfigField\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05label\x18\x02 \x01(\tR\x05label\x12 \n" +
@@ -1490,7 +1585,8 @@ const file_pluginv1_plugin_proto_rawDesc = "" +
 	"\x03min\x18\f \x01(\x03H\x00R\x03min\x88\x01\x01\x12\x15\n" +
 	"\x03max\x18\r \x01(\x03H\x01R\x03max\x88\x01\x01\x12E\n" +
 	"\fvisible_when\x18\x0e \x01(\v2\".kryspal.plugin.v1.ConfigConditionR\vvisibleWhen\x12\x12\n" +
-	"\x04item\x18\x0f \x01(\tR\x04itemB\x06\n" +
+	"\x04item\x18\x0f \x01(\tR\x04item\x12)\n" +
+	"\x10library_override\x18\x10 \x01(\bR\x0flibraryOverrideB\x06\n" +
 	"\x04_minB\x06\n" +
 	"\x04_max\";\n" +
 	"\x0fConfigCondition\x12\x10\n" +
@@ -1510,11 +1606,20 @@ const file_pluginv1_plugin_proto_rawDesc = "" +
 	"ConfigItem\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05label\x18\x02 \x01(\tR\x05label\x12 \n" +
-	"\vdescription\x18\x03 \x01(\tR\vdescription\"\xb2\x01\n" +
+	"\vdescription\x18\x03 \x01(\tR\vdescription\"\x88\x02\n" +
 	"\x10ConfigureRequest\x12G\n" +
 	"\x06values\x18\x01 \x03(\v2/.kryspal.plugin.v1.ConfigureRequest.ValuesEntryR\x06values\x12\x1a\n" +
-	"\blanguage\x18\x02 \x01(\tR\blanguage\x1a9\n" +
+	"\blanguage\x18\x02 \x01(\tR\blanguage\x12;\n" +
+	"\alibrary\x18\x03 \x01(\v2!.kryspal.plugin.v1.LibraryContextR\alibrary\x12\x17\n" +
+	"\adry_run\x18\x04 \x01(\bR\x06dryRun\x1a9\n" +
 	"\vValuesEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xbd\x01\n" +
+	"\x0eLibraryContext\x12\x1d\n" +
+	"\n" +
+	"library_id\x18\x01 \x01(\tR\tlibraryId\x12N\n" +
+	"\toverrides\x18\x02 \x03(\v20.kryspal.plugin.v1.LibraryContext.OverridesEntryR\toverrides\x1a<\n" +
+	"\x0eOverridesEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xc3\x01\n" +
 	"\x11ConfigureResponse\x12\x14\n" +
@@ -1555,7 +1660,7 @@ func file_pluginv1_plugin_proto_rawDescGZIP() []byte {
 }
 
 var file_pluginv1_plugin_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_pluginv1_plugin_proto_msgTypes = make([]protoimpl.MessageInfo, 18)
+var file_pluginv1_plugin_proto_msgTypes = make([]protoimpl.MessageInfo, 20)
 var file_pluginv1_plugin_proto_goTypes = []any{
 	(ConfigFieldType)(0),       // 0: kryspal.plugin.v1.ConfigFieldType
 	(*DescribeRequest)(nil),    // 1: kryspal.plugin.v1.DescribeRequest
@@ -1572,10 +1677,12 @@ var file_pluginv1_plugin_proto_goTypes = []any{
 	(*ConfigGroup)(nil),        // 12: kryspal.plugin.v1.ConfigGroup
 	(*ConfigItem)(nil),         // 13: kryspal.plugin.v1.ConfigItem
 	(*ConfigureRequest)(nil),   // 14: kryspal.plugin.v1.ConfigureRequest
-	(*ConfigureResponse)(nil),  // 15: kryspal.plugin.v1.ConfigureResponse
-	(*SuggestedBadgeRule)(nil), // 16: kryspal.plugin.v1.SuggestedBadgeRule
-	nil,                        // 17: kryspal.plugin.v1.ConfigureRequest.ValuesEntry
-	nil,                        // 18: kryspal.plugin.v1.ConfigureResponse.FieldErrorsEntry
+	(*LibraryContext)(nil),     // 15: kryspal.plugin.v1.LibraryContext
+	(*ConfigureResponse)(nil),  // 16: kryspal.plugin.v1.ConfigureResponse
+	(*SuggestedBadgeRule)(nil), // 17: kryspal.plugin.v1.SuggestedBadgeRule
+	nil,                        // 18: kryspal.plugin.v1.ConfigureRequest.ValuesEntry
+	nil,                        // 19: kryspal.plugin.v1.LibraryContext.OverridesEntry
+	nil,                        // 20: kryspal.plugin.v1.ConfigureResponse.FieldErrorsEntry
 }
 var file_pluginv1_plugin_proto_depIdxs = []int32{
 	9,  // 0: kryspal.plugin.v1.Manifest.config_fields:type_name -> kryspal.plugin.v1.ConfigField
@@ -1585,23 +1692,25 @@ var file_pluginv1_plugin_proto_depIdxs = []int32{
 	6,  // 4: kryspal.plugin.v1.Manifest.tasks:type_name -> kryspal.plugin.v1.TaskDeclaration
 	4,  // 5: kryspal.plugin.v1.Manifest.attribute_labels:type_name -> kryspal.plugin.v1.AttributeLabel
 	3,  // 6: kryspal.plugin.v1.Manifest.checks:type_name -> kryspal.plugin.v1.CheckDeclaration
-	16, // 7: kryspal.plugin.v1.Manifest.suggested_badge_rules:type_name -> kryspal.plugin.v1.SuggestedBadgeRule
+	17, // 7: kryspal.plugin.v1.Manifest.suggested_badge_rules:type_name -> kryspal.plugin.v1.SuggestedBadgeRule
 	7,  // 8: kryspal.plugin.v1.TaskDeclaration.default_schedule:type_name -> kryspal.plugin.v1.TaskSchedule
 	0,  // 9: kryspal.plugin.v1.ConfigField.type:type_name -> kryspal.plugin.v1.ConfigFieldType
 	11, // 10: kryspal.plugin.v1.ConfigField.options:type_name -> kryspal.plugin.v1.ConfigOption
 	10, // 11: kryspal.plugin.v1.ConfigField.visible_when:type_name -> kryspal.plugin.v1.ConfigCondition
 	13, // 12: kryspal.plugin.v1.ConfigGroup.items:type_name -> kryspal.plugin.v1.ConfigItem
-	17, // 13: kryspal.plugin.v1.ConfigureRequest.values:type_name -> kryspal.plugin.v1.ConfigureRequest.ValuesEntry
-	18, // 14: kryspal.plugin.v1.ConfigureResponse.field_errors:type_name -> kryspal.plugin.v1.ConfigureResponse.FieldErrorsEntry
-	1,  // 15: kryspal.plugin.v1.Plugin.Describe:input_type -> kryspal.plugin.v1.DescribeRequest
-	14, // 16: kryspal.plugin.v1.Plugin.Configure:input_type -> kryspal.plugin.v1.ConfigureRequest
-	2,  // 17: kryspal.plugin.v1.Plugin.Describe:output_type -> kryspal.plugin.v1.Manifest
-	15, // 18: kryspal.plugin.v1.Plugin.Configure:output_type -> kryspal.plugin.v1.ConfigureResponse
-	17, // [17:19] is the sub-list for method output_type
-	15, // [15:17] is the sub-list for method input_type
-	15, // [15:15] is the sub-list for extension type_name
-	15, // [15:15] is the sub-list for extension extendee
-	0,  // [0:15] is the sub-list for field type_name
+	18, // 13: kryspal.plugin.v1.ConfigureRequest.values:type_name -> kryspal.plugin.v1.ConfigureRequest.ValuesEntry
+	15, // 14: kryspal.plugin.v1.ConfigureRequest.library:type_name -> kryspal.plugin.v1.LibraryContext
+	19, // 15: kryspal.plugin.v1.LibraryContext.overrides:type_name -> kryspal.plugin.v1.LibraryContext.OverridesEntry
+	20, // 16: kryspal.plugin.v1.ConfigureResponse.field_errors:type_name -> kryspal.plugin.v1.ConfigureResponse.FieldErrorsEntry
+	1,  // 17: kryspal.plugin.v1.Plugin.Describe:input_type -> kryspal.plugin.v1.DescribeRequest
+	14, // 18: kryspal.plugin.v1.Plugin.Configure:input_type -> kryspal.plugin.v1.ConfigureRequest
+	2,  // 19: kryspal.plugin.v1.Plugin.Describe:output_type -> kryspal.plugin.v1.Manifest
+	16, // 20: kryspal.plugin.v1.Plugin.Configure:output_type -> kryspal.plugin.v1.ConfigureResponse
+	19, // [19:21] is the sub-list for method output_type
+	17, // [17:19] is the sub-list for method input_type
+	17, // [17:17] is the sub-list for extension type_name
+	17, // [17:17] is the sub-list for extension extendee
+	0,  // [0:17] is the sub-list for field type_name
 }
 
 func init() { file_pluginv1_plugin_proto_init() }
@@ -1616,7 +1725,7 @@ func file_pluginv1_plugin_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_pluginv1_plugin_proto_rawDesc), len(file_pluginv1_plugin_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   18,
+			NumMessages:   20,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

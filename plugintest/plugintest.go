@@ -19,6 +19,7 @@ import (
 	"bufio"
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"os/exec"
@@ -49,6 +50,8 @@ const (
 	searchTimeout    = 15 * time.Second
 	lookupTimeout    = 30 * time.Second // GetItem, GetPerson, GetImages
 	recognizeTimeout = 5 * time.Second
+
+	subtitleSearchTimeout = 15 * time.Second
 )
 
 // call runs f with a deadline of d.
@@ -70,12 +73,24 @@ type Options struct {
 	// Person, when set, runs GetPerson for this person. The plugin must declare metadata.person. When it is nil and
 	// the plugin declares metadata.person, the first credit with a person_id from the metadata round trip is used.
 	Person *PersonCase
+	// PersonSearch, when set, runs SearchPerson for this name and checks the candidates (an ID, a name, and the ID under
+	// the plugin ID). The plugin must declare metadata.person.search.
+	PersonSearch *PersonSearchCase
+	// Subtitles, when set, runs the subtitle Search for this video and checks the candidates: IDs, language, format,
+	// matched_by, ranges and the limit. The plugin must declare subtitles.search.
+	Subtitles *SubtitleCase
 	// RunTasks names tasks (Manifest.tasks) to run once each with RunTask. The plugin must declare plugin.tasks.
 	// Tasks are not run unless listed, since they may reach the network or take long.
 	RunTasks []string
 	// Recognize, when set, is a path the plugin is known to recognize. The plugin must declare media.recognize.
 	// Plugins that declare media.recognize are always checked with an empty path, whether or not this is set.
 	Recognize *RecognizeCase
+
+	// LibraryCases check the plugin's per-library settings (PROTOCOL.md §5.4): that each setting changes the answer,
+	// that requests for different libraries running at once keep their own settings, that bad values fall back to the
+	// global one, and that a dry run changes nothing. The plugin should have a case for each setting it marks
+	// library_override; a manifest with such fields and no cases only gets a note in the log.
+	LibraryCases []LibraryCase
 
 	// Env adds variables to the plugin's environment, for example the address of a fake upstream service. The
 	// variables the host sets (the KRYSPAL_PLUGIN_* variables, PATH, HOME and TMPDIR) cannot be overridden, with one
@@ -96,6 +111,24 @@ type MetadataCase struct {
 // PersonCase is a person the plugin is known to find.
 type PersonCase struct {
 	ID string // the person's ID at this provider
+}
+
+// PersonSearchCase is a person name the plugin is known to find with SearchPerson.
+type PersonSearchCase struct {
+	Name string
+}
+
+// SubtitleCase is a video the plugin is known to find subtitles for.
+type SubtitleCase struct {
+	Type  pluginv1.ItemType // ITEM_TYPE_MOVIE or ITEM_TYPE_EPISODE
+	Title string
+	Year  int32
+	// Season and Episode are sent for an episode.
+	Season, Episode int32
+	// ProviderIDs are the item's IDs as the host sends them (lower case keys, for example imdb).
+	ProviderIDs map[string]string
+	// Languages are the wanted languages (BCP 47); en when empty.
+	Languages []string
 }
 
 // RecognizeCase is a path the plugin is known to recognize.
@@ -154,6 +187,7 @@ func Run(t *testing.T, binary string, opts Options) {
 			t.Error("the manifest declares no capabilities")
 		}
 		checkManifest(t, manifest)
+		checkAutoFillLimit(t, manifest, hostListsFeature(extra, pluginapi.HostFeatureAutoFillLimit))
 		// Only text may change with the language (PROTOCOL.md §5.1).
 		for _, lang := range []string{"zh-CN", "ja"} {
 			other := describe(ctx, t, p.conn, lang)
@@ -186,11 +220,23 @@ func Run(t *testing.T, binary string, opts Options) {
 	if personID := personToCheck(t, manifest, opts.Person, item); personID != "" {
 		t.Run("Person", func(t *testing.T) { personRoundTrip(ctx, t, p.conn, manifest, personID) })
 	}
+	if pc := opts.PersonSearch; pc != nil {
+		t.Run("PersonSearch", func(t *testing.T) { checkSearchPerson(ctx, t, p.conn, manifest, pc) })
+	}
+	if sc := opts.Subtitles; sc != nil {
+		t.Run("Subtitles", func(t *testing.T) { checkSubtitles(ctx, t, p.conn, manifest, sc) })
+	}
 	if len(opts.RunTasks) > 0 {
 		t.Run("Tasks", func(t *testing.T) { runTasks(ctx, t, p.conn, manifest, opts.RunTasks) })
 	}
 	if declares(manifest, pluginv1.CapabilityMediaRecognize) || opts.Recognize != nil {
 		t.Run("Recognize", func(t *testing.T) { recognize(ctx, t, p.conn, manifest, opts.Recognize) })
+	}
+
+	if len(opts.LibraryCases) > 0 {
+		t.Run("Library", func(t *testing.T) { libraryChecks(ctx, t, p.conn, manifest, opts.Config, opts.LibraryCases) })
+	} else if hasLibraryOverride(manifest) {
+		t.Log("the manifest marks fields library_override; add Options.LibraryCases to check them")
 	}
 
 	t.Run("Shutdown", func(t *testing.T) { p.stop(t) })
@@ -233,6 +279,9 @@ func metadataRoundTrip(ctx context.Context, t *testing.T, conn *grpc.ClientConn,
 	if first.GetId() == "" || first.GetType() != mc.Type {
 		t.Fatalf("first candidate = %+v; want an id and type %v", first, mc.Type)
 	}
+	for i, c := range res.GetCandidates() {
+		checkOwnIDKey(t, fmt.Sprintf("SearchCandidate %d", i), m.GetId(), c.GetId(), c.GetProviderIds(), false)
+	}
 	item, err := call(ctx, lookupTimeout, func(cctx context.Context) (*pluginv1.ItemMetadata, error) {
 		return c.GetItem(cctx, &pluginv1.GetItemRequest{Type: mc.Type, Id: first.GetId()})
 	})
@@ -242,6 +291,10 @@ func metadataRoundTrip(ctx context.Context, t *testing.T, conn *grpc.ClientConn,
 	if item.GetId() != first.GetId() || item.GetType() != mc.Type || item.GetName() == "" {
 		t.Errorf("GetItem(%q) = id %q type %v name %q; want the candidate's id and type and a name",
 			first.GetId(), item.GetId(), item.GetType(), item.GetName())
+	}
+	checkOwnIDKey(t, "GetItem("+first.GetId()+")", m.GetId(), item.GetId(), item.GetProviderIds(), false)
+	for i, c := range item.GetCredits() {
+		checkOwnIDKey(t, fmt.Sprintf("GetItem credit %d (%s)", i, c.GetName()), m.GetId(), c.GetPersonId(), c.GetProviderIds(), true)
 	}
 	checkImages(t, "ItemMetadata.images", item.GetImages(), nil)
 	checkAttributes(t, "ItemMetadata.attributes", item.GetAttributes())

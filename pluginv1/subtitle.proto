@@ -9,6 +9,7 @@ syntax = "proto3";
 package kryspal.plugin.v1;
 
 import "pluginv1/metadata.proto";
+import "pluginv1/plugin.proto";
 
 option go_package = "github.com/kryspal/plugin-sdk/pluginv1;pluginv1";
 
@@ -30,6 +31,8 @@ message SearchSubtitlesRequest {
   bool include_hearing_impaired = 3;
   // Maximum number of results; 0 lets the plugin decide.
   int32 limit = 4;
+  // The library the item is in, with its per-library overrides (host feature library_config).
+  LibraryContext library = 5;
 }
 
 // SubtitleTarget is the video that needs subtitles. The host fills in as much as it can and the plugin picks what it can

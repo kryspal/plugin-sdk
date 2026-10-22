@@ -11,6 +11,7 @@ syntax = "proto3";
 package kryspal.plugin.v1;
 
 import "pluginv1/metadata.proto";
+import "pluginv1/plugin.proto";
 
 option go_package = "github.com/kryspal/plugin-sdk/pluginv1;pluginv1";
 
@@ -49,6 +50,10 @@ message RecognizeRequest {
   // e.g. calling AI assist through the host (requires declaring the llm permission and the administrator's approval).
   // The host sends at most one second round per item.
   bool previous_unmatched = 10;
+  // The library the file is in, with its per-library overrides (host feature library_config). When overrides change
+  // the result, put a stable digest of the effective settings into RecognizeResponse.parser_version: the host stores
+  // and compares the version per library and re-runs only that library's items when it changes.
+  LibraryContext library = 11;
 }
 
 message RecognizeResponse {
@@ -74,7 +79,10 @@ message Recognition {
   optional int32 part = 9;
   // Director's cut and the like; for display or debugging only.
   string edition = 10;
-  // IDs or codes found in the name, e.g. tmdb, imdb, product_code.
+  // IDs or codes found in the name, e.g. tmdb, imdb, product_code. Keys the host knows as provider IDs (the host's identity
+  // sources, such as tmdb, imdb and tvdb, and the IDs of installed metadata plugins) are written to the item's provider IDs, so
+  // the item is matched to that ID without a search; on hosts with the feature recognition_hint the other keys are
+  // passed to the metadata plugin in the search and item requests as a hint and are not stored. Keys are lower case.
   map<string, string> identifiers = 11;
   // ISO 3166-1, e.g. a category folder whose name is the Chinese word for India → IN.
   repeated string region_hints = 12;

@@ -52,6 +52,7 @@ var (
 func checkManifest(t *testing.T, m *pluginv1.Manifest) {
 	t.Helper()
 	checkConfigItems(t, m)
+	checkLibraryOverrides(t, m)
 	fields := map[string]*pluginv1.ConfigField{}
 	for _, f := range m.GetConfigFields() {
 		fields[f.GetKey()] = f
@@ -378,4 +379,28 @@ func fieldByKey(m *pluginv1.Manifest, key string) *pluginv1.ConfigField {
 		}
 	}
 	return nil
+}
+
+// maxLibraryOverrides is the most fields a plugin may mark ConfigField.library_override (PROTOCOL §5.4).
+const maxLibraryOverrides = 32
+
+// checkLibraryOverrides checks the per-library settings declarations: not on secret or required fields, at most 32.
+func checkLibraryOverrides(t *testing.T, m *pluginv1.Manifest) {
+	t.Helper()
+	n := 0
+	for _, f := range m.GetConfigFields() {
+		if !f.GetLibraryOverride() {
+			continue
+		}
+		n++
+		if f.GetType() == pluginv1.ConfigFieldType_CONFIG_FIELD_TYPE_SECRET {
+			t.Errorf("config field %q: a secret field cannot be overridden per library", f.GetKey())
+		}
+		if f.GetRequired() {
+			t.Errorf("config field %q: a required field cannot be overridden per library", f.GetKey())
+		}
+	}
+	if n > maxLibraryOverrides {
+		t.Errorf("%d config fields are marked library_override; at most %d", n, maxLibraryOverrides)
+	}
 }

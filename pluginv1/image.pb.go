@@ -49,7 +49,10 @@ type GetImagesRequest struct {
 	// a plugin that cannot use provider_ids matches on name and aliases. Empty for movies and series.
 	Name string `protobuf:"bytes,6,opt,name=name,proto3" json:"name,omitempty"`
 	// Only for ITEM_TYPE_PERSON: other names of the person (stage names, names in other languages).
-	Aliases       []string `protobuf:"bytes,7,rep,name=aliases,proto3" json:"aliases,omitempty"`
+	Aliases []string `protobuf:"bytes,7,rep,name=aliases,proto3" json:"aliases,omitempty"`
+	// Movies, series, seasons and episodes only (not people, who are shared across libraries): the library the item is
+	// in, with its per-library overrides (host feature library_config).
+	Library       *LibraryContext `protobuf:"bytes,8,opt,name=library,proto3" json:"library,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -133,6 +136,13 @@ func (x *GetImagesRequest) GetAliases() []string {
 	return nil
 }
 
+func (x *GetImagesRequest) GetLibrary() *LibraryContext {
+	if x != nil {
+		return x.Library
+	}
+	return nil
+}
+
 type GetImagesResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// In order of preference; the first image of each type is the preferred one.
@@ -208,7 +218,7 @@ var File_pluginv1_image_proto protoreflect.FileDescriptor
 
 const file_pluginv1_image_proto_rawDesc = "" +
 	"\n" +
-	"\x14pluginv1/image.proto\x12\x11kryspal.plugin.v1\x1a\x17pluginv1/metadata.proto\"\xa0\x03\n" +
+	"\x14pluginv1/image.proto\x12\x11kryspal.plugin.v1\x1a\x17pluginv1/metadata.proto\x1a\x15pluginv1/plugin.proto\"\xdd\x03\n" +
 	"\x10GetImagesRequest\x12/\n" +
 	"\x04type\x18\x01 \x01(\x0e2\x1b.kryspal.plugin.v1.ItemTypeR\x04type\x12W\n" +
 	"\fprovider_ids\x18\x02 \x03(\v24.kryspal.plugin.v1.GetImagesRequest.ProviderIdsEntryR\vproviderIds\x122\n" +
@@ -216,7 +226,8 @@ const file_pluginv1_image_proto_rawDesc = "" +
 	"\tlanguages\x18\x04 \x01(\v2\x1c.kryspal.plugin.v1.LanguagesR\tlanguages\x12$\n" +
 	"\x0elimit_per_type\x18\x05 \x01(\x05R\flimitPerType\x12\x12\n" +
 	"\x04name\x18\x06 \x01(\tR\x04name\x12\x18\n" +
-	"\aaliases\x18\a \x03(\tR\aaliases\x1a>\n" +
+	"\aaliases\x18\a \x03(\tR\aaliases\x12;\n" +
+	"\alibrary\x18\b \x01(\v2!.kryspal.plugin.v1.LibraryContextR\alibrary\x1a>\n" +
 	"\x10ProviderIdsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xca\x01\n" +
@@ -250,23 +261,25 @@ var file_pluginv1_image_proto_goTypes = []any{
 	(ItemType)(0),             // 3: kryspal.plugin.v1.ItemType
 	(ImageType)(0),            // 4: kryspal.plugin.v1.ImageType
 	(*Languages)(nil),         // 5: kryspal.plugin.v1.Languages
-	(*Image)(nil),             // 6: kryspal.plugin.v1.Image
-	(*Notice)(nil),            // 7: kryspal.plugin.v1.Notice
+	(*LibraryContext)(nil),    // 6: kryspal.plugin.v1.LibraryContext
+	(*Image)(nil),             // 7: kryspal.plugin.v1.Image
+	(*Notice)(nil),            // 8: kryspal.plugin.v1.Notice
 }
 var file_pluginv1_image_proto_depIdxs = []int32{
 	3, // 0: kryspal.plugin.v1.GetImagesRequest.type:type_name -> kryspal.plugin.v1.ItemType
 	2, // 1: kryspal.plugin.v1.GetImagesRequest.provider_ids:type_name -> kryspal.plugin.v1.GetImagesRequest.ProviderIdsEntry
 	4, // 2: kryspal.plugin.v1.GetImagesRequest.types:type_name -> kryspal.plugin.v1.ImageType
 	5, // 3: kryspal.plugin.v1.GetImagesRequest.languages:type_name -> kryspal.plugin.v1.Languages
-	6, // 4: kryspal.plugin.v1.GetImagesResponse.images:type_name -> kryspal.plugin.v1.Image
-	7, // 5: kryspal.plugin.v1.GetImagesResponse.notices:type_name -> kryspal.plugin.v1.Notice
-	0, // 6: kryspal.plugin.v1.ImageProvider.GetImages:input_type -> kryspal.plugin.v1.GetImagesRequest
-	1, // 7: kryspal.plugin.v1.ImageProvider.GetImages:output_type -> kryspal.plugin.v1.GetImagesResponse
-	7, // [7:8] is the sub-list for method output_type
-	6, // [6:7] is the sub-list for method input_type
-	6, // [6:6] is the sub-list for extension type_name
-	6, // [6:6] is the sub-list for extension extendee
-	0, // [0:6] is the sub-list for field type_name
+	6, // 4: kryspal.plugin.v1.GetImagesRequest.library:type_name -> kryspal.plugin.v1.LibraryContext
+	7, // 5: kryspal.plugin.v1.GetImagesResponse.images:type_name -> kryspal.plugin.v1.Image
+	8, // 6: kryspal.plugin.v1.GetImagesResponse.notices:type_name -> kryspal.plugin.v1.Notice
+	0, // 7: kryspal.plugin.v1.ImageProvider.GetImages:input_type -> kryspal.plugin.v1.GetImagesRequest
+	1, // 8: kryspal.plugin.v1.ImageProvider.GetImages:output_type -> kryspal.plugin.v1.GetImagesResponse
+	8, // [8:9] is the sub-list for method output_type
+	7, // [7:8] is the sub-list for method input_type
+	7, // [7:7] is the sub-list for extension type_name
+	7, // [7:7] is the sub-list for extension extendee
+	0, // [0:7] is the sub-list for field type_name
 }
 
 func init() { file_pluginv1_image_proto_init() }
@@ -275,6 +288,7 @@ func file_pluginv1_image_proto_init() {
 		return
 	}
 	file_pluginv1_metadata_proto_init()
+	file_pluginv1_plugin_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

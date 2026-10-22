@@ -88,7 +88,9 @@ type SearchSubtitlesRequest struct {
 	// Whether subtitles for the hearing impaired are acceptable.
 	IncludeHearingImpaired bool `protobuf:"varint,3,opt,name=include_hearing_impaired,json=includeHearingImpaired,proto3" json:"include_hearing_impaired,omitempty"`
 	// Maximum number of results; 0 lets the plugin decide.
-	Limit         int32 `protobuf:"varint,4,opt,name=limit,proto3" json:"limit,omitempty"`
+	Limit int32 `protobuf:"varint,4,opt,name=limit,proto3" json:"limit,omitempty"`
+	// The library the item is in, with its per-library overrides (host feature library_config).
+	Library       *LibraryContext `protobuf:"bytes,5,opt,name=library,proto3" json:"library,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -149,6 +151,13 @@ func (x *SearchSubtitlesRequest) GetLimit() int32 {
 		return x.Limit
 	}
 	return 0
+}
+
+func (x *SearchSubtitlesRequest) GetLibrary() *LibraryContext {
+	if x != nil {
+		return x.Library
+	}
+	return nil
 }
 
 // SubtitleTarget is the video that needs subtitles. The host fills in as much as it can and the plugin picks what it can
@@ -689,12 +698,13 @@ var File_pluginv1_subtitle_proto protoreflect.FileDescriptor
 
 const file_pluginv1_subtitle_proto_rawDesc = "" +
 	"\n" +
-	"\x17pluginv1/subtitle.proto\x12\x11kryspal.plugin.v1\x1a\x17pluginv1/metadata.proto\"\xc1\x01\n" +
+	"\x17pluginv1/subtitle.proto\x12\x11kryspal.plugin.v1\x1a\x17pluginv1/metadata.proto\x1a\x15pluginv1/plugin.proto\"\xfe\x01\n" +
 	"\x16SearchSubtitlesRequest\x129\n" +
 	"\x06target\x18\x01 \x01(\v2!.kryspal.plugin.v1.SubtitleTargetR\x06target\x12\x1c\n" +
 	"\tlanguages\x18\x02 \x03(\tR\tlanguages\x128\n" +
 	"\x18include_hearing_impaired\x18\x03 \x01(\bR\x16includeHearingImpaired\x12\x14\n" +
-	"\x05limit\x18\x04 \x01(\x05R\x05limit\"\x81\x04\n" +
+	"\x05limit\x18\x04 \x01(\x05R\x05limit\x12;\n" +
+	"\alibrary\x18\x05 \x01(\v2!.kryspal.plugin.v1.LibraryContextR\alibrary\"\x81\x04\n" +
 	"\x0eSubtitleTarget\x12/\n" +
 	"\x04type\x18\x01 \x01(\x0e2\x1b.kryspal.plugin.v1.ItemTypeR\x04type\x12\x14\n" +
 	"\x05title\x18\x02 \x01(\tR\x05title\x12\x12\n" +
@@ -785,24 +795,26 @@ var file_pluginv1_subtitle_proto_goTypes = []any{
 	(*DownloadSubtitleResponse)(nil), // 6: kryspal.plugin.v1.DownloadSubtitleResponse
 	(*SubtitleFile)(nil),             // 7: kryspal.plugin.v1.SubtitleFile
 	nil,                              // 8: kryspal.plugin.v1.SubtitleTarget.ProviderIdsEntry
-	(ItemType)(0),                    // 9: kryspal.plugin.v1.ItemType
+	(*LibraryContext)(nil),           // 9: kryspal.plugin.v1.LibraryContext
+	(ItemType)(0),                    // 10: kryspal.plugin.v1.ItemType
 }
 var file_pluginv1_subtitle_proto_depIdxs = []int32{
-	2, // 0: kryspal.plugin.v1.SearchSubtitlesRequest.target:type_name -> kryspal.plugin.v1.SubtitleTarget
-	9, // 1: kryspal.plugin.v1.SubtitleTarget.type:type_name -> kryspal.plugin.v1.ItemType
-	8, // 2: kryspal.plugin.v1.SubtitleTarget.provider_ids:type_name -> kryspal.plugin.v1.SubtitleTarget.ProviderIdsEntry
-	4, // 3: kryspal.plugin.v1.SearchSubtitlesResponse.candidates:type_name -> kryspal.plugin.v1.SubtitleCandidate
-	0, // 4: kryspal.plugin.v1.SubtitleCandidate.matched_by:type_name -> kryspal.plugin.v1.SubtitleCandidate.MatchedBy
-	7, // 5: kryspal.plugin.v1.DownloadSubtitleResponse.files:type_name -> kryspal.plugin.v1.SubtitleFile
-	1, // 6: kryspal.plugin.v1.SubtitleProvider.Search:input_type -> kryspal.plugin.v1.SearchSubtitlesRequest
-	5, // 7: kryspal.plugin.v1.SubtitleProvider.Download:input_type -> kryspal.plugin.v1.DownloadSubtitleRequest
-	3, // 8: kryspal.plugin.v1.SubtitleProvider.Search:output_type -> kryspal.plugin.v1.SearchSubtitlesResponse
-	6, // 9: kryspal.plugin.v1.SubtitleProvider.Download:output_type -> kryspal.plugin.v1.DownloadSubtitleResponse
-	8, // [8:10] is the sub-list for method output_type
-	6, // [6:8] is the sub-list for method input_type
-	6, // [6:6] is the sub-list for extension type_name
-	6, // [6:6] is the sub-list for extension extendee
-	0, // [0:6] is the sub-list for field type_name
+	2,  // 0: kryspal.plugin.v1.SearchSubtitlesRequest.target:type_name -> kryspal.plugin.v1.SubtitleTarget
+	9,  // 1: kryspal.plugin.v1.SearchSubtitlesRequest.library:type_name -> kryspal.plugin.v1.LibraryContext
+	10, // 2: kryspal.plugin.v1.SubtitleTarget.type:type_name -> kryspal.plugin.v1.ItemType
+	8,  // 3: kryspal.plugin.v1.SubtitleTarget.provider_ids:type_name -> kryspal.plugin.v1.SubtitleTarget.ProviderIdsEntry
+	4,  // 4: kryspal.plugin.v1.SearchSubtitlesResponse.candidates:type_name -> kryspal.plugin.v1.SubtitleCandidate
+	0,  // 5: kryspal.plugin.v1.SubtitleCandidate.matched_by:type_name -> kryspal.plugin.v1.SubtitleCandidate.MatchedBy
+	7,  // 6: kryspal.plugin.v1.DownloadSubtitleResponse.files:type_name -> kryspal.plugin.v1.SubtitleFile
+	1,  // 7: kryspal.plugin.v1.SubtitleProvider.Search:input_type -> kryspal.plugin.v1.SearchSubtitlesRequest
+	5,  // 8: kryspal.plugin.v1.SubtitleProvider.Download:input_type -> kryspal.plugin.v1.DownloadSubtitleRequest
+	3,  // 9: kryspal.plugin.v1.SubtitleProvider.Search:output_type -> kryspal.plugin.v1.SearchSubtitlesResponse
+	6,  // 10: kryspal.plugin.v1.SubtitleProvider.Download:output_type -> kryspal.plugin.v1.DownloadSubtitleResponse
+	9,  // [9:11] is the sub-list for method output_type
+	7,  // [7:9] is the sub-list for method input_type
+	7,  // [7:7] is the sub-list for extension type_name
+	7,  // [7:7] is the sub-list for extension extendee
+	0,  // [0:7] is the sub-list for field type_name
 }
 
 func init() { file_pluginv1_subtitle_proto_init() }
@@ -811,6 +823,7 @@ func file_pluginv1_subtitle_proto_init() {
 		return
 	}
 	file_pluginv1_metadata_proto_init()
+	file_pluginv1_plugin_proto_init()
 	file_pluginv1_subtitle_proto_msgTypes[1].OneofWrappers = []any{}
 	file_pluginv1_subtitle_proto_msgTypes[2].OneofWrappers = []any{}
 	type x struct{}

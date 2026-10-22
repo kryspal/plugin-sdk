@@ -3,6 +3,34 @@
 All notable changes to the Kryspal Media Plugin SDK. The protocol major version is `v1` (proto package
 `kryspal.plugin.v1`); within v1 only compatible additions are made (new fields, RPCs, services, capabilities).
 
+## Unreleased (v0.7.0)
+
+- Per-library settings (host feature `library_config`, PROTOCOL §5.4): `ConfigField.library_override`, `LibraryContext` on
+  Search, GetItem, GetImages, Recognize and subtitle Search requests, and `Configure` with `dry_run` and `library` for
+  checking a library's values. `sdk.Settings` keeps the global values and gives each request its effective settings
+  (`For`, typed getters, `CacheKey`).
+- `plugintest.Options.LibraryCases`: checks a plugin's per-library settings. For each case the author gives the setting, two values
+  and a function that makes one request; the suite checks that the setting changes the answer (and the recognizer's
+  `parser_version`), that requests for different libraries running at once keep their own settings, that an unknown key, an
+  empty value, a bad value or a missing library id are answered without error and fall back to the global value, and that
+  a `dry_run` changes nothing for later requests.
+- `SearchRequest.recognition` and `GetItemRequest.recognition` (host feature `recognition_hint`): the recognition result
+  passed on as it is.
+
+- `plugintest`: an ID that is kept under a key other than the plugin ID is reported for search candidates, `GetItem` and
+  its credits (`provider_ids`, PROTOCOL §7); `Options.PersonSearch` checks `SearchPerson` candidates; `Options.Subtitles`
+  checks the subtitle `Search` answer (IDs, language, format, `matched_by`, ranges, comment length, limit); the manifest check
+  covers the reserved setting `autofill_daily_limit` (an `int`, default 0 to 1000, only on subtitle providers, only on a
+  host that lists `autofill_limit`).
+  Authors upgrading: `plugintest.Run` now fails a plugin whose `SearchPerson` candidates or `GetItem` credits lack the
+  person's own ID under the plugin ID in `provider_ids` (or keep it under another key), and one that declares
+  `autofill_daily_limit` with a default outside 0 to 1000 or on a host that does not list `autofill_limit`. Fix the plugin; the
+  host has always looked the ID up under the plugin ID.
+- Documentation only: when the host applies a candidate by itself (`score` at least 0.9 and 0.1 ahead, the `score` 0
+  fallback, the candidate that shares a provider ID, `confirmed`); what `Recognition.identifiers` does (keys the host knows
+  become provider IDs, the others reach the plugin as a hint); a hand-made crop belongs to the image's position; catalog
+  `id` and `os`/`arch` rules; README notes on the two `Search` methods and on the subtitle task limits.
+
 ## v0.6.0 (2026-10-22)
 
 - `sdk/httpclient`: the HTTP client most plugins need for an upstream service: a cap on parallel requests (`MaxConcurrent`), a

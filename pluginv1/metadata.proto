@@ -18,6 +18,8 @@ syntax = "proto3";
 
 package kryspal.plugin.v1;
 
+import "pluginv1/plugin.proto";
+
 option go_package = "github.com/kryspal/plugin-sdk/pluginv1;pluginv1";
 
 // MetadataProvider is implemented by plugins that declare metadata.* capabilities.
@@ -88,6 +90,31 @@ message SearchRequest {
   // Known runtime (seconds); only filled when the media info has already been read, the host does not read the file
   // for this. 0 means unknown.
   int32 duration_seconds = 13;
+  // The library the item is in, with its per-library overrides (host feature library_config).
+  LibraryContext library = 14;
+  // What the library's name recognition plugin found for this file, passed on as it is (host feature
+  // recognition_hint). Sent only to plugins that declare metadata.search.hints.
+  RecognitionHint recognition = 15;
+}
+
+// RecognitionHint carries a name recognition result to metadata plugins as it is; the host does not interpret it.
+// Provider IDs the host knows are not here: the host writes recognized ones into the item's provider IDs, so they
+// arrive in provider_ids. Known keys are the external ID keys the host stores (such as tmdb, imdb, tvdb) and the IDs of
+// the installed plugins (a plugin's own IDs use its plugin ID as the key, §7). A key never appears in both.
+message RecognitionHint {
+  // Part number when the file is one part of a multi-part title; 0 otherwise.
+  int32 part = 1;
+  // As returned in Recognition.tags.
+  repeated string tags = 2;
+  // Recognition.identifiers whose keys are not known provider ID keys (for example a product code).
+  map<string, string> identifiers = 3;
+  // As returned in Recognition.flags, Recognition.edition, Recognition.region_hints, Recognition.language_hints and
+  // Recognition.evidence.
+  repeated string flags = 4;
+  string edition = 5;
+  repeated string region_hints = 6;
+  repeated string language_hints = 7;
+  repeated string evidence = 8;
 }
 
 // TitleHint is one title found by name recognition.
@@ -149,8 +176,12 @@ message SearchCandidate {
   string image_url = 7;
   // IDs from other sources, for example imdb.
   map<string, string> provider_ids = 8;
-  // The plugin's own estimate of how well this matches, 0 to 1; 0 means the plugin does not provide one. The host
-  // does not rely on it; the scraping flow judges confidence by itself.
+  // The plugin's own estimate of how well this matches, 0 to 1; 0 means the plugin does not provide one. During
+  // automatic scraping the host applies the first candidate only when its score is at least 0.9 and the second
+  // candidate's score is at least 0.1 lower (or there is no second candidate); a candidate with `confirmed` set
+  // skips this rule (see there), and so does a candidate that shares a provider ID with the item. With score 0 the host falls back to a candidate whose name or original name equals
+  // the item's title and whose year equals the item's year, when exactly one candidate does. The identify dialog
+  // shows every candidate whatever its score.
   double score = 9;
   // The title that matched (an alias, a translated title or the original title; filled by plugins that declare
   // metadata.search.hints).
@@ -185,6 +216,11 @@ message GetItemRequest {
   // and returns that episode; only plugins that declare metadata.series.absolute receive it. When it
   // is set, season_number and episode_number are not.
   optional int32 absolute_episode_number = 7;
+  // Movies, series, seasons and episodes only: the library the item is in, with its per-library overrides (host
+  // feature library_config).
+  LibraryContext library = 8;
+  // As in SearchRequest.recognition (host feature recognition_hint).
+  RecognitionHint recognition = 9;
 }
 
 // ItemMetadata is an item's metadata. Fields without data are left empty; the host never treats an empty value as

@@ -8,6 +8,7 @@ import (
 	"context"
 	"os"
 	"strings"
+	"sync/atomic"
 
 	"github.com/kryspal/plugin-sdk"
 	pluginv1 "github.com/kryspal/plugin-sdk/pluginv1"
@@ -23,11 +24,36 @@ type provider struct {
 	upstream string
 	broken   string
 	features map[string]bool
+	settings *sdk.Settings
+	// stuck is what the plugin keeps when FULL_BREAK=library: the last tone any request carried, which later requests then use.
+	stuck atomic.Pointer[string]
+}
+
+// tone is the setting a library may override: it shows in the item's attributes and in the recognizer's parser_version.
+func configFields() []*pluginv1.ConfigField {
+	return []*pluginv1.ConfigField{{Key: "tone", Label: "Tone", Type: pluginv1.ConfigFieldType_CONFIG_FIELD_TYPE_SELECT, DefaultValue: "plain",
+		LibraryOverride: true, Options: []*pluginv1.ConfigOption{{Value: "plain", Label: "Plain"}, {Value: "loud", Label: "Loud"}, {Value: "quiet", Label: "Quiet"}}}}
+}
+
+var tones = []string{"plain", "loud", "quiet"}
+
+// toneOf is the tone for a request. With FULL_BREAK=library it is wrong in the way the suite must catch: a request's tone is kept for later requests.
+func (p *provider) toneOf(lib *pluginv1.LibraryContext) string {
+	t := p.settings.For(lib).Select("tone", tones, "plain")
+	if p.broken == "library" {
+		if lib.GetOverrides()["tone"] != "" {
+			p.stuck.Store(&t)
+		} else if k := p.stuck.Load(); k != nil {
+			return *k
+		}
+	}
+	return t
 }
 
 func main() {
-	p := &provider{upstream: os.Getenv("FULL_UPSTREAM"), broken: os.Getenv("FULL_BREAK"), features: pluginapi.HostFeatures(os.Getenv)}
-	sdk.Main(sdk.Config{Plugin: p, MetadataProvider: p, ImageProvider: p, Recognizer: p, TaskRunner: p})
+	p := &provider{upstream: os.Getenv("FULL_UPSTREAM"), broken: os.Getenv("FULL_BREAK"), features: pluginapi.HostFeatures(os.Getenv),
+		settings: sdk.NewSettings(configFields())}
+	sdk.Main(sdk.Config{Plugin: p, MetadataProvider: p, ImageProvider: p, Recognizer: p, TaskRunner: p, SubtitleProvider: &subtitles{broken: p.broken}})
 }
 
 func (p *provider) Describe(context.Context, *pluginv1.DescribeRequest) (*pluginv1.Manifest, error) {
@@ -36,9 +62,9 @@ func (p *provider) Describe(context.Context, *pluginv1.DescribeRequest) (*plugin
 		Capabilities: []string{
 			pluginv1.CapabilityMetadataMovie, pluginv1.CapabilityMetadataPerson,
 			pluginv1.CapabilityImagesMovie, pluginv1.CapabilityImagesPerson, pluginv1.CapabilityMediaRecognize,
-			pluginv1.CapabilityPluginTasks,
+			pluginv1.CapabilityPluginTasks, pluginv1.CapabilityMetadataPersonSearch, pluginv1.CapabilitySubtitlesSearch,
 		},
-		ConfigFields: []*pluginv1.ConfigField{
+		ConfigFields: append(configFields(), []*pluginv1.ConfigField{
 			{Key: "use_db", Label: "Use a database", Type: pluginv1.ConfigFieldType_CONFIG_FIELD_TYPE_BOOL, DefaultValue: "false"},
 			{Key: "dsn", Label: "Database address", Type: pluginv1.ConfigFieldType_CONFIG_FIELD_TYPE_STRING,
 				VisibleWhen: &pluginv1.ConfigCondition{Key: "use_db", Values: []string{"true"}}},
@@ -48,7 +74,9 @@ func (p *provider) Describe(context.Context, *pluginv1.DescribeRequest) (*plugin
 			{Key: "mirrors", Label: "Mirrors", Type: pluginv1.ConfigFieldType_CONFIG_FIELD_TYPE_STRING_LIST, DefaultValue: "[]"},
 			{Key: "src_a_proxy", Label: "Proxy", Type: pluginv1.ConfigFieldType_CONFIG_FIELD_TYPE_STRING, Group: "per_source", Item: "a"},
 			{Key: "src_b_proxy", Label: "Proxy", Type: pluginv1.ConfigFieldType_CONFIG_FIELD_TYPE_STRING, Group: "per_source", Item: "b"},
-		},
+			// Only gives the host's daily limit for automatic subtitle downloads a default: this source has no quota.
+			{Key: "autofill_daily_limit", Label: "Limit", Type: pluginv1.ConfigFieldType_CONFIG_FIELD_TYPE_INT, DefaultValue: "0"},
+		}...),
 		ConfigGroups: []*pluginv1.ConfigGroup{{Key: "per_source", Title: "Each source", Items: []*pluginv1.ConfigItem{
 			{Id: "a", Label: "Source A"}, {Id: "b", Label: "Source B"},
 		}}},
@@ -60,12 +88,15 @@ func (p *provider) Describe(context.Context, *pluginv1.DescribeRequest) (*plugin
 		AttributeLabels: []*pluginv1.AttributeLabel{{Key: "shoe_size", Label: "Shoe size"}},
 	}
 	if p.broken == "manifest" {
-		m.ConfigFields[1].VisibleWhen.Key = "names"
-		m.ConfigFields[2].DefaultValue = `["c"]`
+		m.ConfigFields[2].VisibleWhen.Key = "names"
+		m.ConfigFields[3].DefaultValue = `["c"]`
 		m.ImageFetchRules[0].Hosts = []string{"10.0.0.1", "127.0.0.1"}
 		m.Tasks[0].DefaultSchedule = &pluginv1.TaskSchedule{IntervalMinutes: 1}
 		m.AttributeLabels[0].Key = "Shoe-Size"
-		m.ConfigFields[6].Item = "c"
+		m.ConfigFields[7].Item = "c"
+	}
+	if p.broken == "autofill" {
+		m.ConfigFields[8].DefaultValue = "5000"
 	}
 	return m, nil
 }
@@ -81,17 +112,23 @@ func (*provider) RunTask(_ context.Context, req *pluginv1.RunTaskRequest) (*plug
 	return nil, sdk.InvalidArgument("unknown task")
 }
 
-func (*provider) Configure(context.Context, *pluginv1.ConfigureRequest) (*pluginv1.ConfigureResponse, error) {
+// Configure stores the global values; a dry run only checks and stores nothing.
+func (p *provider) Configure(_ context.Context, req *pluginv1.ConfigureRequest) (*pluginv1.ConfigureResponse, error) {
+	if !req.GetDryRun() {
+		p.settings.Store(req.GetValues())
+	}
 	return &pluginv1.ConfigureResponse{}, nil
 }
 
-func (*provider) Search(_ context.Context, req *pluginv1.SearchRequest) (*pluginv1.SearchResponse, error) {
+func (p *provider) Search(_ context.Context, req *pluginv1.SearchRequest) (*pluginv1.SearchResponse, error) {
 	if req.GetName() != "Sample Movie" {
 		return &pluginv1.SearchResponse{}, nil
 	}
-	return &pluginv1.SearchResponse{Candidates: []*pluginv1.SearchCandidate{
-		{Id: "m1", Type: pluginv1.ItemType_ITEM_TYPE_MOVIE, Name: "Sample Movie", Year: 2020},
-	}}, nil
+	c := &pluginv1.SearchCandidate{Id: "m1", Type: pluginv1.ItemType_ITEM_TYPE_MOVIE, Name: "Sample Movie", Year: 2020}
+	if p.broken == "keys" {
+		c.ProviderIds = map[string]string{"short": "m1"}
+	}
+	return &pluginv1.SearchResponse{Candidates: []*pluginv1.SearchCandidate{c}}, nil
 }
 
 func (p *provider) GetItem(_ context.Context, req *pluginv1.GetItemRequest) (*pluginv1.ItemMetadata, error) {
@@ -109,13 +146,52 @@ func (p *provider) GetItem(_ context.Context, req *pluginv1.GetItemRequest) (*pl
 			PersonId: "p1", Name: "Sample Person", Kind: pluginv1.PersonKind_PERSON_KIND_ACTOR,
 			ProviderIds: map[string]string{"full": "p1"},
 		}},
-		Attributes: map[string]string{"label": "Sample Label", "series": "Sample Series"},
+		Attributes: map[string]string{"label": "Sample Label", "series": "Sample Series", "tone": p.toneOf(req.GetLibrary())},
 	}
 	// A host that drops attributes still gets the facts, in the overview.
 	if !p.features[pluginapi.HostFeatureAttributes] {
 		item.Overview = "Label: Sample Label. Series: Sample Series."
 	}
+	if p.broken == "keys" {
+		// The right IDs under a key other than the plugin ID: the host would not find them.
+		item.ProviderIds = map[string]string{"short": "m1"}
+		item.Credits[0].ProviderIds = map[string]string{"short": "p1"}
+	}
 	return item, nil
+}
+
+// SearchPerson finds the one person the plugin knows.
+func (p *provider) SearchPerson(_ context.Context, req *pluginv1.SearchPersonRequest) (*pluginv1.SearchPersonResponse, error) {
+	if req.GetName() != "Sample Person" {
+		return &pluginv1.SearchPersonResponse{}, nil
+	}
+	ids := map[string]string{"full": "p1"}
+	if p.broken == "keys" {
+		ids = map[string]string{"short": "p1"}
+	}
+	return &pluginv1.SearchPersonResponse{Candidates: []*pluginv1.PersonCandidate{
+		{Person: &pluginv1.PersonMetadata{Id: "p1", Name: "Sample Person", ProviderIds: ids}},
+	}}, nil
+}
+
+// subtitles is a subtitle source; it has its own type because both services have a method called Search.
+type subtitles struct {
+	pluginv1.UnimplementedSubtitleProviderServer
+	broken string
+}
+
+func (s *subtitles) Search(_ context.Context, req *pluginv1.SearchSubtitlesRequest) (*pluginv1.SearchSubtitlesResponse, error) {
+	if req.GetTarget().GetTitle() != "Sample Movie" {
+		return &pluginv1.SearchSubtitlesResponse{}, nil
+	}
+	c := &pluginv1.SubtitleCandidate{
+		Id: "s1", Language: "en", ReleaseName: "Sample.Movie.2020.1080p", Format: "srt",
+		MatchedBy: pluginv1.SubtitleCandidate_MATCHED_BY_NAME, Score: 0.8, Rating: 7,
+	}
+	if s.broken == "subtitles" {
+		c.MatchedBy, c.Format, c.Score = pluginv1.SubtitleCandidate_MATCHED_BY_UNSPECIFIED, ".SRT", 1.5
+	}
+	return &pluginv1.SearchSubtitlesResponse{Candidates: []*pluginv1.SubtitleCandidate{c}}, nil
 }
 
 func (p *provider) GetPerson(_ context.Context, req *pluginv1.GetPersonRequest) (*pluginv1.PersonMetadata, error) {
@@ -158,6 +234,9 @@ func (p *provider) GetImages(_ context.Context, req *pluginv1.GetImagesRequest) 
 // Recognize reads a code like "SMP-001" from the last path segment.
 func (p *provider) Recognize(_ context.Context, req *pluginv1.RecognizeRequest) (*pluginv1.RecognizeResponse, error) {
 	resp := &pluginv1.RecognizeResponse{ParserVersion: "1"}
+	if tone := p.toneOf(req.GetLibrary()); tone != "plain" {
+		resp.ParserVersion += "+tone=" + tone
+	}
 	if p.broken == "recognize" {
 		resp.ParserVersion = ""
 	}

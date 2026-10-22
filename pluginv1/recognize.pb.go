@@ -105,8 +105,12 @@ type RecognizeRequest struct {
 	// e.g. calling AI assist through the host (requires declaring the llm permission and the administrator's approval).
 	// The host sends at most one second round per item.
 	PreviousUnmatched bool `protobuf:"varint,10,opt,name=previous_unmatched,json=previousUnmatched,proto3" json:"previous_unmatched,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	// The library the file is in, with its per-library overrides (host feature library_config). When overrides change
+	// the result, put a stable digest of the effective settings into RecognizeResponse.parser_version: the host stores
+	// and compares the version per library and re-runs only that library's items when it changes.
+	Library       *LibraryContext `protobuf:"bytes,11,opt,name=library,proto3" json:"library,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *RecognizeRequest) Reset() {
@@ -209,6 +213,13 @@ func (x *RecognizeRequest) GetPreviousUnmatched() bool {
 	return false
 }
 
+func (x *RecognizeRequest) GetLibrary() *LibraryContext {
+	if x != nil {
+		return x.Library
+	}
+	return nil
+}
+
 type RecognizeResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// In decreasing order of confidence, at most 3; empty when nothing is recognized.
@@ -280,7 +291,10 @@ type Recognition struct {
 	Part *int32 `protobuf:"varint,9,opt,name=part,proto3,oneof" json:"part,omitempty"`
 	// Director's cut and the like; for display or debugging only.
 	Edition string `protobuf:"bytes,10,opt,name=edition,proto3" json:"edition,omitempty"`
-	// IDs or codes found in the name, e.g. tmdb, imdb, product_code.
+	// IDs or codes found in the name, e.g. tmdb, imdb, product_code. Keys the host knows as provider IDs (the host's identity
+	// sources, such as tmdb, imdb and tvdb, and the IDs of installed metadata plugins) are written to the item's provider IDs, so
+	// the item is matched to that ID without a search; on hosts with the feature recognition_hint the other keys are
+	// passed to the metadata plugin in the search and item requests as a hint and are not stored. Keys are lower case.
 	Identifiers map[string]string `protobuf:"bytes,11,rep,name=identifiers,proto3" json:"identifiers,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	// ISO 3166-1, e.g. a category folder whose name is the Chinese word for India → IN.
 	RegionHints []string `protobuf:"bytes,12,rep,name=region_hints,json=regionHints,proto3" json:"region_hints,omitempty"`
@@ -465,7 +479,7 @@ var File_pluginv1_recognize_proto protoreflect.FileDescriptor
 
 const file_pluginv1_recognize_proto_rawDesc = "" +
 	"\n" +
-	"\x18pluginv1/recognize.proto\x12\x11kryspal.plugin.v1\x1a\x17pluginv1/metadata.proto\"\xb6\x04\n" +
+	"\x18pluginv1/recognize.proto\x12\x11kryspal.plugin.v1\x1a\x17pluginv1/metadata.proto\x1a\x15pluginv1/plugin.proto\"\xf3\x04\n" +
 	"\x10RecognizeRequest\x12A\n" +
 	"\flibrary_kind\x18\x01 \x01(\x0e2\x1e.kryspal.plugin.v1.LibraryKindR\vlibraryKind\x12/\n" +
 	"\x04type\x18\x02 \x01(\x0e2\x1b.kryspal.plugin.v1.ItemTypeR\x04type\x12\x12\n" +
@@ -477,7 +491,8 @@ const file_pluginv1_recognize_proto_rawDesc = "" +
 	"\fprovider_ids\x18\b \x03(\v24.kryspal.plugin.v1.RecognizeRequest.ProviderIdsEntryR\vproviderIds\x12:\n" +
 	"\tlanguages\x18\t \x01(\v2\x1c.kryspal.plugin.v1.LanguagesR\tlanguages\x12-\n" +
 	"\x12previous_unmatched\x18\n" +
-	" \x01(\bR\x11previousUnmatched\x1a>\n" +
+	" \x01(\bR\x11previousUnmatched\x12;\n" +
+	"\alibrary\x18\v \x01(\v2!.kryspal.plugin.v1.LibraryContextR\alibrary\x1a>\n" +
 	"\x10ProviderIdsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"z\n" +
@@ -552,8 +567,9 @@ var file_pluginv1_recognize_proto_goTypes = []any{
 	(ItemType)(0),             // 6: kryspal.plugin.v1.ItemType
 	(*SeriesShape)(nil),       // 7: kryspal.plugin.v1.SeriesShape
 	(*Languages)(nil),         // 8: kryspal.plugin.v1.Languages
-	(*TitleHint)(nil),         // 9: kryspal.plugin.v1.TitleHint
-	(YearSource)(0),           // 10: kryspal.plugin.v1.YearSource
+	(*LibraryContext)(nil),    // 9: kryspal.plugin.v1.LibraryContext
+	(*TitleHint)(nil),         // 10: kryspal.plugin.v1.TitleHint
+	(YearSource)(0),           // 11: kryspal.plugin.v1.YearSource
 }
 var file_pluginv1_recognize_proto_depIdxs = []int32{
 	0,  // 0: kryspal.plugin.v1.RecognizeRequest.library_kind:type_name -> kryspal.plugin.v1.LibraryKind
@@ -561,18 +577,19 @@ var file_pluginv1_recognize_proto_depIdxs = []int32{
 	7,  // 2: kryspal.plugin.v1.RecognizeRequest.shape:type_name -> kryspal.plugin.v1.SeriesShape
 	4,  // 3: kryspal.plugin.v1.RecognizeRequest.provider_ids:type_name -> kryspal.plugin.v1.RecognizeRequest.ProviderIdsEntry
 	8,  // 4: kryspal.plugin.v1.RecognizeRequest.languages:type_name -> kryspal.plugin.v1.Languages
-	3,  // 5: kryspal.plugin.v1.RecognizeResponse.candidates:type_name -> kryspal.plugin.v1.Recognition
-	6,  // 6: kryspal.plugin.v1.Recognition.type:type_name -> kryspal.plugin.v1.ItemType
-	9,  // 7: kryspal.plugin.v1.Recognition.titles:type_name -> kryspal.plugin.v1.TitleHint
-	10, // 8: kryspal.plugin.v1.Recognition.year_source:type_name -> kryspal.plugin.v1.YearSource
-	5,  // 9: kryspal.plugin.v1.Recognition.identifiers:type_name -> kryspal.plugin.v1.Recognition.IdentifiersEntry
-	1,  // 10: kryspal.plugin.v1.Recognizer.Recognize:input_type -> kryspal.plugin.v1.RecognizeRequest
-	2,  // 11: kryspal.plugin.v1.Recognizer.Recognize:output_type -> kryspal.plugin.v1.RecognizeResponse
-	11, // [11:12] is the sub-list for method output_type
-	10, // [10:11] is the sub-list for method input_type
-	10, // [10:10] is the sub-list for extension type_name
-	10, // [10:10] is the sub-list for extension extendee
-	0,  // [0:10] is the sub-list for field type_name
+	9,  // 5: kryspal.plugin.v1.RecognizeRequest.library:type_name -> kryspal.plugin.v1.LibraryContext
+	3,  // 6: kryspal.plugin.v1.RecognizeResponse.candidates:type_name -> kryspal.plugin.v1.Recognition
+	6,  // 7: kryspal.plugin.v1.Recognition.type:type_name -> kryspal.plugin.v1.ItemType
+	10, // 8: kryspal.plugin.v1.Recognition.titles:type_name -> kryspal.plugin.v1.TitleHint
+	11, // 9: kryspal.plugin.v1.Recognition.year_source:type_name -> kryspal.plugin.v1.YearSource
+	5,  // 10: kryspal.plugin.v1.Recognition.identifiers:type_name -> kryspal.plugin.v1.Recognition.IdentifiersEntry
+	1,  // 11: kryspal.plugin.v1.Recognizer.Recognize:input_type -> kryspal.plugin.v1.RecognizeRequest
+	2,  // 12: kryspal.plugin.v1.Recognizer.Recognize:output_type -> kryspal.plugin.v1.RecognizeResponse
+	12, // [12:13] is the sub-list for method output_type
+	11, // [11:12] is the sub-list for method input_type
+	11, // [11:11] is the sub-list for extension type_name
+	11, // [11:11] is the sub-list for extension extendee
+	0,  // [0:11] is the sub-list for field type_name
 }
 
 func init() { file_pluginv1_recognize_proto_init() }
@@ -581,6 +598,7 @@ func file_pluginv1_recognize_proto_init() {
 		return
 	}
 	file_pluginv1_metadata_proto_init()
+	file_pluginv1_plugin_proto_init()
 	file_pluginv1_recognize_proto_msgTypes[2].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{

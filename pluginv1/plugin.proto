@@ -227,6 +227,11 @@ message ConfigField {
   // the admin console shows it when the item is opened. Empty means the field belongs to the group itself. The host
   // ignores an item that the group does not list (the field is shown in the group). Host feature config_items.
   string item = 15;
+  // The field may be overridden per library (host feature library_config): the library settings page shows it with
+  // "Use the plugin setting" as the default, and requests for that library carry the override in
+  // LibraryContext.overrides. Not allowed on secret or required fields. At most 32 fields per plugin. A library's
+  // language comes from the request's languages, so do not declare a per-library language field.
+  bool library_override = 16;
 }
 
 // ConfigCondition makes a field depend on another field's current value.
@@ -287,6 +292,28 @@ message ConfigureRequest {
   map<string, string> values = 1;
   // Language of error messages, BCP 47; an empty string means English.
   string language = 2;
+  // Set only with dry_run: the library whose overrides (library.overrides) are being saved. values holds the
+  // plugin's global configuration as usual.
+  LibraryContext library = 3;
+  // Check the values (with library's overrides on top, when set) and report problems as for a normal Configure, but
+  // do not apply anything and have no side effects. The host sends it when an administrator saves per-library
+  // settings, only while the plugin is running (it never wakes an idle plugin for it). A plugin that does not support
+  // it returns UNIMPLEMENTED and the host then checks only types, options and bounds. Host feature library_config.
+  bool dry_run = 4;
+}
+
+// LibraryContext tells the plugin which library a request is for and which settings that library overrides (host
+// feature library_config). Use the values only for this request: never store them in the plugin's state, because
+// requests for different libraries run in parallel. Read them through the SDK's effective settings view, which puts
+// the overrides on top of the last global Configure values.
+message LibraryContext {
+  // Opaque, stable library identifier; use it only as a cache key or for logging.
+  string library_id = 1;
+  // Only the keys this library overrides (fields with library_override), in the ConfigureRequest.values encoding.
+  // A key that is present overrides the global value even when its value is empty; a key that is absent means "use
+  // the plugin setting". Ignore unknown keys and values that no longer fit the field (for example a removed option)
+  // and fall back to the global value; never fail the request because of them.
+  map<string, string> overrides = 2;
 }
 
 message ConfigureResponse {

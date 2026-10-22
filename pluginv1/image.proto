@@ -12,6 +12,7 @@ syntax = "proto3";
 package kryspal.plugin.v1;
 
 import "pluginv1/metadata.proto";
+import "pluginv1/plugin.proto";
 
 option go_package = "github.com/kryspal/plugin-sdk/pluginv1;pluginv1";
 
@@ -40,6 +41,9 @@ message GetImagesRequest {
   string name = 6;
   // Only for ITEM_TYPE_PERSON: other names of the person (stage names, names in other languages).
   repeated string aliases = 7;
+  // Movies, series, seasons and episodes only (not people, who are shared across libraries): the library the item is
+  // in, with its per-library overrides (host feature library_config).
+  LibraryContext library = 8;
 }
 
 message GetImagesResponse {

@@ -623,8 +623,13 @@ type SearchRequest struct {
 	// Known runtime (seconds); only filled when the media info has already been read, the host does not read the file
 	// for this. 0 means unknown.
 	DurationSeconds int32 `protobuf:"varint,13,opt,name=duration_seconds,json=durationSeconds,proto3" json:"duration_seconds,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// The library the item is in, with its per-library overrides (host feature library_config).
+	Library *LibraryContext `protobuf:"bytes,14,opt,name=library,proto3" json:"library,omitempty"`
+	// What the library's name recognition plugin found for this file, passed on as it is (host feature
+	// recognition_hint). Sent only to plugins that declare metadata.search.hints.
+	Recognition   *RecognitionHint `protobuf:"bytes,15,opt,name=recognition,proto3" json:"recognition,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *SearchRequest) Reset() {
@@ -748,6 +753,129 @@ func (x *SearchRequest) GetDurationSeconds() int32 {
 	return 0
 }
 
+func (x *SearchRequest) GetLibrary() *LibraryContext {
+	if x != nil {
+		return x.Library
+	}
+	return nil
+}
+
+func (x *SearchRequest) GetRecognition() *RecognitionHint {
+	if x != nil {
+		return x.Recognition
+	}
+	return nil
+}
+
+// RecognitionHint carries a name recognition result to metadata plugins as it is; the host does not interpret it.
+// Provider IDs the host knows are not here: the host writes recognized ones into the item's provider IDs, so they
+// arrive in provider_ids. Known keys are the external ID keys the host stores (such as tmdb, imdb, tvdb) and the IDs of
+// the installed plugins (a plugin's own IDs use its plugin ID as the key, §7). A key never appears in both.
+type RecognitionHint struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Part number when the file is one part of a multi-part title; 0 otherwise.
+	Part int32 `protobuf:"varint,1,opt,name=part,proto3" json:"part,omitempty"`
+	// As returned in Recognition.tags.
+	Tags []string `protobuf:"bytes,2,rep,name=tags,proto3" json:"tags,omitempty"`
+	// Recognition.identifiers whose keys are not known provider ID keys (for example a product code).
+	Identifiers map[string]string `protobuf:"bytes,3,rep,name=identifiers,proto3" json:"identifiers,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// As returned in Recognition.flags, Recognition.edition, Recognition.region_hints, Recognition.language_hints and
+	// Recognition.evidence.
+	Flags         []string `protobuf:"bytes,4,rep,name=flags,proto3" json:"flags,omitempty"`
+	Edition       string   `protobuf:"bytes,5,opt,name=edition,proto3" json:"edition,omitempty"`
+	RegionHints   []string `protobuf:"bytes,6,rep,name=region_hints,json=regionHints,proto3" json:"region_hints,omitempty"`
+	LanguageHints []string `protobuf:"bytes,7,rep,name=language_hints,json=languageHints,proto3" json:"language_hints,omitempty"`
+	Evidence      []string `protobuf:"bytes,8,rep,name=evidence,proto3" json:"evidence,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RecognitionHint) Reset() {
+	*x = RecognitionHint{}
+	mi := &file_pluginv1_metadata_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RecognitionHint) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RecognitionHint) ProtoMessage() {}
+
+func (x *RecognitionHint) ProtoReflect() protoreflect.Message {
+	mi := &file_pluginv1_metadata_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RecognitionHint.ProtoReflect.Descriptor instead.
+func (*RecognitionHint) Descriptor() ([]byte, []int) {
+	return file_pluginv1_metadata_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *RecognitionHint) GetPart() int32 {
+	if x != nil {
+		return x.Part
+	}
+	return 0
+}
+
+func (x *RecognitionHint) GetTags() []string {
+	if x != nil {
+		return x.Tags
+	}
+	return nil
+}
+
+func (x *RecognitionHint) GetIdentifiers() map[string]string {
+	if x != nil {
+		return x.Identifiers
+	}
+	return nil
+}
+
+func (x *RecognitionHint) GetFlags() []string {
+	if x != nil {
+		return x.Flags
+	}
+	return nil
+}
+
+func (x *RecognitionHint) GetEdition() string {
+	if x != nil {
+		return x.Edition
+	}
+	return ""
+}
+
+func (x *RecognitionHint) GetRegionHints() []string {
+	if x != nil {
+		return x.RegionHints
+	}
+	return nil
+}
+
+func (x *RecognitionHint) GetLanguageHints() []string {
+	if x != nil {
+		return x.LanguageHints
+	}
+	return nil
+}
+
+func (x *RecognitionHint) GetEvidence() []string {
+	if x != nil {
+		return x.Evidence
+	}
+	return nil
+}
+
 // TitleHint is one title found by name recognition.
 type TitleHint struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -762,7 +890,7 @@ type TitleHint struct {
 
 func (x *TitleHint) Reset() {
 	*x = TitleHint{}
-	mi := &file_pluginv1_metadata_proto_msgTypes[2]
+	mi := &file_pluginv1_metadata_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -774,7 +902,7 @@ func (x *TitleHint) String() string {
 func (*TitleHint) ProtoMessage() {}
 
 func (x *TitleHint) ProtoReflect() protoreflect.Message {
-	mi := &file_pluginv1_metadata_proto_msgTypes[2]
+	mi := &file_pluginv1_metadata_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -787,7 +915,7 @@ func (x *TitleHint) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TitleHint.ProtoReflect.Descriptor instead.
 func (*TitleHint) Descriptor() ([]byte, []int) {
-	return file_pluginv1_metadata_proto_rawDescGZIP(), []int{2}
+	return file_pluginv1_metadata_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *TitleHint) GetText() string {
@@ -832,7 +960,7 @@ type SeriesShape struct {
 
 func (x *SeriesShape) Reset() {
 	*x = SeriesShape{}
-	mi := &file_pluginv1_metadata_proto_msgTypes[3]
+	mi := &file_pluginv1_metadata_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -844,7 +972,7 @@ func (x *SeriesShape) String() string {
 func (*SeriesShape) ProtoMessage() {}
 
 func (x *SeriesShape) ProtoReflect() protoreflect.Message {
-	mi := &file_pluginv1_metadata_proto_msgTypes[3]
+	mi := &file_pluginv1_metadata_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -857,7 +985,7 @@ func (x *SeriesShape) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SeriesShape.ProtoReflect.Descriptor instead.
 func (*SeriesShape) Descriptor() ([]byte, []int) {
-	return file_pluginv1_metadata_proto_rawDescGZIP(), []int{3}
+	return file_pluginv1_metadata_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *SeriesShape) GetSeasonNumbers() []int32 {
@@ -893,7 +1021,7 @@ type SearchResponse struct {
 
 func (x *SearchResponse) Reset() {
 	*x = SearchResponse{}
-	mi := &file_pluginv1_metadata_proto_msgTypes[4]
+	mi := &file_pluginv1_metadata_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -905,7 +1033,7 @@ func (x *SearchResponse) String() string {
 func (*SearchResponse) ProtoMessage() {}
 
 func (x *SearchResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_pluginv1_metadata_proto_msgTypes[4]
+	mi := &file_pluginv1_metadata_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -918,7 +1046,7 @@ func (x *SearchResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SearchResponse.ProtoReflect.Descriptor instead.
 func (*SearchResponse) Descriptor() ([]byte, []int) {
-	return file_pluginv1_metadata_proto_rawDescGZIP(), []int{4}
+	return file_pluginv1_metadata_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *SearchResponse) GetCandidates() []*SearchCandidate {
@@ -949,8 +1077,12 @@ type SearchCandidate struct {
 	ImageUrl string `protobuf:"bytes,7,opt,name=image_url,json=imageUrl,proto3" json:"image_url,omitempty"`
 	// IDs from other sources, for example imdb.
 	ProviderIds map[string]string `protobuf:"bytes,8,rep,name=provider_ids,json=providerIds,proto3" json:"provider_ids,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	// The plugin's own estimate of how well this matches, 0 to 1; 0 means the plugin does not provide one. The host
-	// does not rely on it; the scraping flow judges confidence by itself.
+	// The plugin's own estimate of how well this matches, 0 to 1; 0 means the plugin does not provide one. During
+	// automatic scraping the host applies the first candidate only when its score is at least 0.9 and the second
+	// candidate's score is at least 0.1 lower (or there is no second candidate); a candidate with `confirmed` set
+	// skips this rule (see there), and so does a candidate that shares a provider ID with the item. With score 0 the host falls back to a candidate whose name or original name equals
+	// the item's title and whose year equals the item's year, when exactly one candidate does. The identify dialog
+	// shows every candidate whatever its score.
 	Score float64 `protobuf:"fixed64,9,opt,name=score,proto3" json:"score,omitempty"`
 	// The title that matched (an alias, a translated title or the original title; filled by plugins that declare
 	// metadata.search.hints).
@@ -973,7 +1105,7 @@ type SearchCandidate struct {
 
 func (x *SearchCandidate) Reset() {
 	*x = SearchCandidate{}
-	mi := &file_pluginv1_metadata_proto_msgTypes[5]
+	mi := &file_pluginv1_metadata_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -985,7 +1117,7 @@ func (x *SearchCandidate) String() string {
 func (*SearchCandidate) ProtoMessage() {}
 
 func (x *SearchCandidate) ProtoReflect() protoreflect.Message {
-	mi := &file_pluginv1_metadata_proto_msgTypes[5]
+	mi := &file_pluginv1_metadata_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -998,7 +1130,7 @@ func (x *SearchCandidate) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SearchCandidate.ProtoReflect.Descriptor instead.
 func (*SearchCandidate) Descriptor() ([]byte, []int) {
-	return file_pluginv1_metadata_proto_rawDescGZIP(), []int{5}
+	return file_pluginv1_metadata_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *SearchCandidate) GetId() string {
@@ -1109,13 +1241,18 @@ type GetItemRequest struct {
 	// and returns that episode; only plugins that declare metadata.series.absolute receive it. When it
 	// is set, season_number and episode_number are not.
 	AbsoluteEpisodeNumber *int32 `protobuf:"varint,7,opt,name=absolute_episode_number,json=absoluteEpisodeNumber,proto3,oneof" json:"absolute_episode_number,omitempty"`
-	unknownFields         protoimpl.UnknownFields
-	sizeCache             protoimpl.SizeCache
+	// Movies, series, seasons and episodes only: the library the item is in, with its per-library overrides (host
+	// feature library_config).
+	Library *LibraryContext `protobuf:"bytes,8,opt,name=library,proto3" json:"library,omitempty"`
+	// As in SearchRequest.recognition (host feature recognition_hint).
+	Recognition   *RecognitionHint `protobuf:"bytes,9,opt,name=recognition,proto3" json:"recognition,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *GetItemRequest) Reset() {
 	*x = GetItemRequest{}
-	mi := &file_pluginv1_metadata_proto_msgTypes[6]
+	mi := &file_pluginv1_metadata_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1127,7 +1264,7 @@ func (x *GetItemRequest) String() string {
 func (*GetItemRequest) ProtoMessage() {}
 
 func (x *GetItemRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_pluginv1_metadata_proto_msgTypes[6]
+	mi := &file_pluginv1_metadata_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1140,7 +1277,7 @@ func (x *GetItemRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetItemRequest.ProtoReflect.Descriptor instead.
 func (*GetItemRequest) Descriptor() ([]byte, []int) {
-	return file_pluginv1_metadata_proto_rawDescGZIP(), []int{6}
+	return file_pluginv1_metadata_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *GetItemRequest) GetType() ItemType {
@@ -1192,6 +1329,20 @@ func (x *GetItemRequest) GetAbsoluteEpisodeNumber() int32 {
 	return 0
 }
 
+func (x *GetItemRequest) GetLibrary() *LibraryContext {
+	if x != nil {
+		return x.Library
+	}
+	return nil
+}
+
+func (x *GetItemRequest) GetRecognition() *RecognitionHint {
+	if x != nil {
+		return x.Recognition
+	}
+	return nil
+}
+
 // ItemMetadata is an item's metadata. Fields without data are left empty; the host never treats an empty value as
 // clearing the field.
 // Notice tells the user what happened at one data source during a request. The host shows notices in
@@ -1213,7 +1364,7 @@ type Notice struct {
 
 func (x *Notice) Reset() {
 	*x = Notice{}
-	mi := &file_pluginv1_metadata_proto_msgTypes[7]
+	mi := &file_pluginv1_metadata_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1225,7 +1376,7 @@ func (x *Notice) String() string {
 func (*Notice) ProtoMessage() {}
 
 func (x *Notice) ProtoReflect() protoreflect.Message {
-	mi := &file_pluginv1_metadata_proto_msgTypes[7]
+	mi := &file_pluginv1_metadata_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1238,7 +1389,7 @@ func (x *Notice) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Notice.ProtoReflect.Descriptor instead.
 func (*Notice) Descriptor() ([]byte, []int) {
-	return file_pluginv1_metadata_proto_rawDescGZIP(), []int{7}
+	return file_pluginv1_metadata_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *Notice) GetSource() string {
@@ -1355,7 +1506,7 @@ type ItemMetadata struct {
 
 func (x *ItemMetadata) Reset() {
 	*x = ItemMetadata{}
-	mi := &file_pluginv1_metadata_proto_msgTypes[8]
+	mi := &file_pluginv1_metadata_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1367,7 +1518,7 @@ func (x *ItemMetadata) String() string {
 func (*ItemMetadata) ProtoMessage() {}
 
 func (x *ItemMetadata) ProtoReflect() protoreflect.Message {
-	mi := &file_pluginv1_metadata_proto_msgTypes[8]
+	mi := &file_pluginv1_metadata_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1380,7 +1531,7 @@ func (x *ItemMetadata) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ItemMetadata.ProtoReflect.Descriptor instead.
 func (*ItemMetadata) Descriptor() ([]byte, []int) {
-	return file_pluginv1_metadata_proto_rawDescGZIP(), []int{8}
+	return file_pluginv1_metadata_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *ItemMetadata) GetId() string {
@@ -1644,7 +1795,7 @@ type Rating struct {
 
 func (x *Rating) Reset() {
 	*x = Rating{}
-	mi := &file_pluginv1_metadata_proto_msgTypes[9]
+	mi := &file_pluginv1_metadata_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1656,7 +1807,7 @@ func (x *Rating) String() string {
 func (*Rating) ProtoMessage() {}
 
 func (x *Rating) ProtoReflect() protoreflect.Message {
-	mi := &file_pluginv1_metadata_proto_msgTypes[9]
+	mi := &file_pluginv1_metadata_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1669,7 +1820,7 @@ func (x *Rating) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Rating.ProtoReflect.Descriptor instead.
 func (*Rating) Descriptor() ([]byte, []int) {
-	return file_pluginv1_metadata_proto_rawDescGZIP(), []int{9}
+	return file_pluginv1_metadata_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *Rating) GetSource() string {
@@ -1718,7 +1869,7 @@ type Trailer struct {
 
 func (x *Trailer) Reset() {
 	*x = Trailer{}
-	mi := &file_pluginv1_metadata_proto_msgTypes[10]
+	mi := &file_pluginv1_metadata_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1730,7 +1881,7 @@ func (x *Trailer) String() string {
 func (*Trailer) ProtoMessage() {}
 
 func (x *Trailer) ProtoReflect() protoreflect.Message {
-	mi := &file_pluginv1_metadata_proto_msgTypes[10]
+	mi := &file_pluginv1_metadata_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1743,7 +1894,7 @@ func (x *Trailer) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Trailer.ProtoReflect.Descriptor instead.
 func (*Trailer) Descriptor() ([]byte, []int) {
-	return file_pluginv1_metadata_proto_rawDescGZIP(), []int{10}
+	return file_pluginv1_metadata_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *Trailer) GetUrl() string {
@@ -1818,7 +1969,7 @@ type Image struct {
 
 func (x *Image) Reset() {
 	*x = Image{}
-	mi := &file_pluginv1_metadata_proto_msgTypes[11]
+	mi := &file_pluginv1_metadata_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1830,7 +1981,7 @@ func (x *Image) String() string {
 func (*Image) ProtoMessage() {}
 
 func (x *Image) ProtoReflect() protoreflect.Message {
-	mi := &file_pluginv1_metadata_proto_msgTypes[11]
+	mi := &file_pluginv1_metadata_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1843,7 +1994,7 @@ func (x *Image) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Image.ProtoReflect.Descriptor instead.
 func (*Image) Descriptor() ([]byte, []int) {
-	return file_pluginv1_metadata_proto_rawDescGZIP(), []int{11}
+	return file_pluginv1_metadata_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *Image) GetType() ImageType {
@@ -1938,7 +2089,7 @@ type ImageCropHint struct {
 
 func (x *ImageCropHint) Reset() {
 	*x = ImageCropHint{}
-	mi := &file_pluginv1_metadata_proto_msgTypes[12]
+	mi := &file_pluginv1_metadata_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1950,7 +2101,7 @@ func (x *ImageCropHint) String() string {
 func (*ImageCropHint) ProtoMessage() {}
 
 func (x *ImageCropHint) ProtoReflect() protoreflect.Message {
-	mi := &file_pluginv1_metadata_proto_msgTypes[12]
+	mi := &file_pluginv1_metadata_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1963,7 +2114,7 @@ func (x *ImageCropHint) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ImageCropHint.ProtoReflect.Descriptor instead.
 func (*ImageCropHint) Descriptor() ([]byte, []int) {
-	return file_pluginv1_metadata_proto_rawDescGZIP(), []int{12}
+	return file_pluginv1_metadata_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *ImageCropHint) GetAspect() float64 {
@@ -2000,7 +2151,7 @@ type ImageCrop struct {
 
 func (x *ImageCrop) Reset() {
 	*x = ImageCrop{}
-	mi := &file_pluginv1_metadata_proto_msgTypes[13]
+	mi := &file_pluginv1_metadata_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2012,7 +2163,7 @@ func (x *ImageCrop) String() string {
 func (*ImageCrop) ProtoMessage() {}
 
 func (x *ImageCrop) ProtoReflect() protoreflect.Message {
-	mi := &file_pluginv1_metadata_proto_msgTypes[13]
+	mi := &file_pluginv1_metadata_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2025,7 +2176,7 @@ func (x *ImageCrop) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ImageCrop.ProtoReflect.Descriptor instead.
 func (*ImageCrop) Descriptor() ([]byte, []int) {
-	return file_pluginv1_metadata_proto_rawDescGZIP(), []int{13}
+	return file_pluginv1_metadata_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *ImageCrop) GetX() float64 {
@@ -2067,7 +2218,7 @@ type ImagePoint struct {
 
 func (x *ImagePoint) Reset() {
 	*x = ImagePoint{}
-	mi := &file_pluginv1_metadata_proto_msgTypes[14]
+	mi := &file_pluginv1_metadata_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2079,7 +2230,7 @@ func (x *ImagePoint) String() string {
 func (*ImagePoint) ProtoMessage() {}
 
 func (x *ImagePoint) ProtoReflect() protoreflect.Message {
-	mi := &file_pluginv1_metadata_proto_msgTypes[14]
+	mi := &file_pluginv1_metadata_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2092,7 +2243,7 @@ func (x *ImagePoint) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ImagePoint.ProtoReflect.Descriptor instead.
 func (*ImagePoint) Descriptor() ([]byte, []int) {
-	return file_pluginv1_metadata_proto_rawDescGZIP(), []int{14}
+	return file_pluginv1_metadata_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *ImagePoint) GetX() float64 {
@@ -2133,7 +2284,7 @@ type Credit struct {
 
 func (x *Credit) Reset() {
 	*x = Credit{}
-	mi := &file_pluginv1_metadata_proto_msgTypes[15]
+	mi := &file_pluginv1_metadata_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2145,7 +2296,7 @@ func (x *Credit) String() string {
 func (*Credit) ProtoMessage() {}
 
 func (x *Credit) ProtoReflect() protoreflect.Message {
-	mi := &file_pluginv1_metadata_proto_msgTypes[15]
+	mi := &file_pluginv1_metadata_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2158,7 +2309,7 @@ func (x *Credit) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Credit.ProtoReflect.Descriptor instead.
 func (*Credit) Descriptor() ([]byte, []int) {
-	return file_pluginv1_metadata_proto_rawDescGZIP(), []int{15}
+	return file_pluginv1_metadata_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *Credit) GetPersonId() string {
@@ -2229,7 +2380,7 @@ type CollectionRef struct {
 
 func (x *CollectionRef) Reset() {
 	*x = CollectionRef{}
-	mi := &file_pluginv1_metadata_proto_msgTypes[16]
+	mi := &file_pluginv1_metadata_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2241,7 +2392,7 @@ func (x *CollectionRef) String() string {
 func (*CollectionRef) ProtoMessage() {}
 
 func (x *CollectionRef) ProtoReflect() protoreflect.Message {
-	mi := &file_pluginv1_metadata_proto_msgTypes[16]
+	mi := &file_pluginv1_metadata_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2254,7 +2405,7 @@ func (x *CollectionRef) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CollectionRef.ProtoReflect.Descriptor instead.
 func (*CollectionRef) Descriptor() ([]byte, []int) {
-	return file_pluginv1_metadata_proto_rawDescGZIP(), []int{16}
+	return file_pluginv1_metadata_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *CollectionRef) GetId() string {
@@ -2282,7 +2433,7 @@ type GetPersonRequest struct {
 
 func (x *GetPersonRequest) Reset() {
 	*x = GetPersonRequest{}
-	mi := &file_pluginv1_metadata_proto_msgTypes[17]
+	mi := &file_pluginv1_metadata_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2294,7 +2445,7 @@ func (x *GetPersonRequest) String() string {
 func (*GetPersonRequest) ProtoMessage() {}
 
 func (x *GetPersonRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_pluginv1_metadata_proto_msgTypes[17]
+	mi := &file_pluginv1_metadata_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2307,7 +2458,7 @@ func (x *GetPersonRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetPersonRequest.ProtoReflect.Descriptor instead.
 func (*GetPersonRequest) Descriptor() ([]byte, []int) {
-	return file_pluginv1_metadata_proto_rawDescGZIP(), []int{17}
+	return file_pluginv1_metadata_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *GetPersonRequest) GetId() string {
@@ -2339,7 +2490,7 @@ type SearchPersonRequest struct {
 
 func (x *SearchPersonRequest) Reset() {
 	*x = SearchPersonRequest{}
-	mi := &file_pluginv1_metadata_proto_msgTypes[18]
+	mi := &file_pluginv1_metadata_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2351,7 +2502,7 @@ func (x *SearchPersonRequest) String() string {
 func (*SearchPersonRequest) ProtoMessage() {}
 
 func (x *SearchPersonRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_pluginv1_metadata_proto_msgTypes[18]
+	mi := &file_pluginv1_metadata_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2364,7 +2515,7 @@ func (x *SearchPersonRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SearchPersonRequest.ProtoReflect.Descriptor instead.
 func (*SearchPersonRequest) Descriptor() ([]byte, []int) {
-	return file_pluginv1_metadata_proto_rawDescGZIP(), []int{18}
+	return file_pluginv1_metadata_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *SearchPersonRequest) GetName() string {
@@ -2414,7 +2565,7 @@ type PersonWork struct {
 
 func (x *PersonWork) Reset() {
 	*x = PersonWork{}
-	mi := &file_pluginv1_metadata_proto_msgTypes[19]
+	mi := &file_pluginv1_metadata_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2426,7 +2577,7 @@ func (x *PersonWork) String() string {
 func (*PersonWork) ProtoMessage() {}
 
 func (x *PersonWork) ProtoReflect() protoreflect.Message {
-	mi := &file_pluginv1_metadata_proto_msgTypes[19]
+	mi := &file_pluginv1_metadata_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2439,7 +2590,7 @@ func (x *PersonWork) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PersonWork.ProtoReflect.Descriptor instead.
 func (*PersonWork) Descriptor() ([]byte, []int) {
-	return file_pluginv1_metadata_proto_rawDescGZIP(), []int{19}
+	return file_pluginv1_metadata_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *PersonWork) GetName() string {
@@ -2487,7 +2638,7 @@ type SearchPersonResponse struct {
 
 func (x *SearchPersonResponse) Reset() {
 	*x = SearchPersonResponse{}
-	mi := &file_pluginv1_metadata_proto_msgTypes[20]
+	mi := &file_pluginv1_metadata_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2499,7 +2650,7 @@ func (x *SearchPersonResponse) String() string {
 func (*SearchPersonResponse) ProtoMessage() {}
 
 func (x *SearchPersonResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_pluginv1_metadata_proto_msgTypes[20]
+	mi := &file_pluginv1_metadata_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2512,7 +2663,7 @@ func (x *SearchPersonResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SearchPersonResponse.ProtoReflect.Descriptor instead.
 func (*SearchPersonResponse) Descriptor() ([]byte, []int) {
-	return file_pluginv1_metadata_proto_rawDescGZIP(), []int{20}
+	return file_pluginv1_metadata_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *SearchPersonResponse) GetCandidates() []*PersonCandidate {
@@ -2536,7 +2687,7 @@ type PersonCandidate struct {
 
 func (x *PersonCandidate) Reset() {
 	*x = PersonCandidate{}
-	mi := &file_pluginv1_metadata_proto_msgTypes[21]
+	mi := &file_pluginv1_metadata_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2548,7 +2699,7 @@ func (x *PersonCandidate) String() string {
 func (*PersonCandidate) ProtoMessage() {}
 
 func (x *PersonCandidate) ProtoReflect() protoreflect.Message {
-	mi := &file_pluginv1_metadata_proto_msgTypes[21]
+	mi := &file_pluginv1_metadata_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2561,7 +2712,7 @@ func (x *PersonCandidate) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PersonCandidate.ProtoReflect.Descriptor instead.
 func (*PersonCandidate) Descriptor() ([]byte, []int) {
-	return file_pluginv1_metadata_proto_rawDescGZIP(), []int{21}
+	return file_pluginv1_metadata_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *PersonCandidate) GetPerson() *PersonMetadata {
@@ -2614,7 +2765,7 @@ type PersonMetadata struct {
 
 func (x *PersonMetadata) Reset() {
 	*x = PersonMetadata{}
-	mi := &file_pluginv1_metadata_proto_msgTypes[22]
+	mi := &file_pluginv1_metadata_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2626,7 +2777,7 @@ func (x *PersonMetadata) String() string {
 func (*PersonMetadata) ProtoMessage() {}
 
 func (x *PersonMetadata) ProtoReflect() protoreflect.Message {
-	mi := &file_pluginv1_metadata_proto_msgTypes[22]
+	mi := &file_pluginv1_metadata_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2639,7 +2790,7 @@ func (x *PersonMetadata) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PersonMetadata.ProtoReflect.Descriptor instead.
 func (*PersonMetadata) Descriptor() ([]byte, []int) {
-	return file_pluginv1_metadata_proto_rawDescGZIP(), []int{22}
+	return file_pluginv1_metadata_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *PersonMetadata) GetId() string {
@@ -2773,7 +2924,7 @@ type Link struct {
 
 func (x *Link) Reset() {
 	*x = Link{}
-	mi := &file_pluginv1_metadata_proto_msgTypes[23]
+	mi := &file_pluginv1_metadata_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2785,7 +2936,7 @@ func (x *Link) String() string {
 func (*Link) ProtoMessage() {}
 
 func (x *Link) ProtoReflect() protoreflect.Message {
-	mi := &file_pluginv1_metadata_proto_msgTypes[23]
+	mi := &file_pluginv1_metadata_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2798,7 +2949,7 @@ func (x *Link) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Link.ProtoReflect.Descriptor instead.
 func (*Link) Descriptor() ([]byte, []int) {
-	return file_pluginv1_metadata_proto_rawDescGZIP(), []int{23}
+	return file_pluginv1_metadata_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *Link) GetKind() string {
@@ -2826,7 +2977,7 @@ type GetCollectionRequest struct {
 
 func (x *GetCollectionRequest) Reset() {
 	*x = GetCollectionRequest{}
-	mi := &file_pluginv1_metadata_proto_msgTypes[24]
+	mi := &file_pluginv1_metadata_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2838,7 +2989,7 @@ func (x *GetCollectionRequest) String() string {
 func (*GetCollectionRequest) ProtoMessage() {}
 
 func (x *GetCollectionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_pluginv1_metadata_proto_msgTypes[24]
+	mi := &file_pluginv1_metadata_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2851,7 +3002,7 @@ func (x *GetCollectionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetCollectionRequest.ProtoReflect.Descriptor instead.
 func (*GetCollectionRequest) Descriptor() ([]byte, []int) {
-	return file_pluginv1_metadata_proto_rawDescGZIP(), []int{24}
+	return file_pluginv1_metadata_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *GetCollectionRequest) GetId() string {
@@ -2884,7 +3035,7 @@ type CollectionMetadata struct {
 
 func (x *CollectionMetadata) Reset() {
 	*x = CollectionMetadata{}
-	mi := &file_pluginv1_metadata_proto_msgTypes[25]
+	mi := &file_pluginv1_metadata_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2896,7 +3047,7 @@ func (x *CollectionMetadata) String() string {
 func (*CollectionMetadata) ProtoMessage() {}
 
 func (x *CollectionMetadata) ProtoReflect() protoreflect.Message {
-	mi := &file_pluginv1_metadata_proto_msgTypes[25]
+	mi := &file_pluginv1_metadata_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2909,7 +3060,7 @@ func (x *CollectionMetadata) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CollectionMetadata.ProtoReflect.Descriptor instead.
 func (*CollectionMetadata) Descriptor() ([]byte, []int) {
-	return file_pluginv1_metadata_proto_rawDescGZIP(), []int{25}
+	return file_pluginv1_metadata_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *CollectionMetadata) GetId() string {
@@ -2958,10 +3109,10 @@ var File_pluginv1_metadata_proto protoreflect.FileDescriptor
 
 const file_pluginv1_metadata_proto_rawDesc = "" +
 	"\n" +
-	"\x17pluginv1/metadata.proto\x12\x11kryspal.plugin.v1\"E\n" +
+	"\x17pluginv1/metadata.proto\x12\x11kryspal.plugin.v1\x1a\x15pluginv1/plugin.proto\"E\n" +
 	"\tLanguages\x12\x1a\n" +
 	"\blanguage\x18\x01 \x01(\tR\blanguage\x12\x1c\n" +
-	"\tfallbacks\x18\x02 \x03(\tR\tfallbacks\"\x87\x05\n" +
+	"\tfallbacks\x18\x02 \x03(\tR\tfallbacks\"\x8a\x06\n" +
 	"\rSearchRequest\x12/\n" +
 	"\x04type\x18\x01 \x01(\x0e2\x1b.kryspal.plugin.v1.ItemTypeR\x04type\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x12\n" +
@@ -2977,8 +3128,22 @@ const file_pluginv1_metadata_proto_rawDesc = "" +
 	" \x03(\tR\rlanguageHints\x124\n" +
 	"\x05shape\x18\v \x01(\v2\x1e.kryspal.plugin.v1.SeriesShapeR\x05shape\x12\x14\n" +
 	"\x05flags\x18\f \x03(\tR\x05flags\x12)\n" +
-	"\x10duration_seconds\x18\r \x01(\x05R\x0fdurationSeconds\x1a>\n" +
+	"\x10duration_seconds\x18\r \x01(\x05R\x0fdurationSeconds\x12;\n" +
+	"\alibrary\x18\x0e \x01(\v2!.kryspal.plugin.v1.LibraryContextR\alibrary\x12D\n" +
+	"\vrecognition\x18\x0f \x01(\v2\".kryspal.plugin.v1.RecognitionHintR\vrecognition\x1a>\n" +
 	"\x10ProviderIdsEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xe6\x02\n" +
+	"\x0fRecognitionHint\x12\x12\n" +
+	"\x04part\x18\x01 \x01(\x05R\x04part\x12\x12\n" +
+	"\x04tags\x18\x02 \x03(\tR\x04tags\x12U\n" +
+	"\videntifiers\x18\x03 \x03(\v23.kryspal.plugin.v1.RecognitionHint.IdentifiersEntryR\videntifiers\x12\x14\n" +
+	"\x05flags\x18\x04 \x03(\tR\x05flags\x12\x18\n" +
+	"\aedition\x18\x05 \x01(\tR\aedition\x12!\n" +
+	"\fregion_hints\x18\x06 \x03(\tR\vregionHints\x12%\n" +
+	"\x0elanguage_hints\x18\a \x03(\tR\rlanguageHints\x12\x1a\n" +
+	"\bevidence\x18\b \x03(\tR\bevidence\x1a>\n" +
+	"\x10IdentifiersEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\x85\x01\n" +
 	"\tTitleHint\x12\x12\n" +
@@ -3015,7 +3180,7 @@ const file_pluginv1_metadata_proto_rawDesc = "" +
 	"\x06source\x18\r \x01(\tR\x06source\x1a>\n" +
 	"\x10ProviderIdsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xfe\x02\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\x81\x04\n" +
 	"\x0eGetItemRequest\x12/\n" +
 	"\x04type\x18\x01 \x01(\x0e2\x1b.kryspal.plugin.v1.ItemTypeR\x04type\x12\x0e\n" +
 	"\x02id\x18\x02 \x01(\tR\x02id\x12\x1b\n" +
@@ -3023,7 +3188,9 @@ const file_pluginv1_metadata_proto_rawDesc = "" +
 	"\rseason_number\x18\x04 \x01(\x05H\x00R\fseasonNumber\x88\x01\x01\x12*\n" +
 	"\x0eepisode_number\x18\x05 \x01(\x05H\x01R\repisodeNumber\x88\x01\x01\x12:\n" +
 	"\tlanguages\x18\x06 \x01(\v2\x1c.kryspal.plugin.v1.LanguagesR\tlanguages\x12;\n" +
-	"\x17absolute_episode_number\x18\a \x01(\x05H\x02R\x15absoluteEpisodeNumber\x88\x01\x01B\x10\n" +
+	"\x17absolute_episode_number\x18\a \x01(\x05H\x02R\x15absoluteEpisodeNumber\x88\x01\x01\x12;\n" +
+	"\alibrary\x18\b \x01(\v2!.kryspal.plugin.v1.LibraryContextR\alibrary\x12D\n" +
+	"\vrecognition\x18\t \x01(\v2\".kryspal.plugin.v1.RecognitionHintR\vrecognitionB\x10\n" +
 	"\x0e_season_numberB\x11\n" +
 	"\x0f_episode_numberB\x1a\n" +
 	"\x18_absolute_episode_number\"\x87\x01\n" +
@@ -3298,7 +3465,7 @@ func file_pluginv1_metadata_proto_rawDescGZIP() []byte {
 }
 
 var file_pluginv1_metadata_proto_enumTypes = make([]protoimpl.EnumInfo, 8)
-var file_pluginv1_metadata_proto_msgTypes = make([]protoimpl.MessageInfo, 38)
+var file_pluginv1_metadata_proto_msgTypes = make([]protoimpl.MessageInfo, 40)
 var file_pluginv1_metadata_proto_goTypes = []any{
 	(ItemType)(0),                // 0: kryspal.plugin.v1.ItemType
 	(TitleRole)(0),               // 1: kryspal.plugin.v1.TitleRole
@@ -3310,110 +3477,118 @@ var file_pluginv1_metadata_proto_goTypes = []any{
 	(Gender)(0),                  // 7: kryspal.plugin.v1.Gender
 	(*Languages)(nil),            // 8: kryspal.plugin.v1.Languages
 	(*SearchRequest)(nil),        // 9: kryspal.plugin.v1.SearchRequest
-	(*TitleHint)(nil),            // 10: kryspal.plugin.v1.TitleHint
-	(*SeriesShape)(nil),          // 11: kryspal.plugin.v1.SeriesShape
-	(*SearchResponse)(nil),       // 12: kryspal.plugin.v1.SearchResponse
-	(*SearchCandidate)(nil),      // 13: kryspal.plugin.v1.SearchCandidate
-	(*GetItemRequest)(nil),       // 14: kryspal.plugin.v1.GetItemRequest
-	(*Notice)(nil),               // 15: kryspal.plugin.v1.Notice
-	(*ItemMetadata)(nil),         // 16: kryspal.plugin.v1.ItemMetadata
-	(*Rating)(nil),               // 17: kryspal.plugin.v1.Rating
-	(*Trailer)(nil),              // 18: kryspal.plugin.v1.Trailer
-	(*Image)(nil),                // 19: kryspal.plugin.v1.Image
-	(*ImageCropHint)(nil),        // 20: kryspal.plugin.v1.ImageCropHint
-	(*ImageCrop)(nil),            // 21: kryspal.plugin.v1.ImageCrop
-	(*ImagePoint)(nil),           // 22: kryspal.plugin.v1.ImagePoint
-	(*Credit)(nil),               // 23: kryspal.plugin.v1.Credit
-	(*CollectionRef)(nil),        // 24: kryspal.plugin.v1.CollectionRef
-	(*GetPersonRequest)(nil),     // 25: kryspal.plugin.v1.GetPersonRequest
-	(*SearchPersonRequest)(nil),  // 26: kryspal.plugin.v1.SearchPersonRequest
-	(*PersonWork)(nil),           // 27: kryspal.plugin.v1.PersonWork
-	(*SearchPersonResponse)(nil), // 28: kryspal.plugin.v1.SearchPersonResponse
-	(*PersonCandidate)(nil),      // 29: kryspal.plugin.v1.PersonCandidate
-	(*PersonMetadata)(nil),       // 30: kryspal.plugin.v1.PersonMetadata
-	(*Link)(nil),                 // 31: kryspal.plugin.v1.Link
-	(*GetCollectionRequest)(nil), // 32: kryspal.plugin.v1.GetCollectionRequest
-	(*CollectionMetadata)(nil),   // 33: kryspal.plugin.v1.CollectionMetadata
-	nil,                          // 34: kryspal.plugin.v1.SearchRequest.ProviderIdsEntry
-	nil,                          // 35: kryspal.plugin.v1.SeriesShape.EpisodesPerSeasonEntry
-	nil,                          // 36: kryspal.plugin.v1.SearchCandidate.ProviderIdsEntry
-	nil,                          // 37: kryspal.plugin.v1.ItemMetadata.ProviderIdsEntry
-	nil,                          // 38: kryspal.plugin.v1.ItemMetadata.AttributesEntry
-	nil,                          // 39: kryspal.plugin.v1.ItemMetadata.FieldSourcesEntry
-	nil,                          // 40: kryspal.plugin.v1.Credit.ProviderIdsEntry
-	nil,                          // 41: kryspal.plugin.v1.PersonWork.ProviderIdsEntry
-	nil,                          // 42: kryspal.plugin.v1.PersonMetadata.ProviderIdsEntry
-	nil,                          // 43: kryspal.plugin.v1.PersonMetadata.AttributesEntry
-	nil,                          // 44: kryspal.plugin.v1.PersonMetadata.FieldSourcesEntry
-	nil,                          // 45: kryspal.plugin.v1.CollectionMetadata.ProviderIdsEntry
+	(*RecognitionHint)(nil),      // 10: kryspal.plugin.v1.RecognitionHint
+	(*TitleHint)(nil),            // 11: kryspal.plugin.v1.TitleHint
+	(*SeriesShape)(nil),          // 12: kryspal.plugin.v1.SeriesShape
+	(*SearchResponse)(nil),       // 13: kryspal.plugin.v1.SearchResponse
+	(*SearchCandidate)(nil),      // 14: kryspal.plugin.v1.SearchCandidate
+	(*GetItemRequest)(nil),       // 15: kryspal.plugin.v1.GetItemRequest
+	(*Notice)(nil),               // 16: kryspal.plugin.v1.Notice
+	(*ItemMetadata)(nil),         // 17: kryspal.plugin.v1.ItemMetadata
+	(*Rating)(nil),               // 18: kryspal.plugin.v1.Rating
+	(*Trailer)(nil),              // 19: kryspal.plugin.v1.Trailer
+	(*Image)(nil),                // 20: kryspal.plugin.v1.Image
+	(*ImageCropHint)(nil),        // 21: kryspal.plugin.v1.ImageCropHint
+	(*ImageCrop)(nil),            // 22: kryspal.plugin.v1.ImageCrop
+	(*ImagePoint)(nil),           // 23: kryspal.plugin.v1.ImagePoint
+	(*Credit)(nil),               // 24: kryspal.plugin.v1.Credit
+	(*CollectionRef)(nil),        // 25: kryspal.plugin.v1.CollectionRef
+	(*GetPersonRequest)(nil),     // 26: kryspal.plugin.v1.GetPersonRequest
+	(*SearchPersonRequest)(nil),  // 27: kryspal.plugin.v1.SearchPersonRequest
+	(*PersonWork)(nil),           // 28: kryspal.plugin.v1.PersonWork
+	(*SearchPersonResponse)(nil), // 29: kryspal.plugin.v1.SearchPersonResponse
+	(*PersonCandidate)(nil),      // 30: kryspal.plugin.v1.PersonCandidate
+	(*PersonMetadata)(nil),       // 31: kryspal.plugin.v1.PersonMetadata
+	(*Link)(nil),                 // 32: kryspal.plugin.v1.Link
+	(*GetCollectionRequest)(nil), // 33: kryspal.plugin.v1.GetCollectionRequest
+	(*CollectionMetadata)(nil),   // 34: kryspal.plugin.v1.CollectionMetadata
+	nil,                          // 35: kryspal.plugin.v1.SearchRequest.ProviderIdsEntry
+	nil,                          // 36: kryspal.plugin.v1.RecognitionHint.IdentifiersEntry
+	nil,                          // 37: kryspal.plugin.v1.SeriesShape.EpisodesPerSeasonEntry
+	nil,                          // 38: kryspal.plugin.v1.SearchCandidate.ProviderIdsEntry
+	nil,                          // 39: kryspal.plugin.v1.ItemMetadata.ProviderIdsEntry
+	nil,                          // 40: kryspal.plugin.v1.ItemMetadata.AttributesEntry
+	nil,                          // 41: kryspal.plugin.v1.ItemMetadata.FieldSourcesEntry
+	nil,                          // 42: kryspal.plugin.v1.Credit.ProviderIdsEntry
+	nil,                          // 43: kryspal.plugin.v1.PersonWork.ProviderIdsEntry
+	nil,                          // 44: kryspal.plugin.v1.PersonMetadata.ProviderIdsEntry
+	nil,                          // 45: kryspal.plugin.v1.PersonMetadata.AttributesEntry
+	nil,                          // 46: kryspal.plugin.v1.PersonMetadata.FieldSourcesEntry
+	nil,                          // 47: kryspal.plugin.v1.CollectionMetadata.ProviderIdsEntry
+	(*LibraryContext)(nil),       // 48: kryspal.plugin.v1.LibraryContext
 }
 var file_pluginv1_metadata_proto_depIdxs = []int32{
 	0,  // 0: kryspal.plugin.v1.SearchRequest.type:type_name -> kryspal.plugin.v1.ItemType
 	8,  // 1: kryspal.plugin.v1.SearchRequest.languages:type_name -> kryspal.plugin.v1.Languages
-	34, // 2: kryspal.plugin.v1.SearchRequest.provider_ids:type_name -> kryspal.plugin.v1.SearchRequest.ProviderIdsEntry
-	10, // 3: kryspal.plugin.v1.SearchRequest.titles:type_name -> kryspal.plugin.v1.TitleHint
+	35, // 2: kryspal.plugin.v1.SearchRequest.provider_ids:type_name -> kryspal.plugin.v1.SearchRequest.ProviderIdsEntry
+	11, // 3: kryspal.plugin.v1.SearchRequest.titles:type_name -> kryspal.plugin.v1.TitleHint
 	2,  // 4: kryspal.plugin.v1.SearchRequest.year_source:type_name -> kryspal.plugin.v1.YearSource
-	11, // 5: kryspal.plugin.v1.SearchRequest.shape:type_name -> kryspal.plugin.v1.SeriesShape
-	1,  // 6: kryspal.plugin.v1.TitleHint.role:type_name -> kryspal.plugin.v1.TitleRole
-	35, // 7: kryspal.plugin.v1.SeriesShape.episodes_per_season:type_name -> kryspal.plugin.v1.SeriesShape.EpisodesPerSeasonEntry
-	13, // 8: kryspal.plugin.v1.SearchResponse.candidates:type_name -> kryspal.plugin.v1.SearchCandidate
-	15, // 9: kryspal.plugin.v1.SearchResponse.notices:type_name -> kryspal.plugin.v1.Notice
-	0,  // 10: kryspal.plugin.v1.SearchCandidate.type:type_name -> kryspal.plugin.v1.ItemType
-	36, // 11: kryspal.plugin.v1.SearchCandidate.provider_ids:type_name -> kryspal.plugin.v1.SearchCandidate.ProviderIdsEntry
-	0,  // 12: kryspal.plugin.v1.GetItemRequest.type:type_name -> kryspal.plugin.v1.ItemType
-	8,  // 13: kryspal.plugin.v1.GetItemRequest.languages:type_name -> kryspal.plugin.v1.Languages
-	3,  // 14: kryspal.plugin.v1.Notice.status:type_name -> kryspal.plugin.v1.NoticeStatus
-	0,  // 15: kryspal.plugin.v1.ItemMetadata.type:type_name -> kryspal.plugin.v1.ItemType
-	37, // 16: kryspal.plugin.v1.ItemMetadata.provider_ids:type_name -> kryspal.plugin.v1.ItemMetadata.ProviderIdsEntry
-	19, // 17: kryspal.plugin.v1.ItemMetadata.images:type_name -> kryspal.plugin.v1.Image
-	23, // 18: kryspal.plugin.v1.ItemMetadata.credits:type_name -> kryspal.plugin.v1.Credit
-	24, // 19: kryspal.plugin.v1.ItemMetadata.collection:type_name -> kryspal.plugin.v1.CollectionRef
-	18, // 20: kryspal.plugin.v1.ItemMetadata.trailers:type_name -> kryspal.plugin.v1.Trailer
-	4,  // 21: kryspal.plugin.v1.ItemMetadata.status:type_name -> kryspal.plugin.v1.SeriesStatus
-	17, // 22: kryspal.plugin.v1.ItemMetadata.ratings:type_name -> kryspal.plugin.v1.Rating
-	38, // 23: kryspal.plugin.v1.ItemMetadata.attributes:type_name -> kryspal.plugin.v1.ItemMetadata.AttributesEntry
-	15, // 24: kryspal.plugin.v1.ItemMetadata.notices:type_name -> kryspal.plugin.v1.Notice
-	39, // 25: kryspal.plugin.v1.ItemMetadata.field_sources:type_name -> kryspal.plugin.v1.ItemMetadata.FieldSourcesEntry
-	5,  // 26: kryspal.plugin.v1.Image.type:type_name -> kryspal.plugin.v1.ImageType
-	21, // 27: kryspal.plugin.v1.Image.crop:type_name -> kryspal.plugin.v1.ImageCrop
-	22, // 28: kryspal.plugin.v1.Image.focus:type_name -> kryspal.plugin.v1.ImagePoint
-	20, // 29: kryspal.plugin.v1.Image.crop_hint:type_name -> kryspal.plugin.v1.ImageCropHint
-	6,  // 30: kryspal.plugin.v1.Credit.kind:type_name -> kryspal.plugin.v1.PersonKind
-	40, // 31: kryspal.plugin.v1.Credit.provider_ids:type_name -> kryspal.plugin.v1.Credit.ProviderIdsEntry
-	7,  // 32: kryspal.plugin.v1.Credit.gender:type_name -> kryspal.plugin.v1.Gender
-	8,  // 33: kryspal.plugin.v1.GetPersonRequest.languages:type_name -> kryspal.plugin.v1.Languages
-	27, // 34: kryspal.plugin.v1.SearchPersonRequest.works:type_name -> kryspal.plugin.v1.PersonWork
-	8,  // 35: kryspal.plugin.v1.SearchPersonRequest.languages:type_name -> kryspal.plugin.v1.Languages
-	0,  // 36: kryspal.plugin.v1.PersonWork.item_type:type_name -> kryspal.plugin.v1.ItemType
-	41, // 37: kryspal.plugin.v1.PersonWork.provider_ids:type_name -> kryspal.plugin.v1.PersonWork.ProviderIdsEntry
-	29, // 38: kryspal.plugin.v1.SearchPersonResponse.candidates:type_name -> kryspal.plugin.v1.PersonCandidate
-	30, // 39: kryspal.plugin.v1.PersonCandidate.person:type_name -> kryspal.plugin.v1.PersonMetadata
-	7,  // 40: kryspal.plugin.v1.PersonMetadata.gender:type_name -> kryspal.plugin.v1.Gender
-	42, // 41: kryspal.plugin.v1.PersonMetadata.provider_ids:type_name -> kryspal.plugin.v1.PersonMetadata.ProviderIdsEntry
-	31, // 42: kryspal.plugin.v1.PersonMetadata.links:type_name -> kryspal.plugin.v1.Link
-	19, // 43: kryspal.plugin.v1.PersonMetadata.images:type_name -> kryspal.plugin.v1.Image
-	43, // 44: kryspal.plugin.v1.PersonMetadata.attributes:type_name -> kryspal.plugin.v1.PersonMetadata.AttributesEntry
-	15, // 45: kryspal.plugin.v1.PersonMetadata.notices:type_name -> kryspal.plugin.v1.Notice
-	44, // 46: kryspal.plugin.v1.PersonMetadata.field_sources:type_name -> kryspal.plugin.v1.PersonMetadata.FieldSourcesEntry
-	8,  // 47: kryspal.plugin.v1.GetCollectionRequest.languages:type_name -> kryspal.plugin.v1.Languages
-	45, // 48: kryspal.plugin.v1.CollectionMetadata.provider_ids:type_name -> kryspal.plugin.v1.CollectionMetadata.ProviderIdsEntry
-	19, // 49: kryspal.plugin.v1.CollectionMetadata.images:type_name -> kryspal.plugin.v1.Image
-	13, // 50: kryspal.plugin.v1.CollectionMetadata.parts:type_name -> kryspal.plugin.v1.SearchCandidate
-	9,  // 51: kryspal.plugin.v1.MetadataProvider.Search:input_type -> kryspal.plugin.v1.SearchRequest
-	14, // 52: kryspal.plugin.v1.MetadataProvider.GetItem:input_type -> kryspal.plugin.v1.GetItemRequest
-	25, // 53: kryspal.plugin.v1.MetadataProvider.GetPerson:input_type -> kryspal.plugin.v1.GetPersonRequest
-	26, // 54: kryspal.plugin.v1.MetadataProvider.SearchPerson:input_type -> kryspal.plugin.v1.SearchPersonRequest
-	32, // 55: kryspal.plugin.v1.MetadataProvider.GetCollection:input_type -> kryspal.plugin.v1.GetCollectionRequest
-	12, // 56: kryspal.plugin.v1.MetadataProvider.Search:output_type -> kryspal.plugin.v1.SearchResponse
-	16, // 57: kryspal.plugin.v1.MetadataProvider.GetItem:output_type -> kryspal.plugin.v1.ItemMetadata
-	30, // 58: kryspal.plugin.v1.MetadataProvider.GetPerson:output_type -> kryspal.plugin.v1.PersonMetadata
-	28, // 59: kryspal.plugin.v1.MetadataProvider.SearchPerson:output_type -> kryspal.plugin.v1.SearchPersonResponse
-	33, // 60: kryspal.plugin.v1.MetadataProvider.GetCollection:output_type -> kryspal.plugin.v1.CollectionMetadata
-	56, // [56:61] is the sub-list for method output_type
-	51, // [51:56] is the sub-list for method input_type
-	51, // [51:51] is the sub-list for extension type_name
-	51, // [51:51] is the sub-list for extension extendee
-	0,  // [0:51] is the sub-list for field type_name
+	12, // 5: kryspal.plugin.v1.SearchRequest.shape:type_name -> kryspal.plugin.v1.SeriesShape
+	48, // 6: kryspal.plugin.v1.SearchRequest.library:type_name -> kryspal.plugin.v1.LibraryContext
+	10, // 7: kryspal.plugin.v1.SearchRequest.recognition:type_name -> kryspal.plugin.v1.RecognitionHint
+	36, // 8: kryspal.plugin.v1.RecognitionHint.identifiers:type_name -> kryspal.plugin.v1.RecognitionHint.IdentifiersEntry
+	1,  // 9: kryspal.plugin.v1.TitleHint.role:type_name -> kryspal.plugin.v1.TitleRole
+	37, // 10: kryspal.plugin.v1.SeriesShape.episodes_per_season:type_name -> kryspal.plugin.v1.SeriesShape.EpisodesPerSeasonEntry
+	14, // 11: kryspal.plugin.v1.SearchResponse.candidates:type_name -> kryspal.plugin.v1.SearchCandidate
+	16, // 12: kryspal.plugin.v1.SearchResponse.notices:type_name -> kryspal.plugin.v1.Notice
+	0,  // 13: kryspal.plugin.v1.SearchCandidate.type:type_name -> kryspal.plugin.v1.ItemType
+	38, // 14: kryspal.plugin.v1.SearchCandidate.provider_ids:type_name -> kryspal.plugin.v1.SearchCandidate.ProviderIdsEntry
+	0,  // 15: kryspal.plugin.v1.GetItemRequest.type:type_name -> kryspal.plugin.v1.ItemType
+	8,  // 16: kryspal.plugin.v1.GetItemRequest.languages:type_name -> kryspal.plugin.v1.Languages
+	48, // 17: kryspal.plugin.v1.GetItemRequest.library:type_name -> kryspal.plugin.v1.LibraryContext
+	10, // 18: kryspal.plugin.v1.GetItemRequest.recognition:type_name -> kryspal.plugin.v1.RecognitionHint
+	3,  // 19: kryspal.plugin.v1.Notice.status:type_name -> kryspal.plugin.v1.NoticeStatus
+	0,  // 20: kryspal.plugin.v1.ItemMetadata.type:type_name -> kryspal.plugin.v1.ItemType
+	39, // 21: kryspal.plugin.v1.ItemMetadata.provider_ids:type_name -> kryspal.plugin.v1.ItemMetadata.ProviderIdsEntry
+	20, // 22: kryspal.plugin.v1.ItemMetadata.images:type_name -> kryspal.plugin.v1.Image
+	24, // 23: kryspal.plugin.v1.ItemMetadata.credits:type_name -> kryspal.plugin.v1.Credit
+	25, // 24: kryspal.plugin.v1.ItemMetadata.collection:type_name -> kryspal.plugin.v1.CollectionRef
+	19, // 25: kryspal.plugin.v1.ItemMetadata.trailers:type_name -> kryspal.plugin.v1.Trailer
+	4,  // 26: kryspal.plugin.v1.ItemMetadata.status:type_name -> kryspal.plugin.v1.SeriesStatus
+	18, // 27: kryspal.plugin.v1.ItemMetadata.ratings:type_name -> kryspal.plugin.v1.Rating
+	40, // 28: kryspal.plugin.v1.ItemMetadata.attributes:type_name -> kryspal.plugin.v1.ItemMetadata.AttributesEntry
+	16, // 29: kryspal.plugin.v1.ItemMetadata.notices:type_name -> kryspal.plugin.v1.Notice
+	41, // 30: kryspal.plugin.v1.ItemMetadata.field_sources:type_name -> kryspal.plugin.v1.ItemMetadata.FieldSourcesEntry
+	5,  // 31: kryspal.plugin.v1.Image.type:type_name -> kryspal.plugin.v1.ImageType
+	22, // 32: kryspal.plugin.v1.Image.crop:type_name -> kryspal.plugin.v1.ImageCrop
+	23, // 33: kryspal.plugin.v1.Image.focus:type_name -> kryspal.plugin.v1.ImagePoint
+	21, // 34: kryspal.plugin.v1.Image.crop_hint:type_name -> kryspal.plugin.v1.ImageCropHint
+	6,  // 35: kryspal.plugin.v1.Credit.kind:type_name -> kryspal.plugin.v1.PersonKind
+	42, // 36: kryspal.plugin.v1.Credit.provider_ids:type_name -> kryspal.plugin.v1.Credit.ProviderIdsEntry
+	7,  // 37: kryspal.plugin.v1.Credit.gender:type_name -> kryspal.plugin.v1.Gender
+	8,  // 38: kryspal.plugin.v1.GetPersonRequest.languages:type_name -> kryspal.plugin.v1.Languages
+	28, // 39: kryspal.plugin.v1.SearchPersonRequest.works:type_name -> kryspal.plugin.v1.PersonWork
+	8,  // 40: kryspal.plugin.v1.SearchPersonRequest.languages:type_name -> kryspal.plugin.v1.Languages
+	0,  // 41: kryspal.plugin.v1.PersonWork.item_type:type_name -> kryspal.plugin.v1.ItemType
+	43, // 42: kryspal.plugin.v1.PersonWork.provider_ids:type_name -> kryspal.plugin.v1.PersonWork.ProviderIdsEntry
+	30, // 43: kryspal.plugin.v1.SearchPersonResponse.candidates:type_name -> kryspal.plugin.v1.PersonCandidate
+	31, // 44: kryspal.plugin.v1.PersonCandidate.person:type_name -> kryspal.plugin.v1.PersonMetadata
+	7,  // 45: kryspal.plugin.v1.PersonMetadata.gender:type_name -> kryspal.plugin.v1.Gender
+	44, // 46: kryspal.plugin.v1.PersonMetadata.provider_ids:type_name -> kryspal.plugin.v1.PersonMetadata.ProviderIdsEntry
+	32, // 47: kryspal.plugin.v1.PersonMetadata.links:type_name -> kryspal.plugin.v1.Link
+	20, // 48: kryspal.plugin.v1.PersonMetadata.images:type_name -> kryspal.plugin.v1.Image
+	45, // 49: kryspal.plugin.v1.PersonMetadata.attributes:type_name -> kryspal.plugin.v1.PersonMetadata.AttributesEntry
+	16, // 50: kryspal.plugin.v1.PersonMetadata.notices:type_name -> kryspal.plugin.v1.Notice
+	46, // 51: kryspal.plugin.v1.PersonMetadata.field_sources:type_name -> kryspal.plugin.v1.PersonMetadata.FieldSourcesEntry
+	8,  // 52: kryspal.plugin.v1.GetCollectionRequest.languages:type_name -> kryspal.plugin.v1.Languages
+	47, // 53: kryspal.plugin.v1.CollectionMetadata.provider_ids:type_name -> kryspal.plugin.v1.CollectionMetadata.ProviderIdsEntry
+	20, // 54: kryspal.plugin.v1.CollectionMetadata.images:type_name -> kryspal.plugin.v1.Image
+	14, // 55: kryspal.plugin.v1.CollectionMetadata.parts:type_name -> kryspal.plugin.v1.SearchCandidate
+	9,  // 56: kryspal.plugin.v1.MetadataProvider.Search:input_type -> kryspal.plugin.v1.SearchRequest
+	15, // 57: kryspal.plugin.v1.MetadataProvider.GetItem:input_type -> kryspal.plugin.v1.GetItemRequest
+	26, // 58: kryspal.plugin.v1.MetadataProvider.GetPerson:input_type -> kryspal.plugin.v1.GetPersonRequest
+	27, // 59: kryspal.plugin.v1.MetadataProvider.SearchPerson:input_type -> kryspal.plugin.v1.SearchPersonRequest
+	33, // 60: kryspal.plugin.v1.MetadataProvider.GetCollection:input_type -> kryspal.plugin.v1.GetCollectionRequest
+	13, // 61: kryspal.plugin.v1.MetadataProvider.Search:output_type -> kryspal.plugin.v1.SearchResponse
+	17, // 62: kryspal.plugin.v1.MetadataProvider.GetItem:output_type -> kryspal.plugin.v1.ItemMetadata
+	31, // 63: kryspal.plugin.v1.MetadataProvider.GetPerson:output_type -> kryspal.plugin.v1.PersonMetadata
+	29, // 64: kryspal.plugin.v1.MetadataProvider.SearchPerson:output_type -> kryspal.plugin.v1.SearchPersonResponse
+	34, // 65: kryspal.plugin.v1.MetadataProvider.GetCollection:output_type -> kryspal.plugin.v1.CollectionMetadata
+	61, // [61:66] is the sub-list for method output_type
+	56, // [56:61] is the sub-list for method input_type
+	56, // [56:56] is the sub-list for extension type_name
+	56, // [56:56] is the sub-list for extension extendee
+	0,  // [0:56] is the sub-list for field type_name
 }
 
 func init() { file_pluginv1_metadata_proto_init() }
@@ -3421,16 +3596,17 @@ func file_pluginv1_metadata_proto_init() {
 	if File_pluginv1_metadata_proto != nil {
 		return
 	}
-	file_pluginv1_metadata_proto_msgTypes[6].OneofWrappers = []any{}
-	file_pluginv1_metadata_proto_msgTypes[8].OneofWrappers = []any{}
-	file_pluginv1_metadata_proto_msgTypes[12].OneofWrappers = []any{}
+	file_pluginv1_plugin_proto_init()
+	file_pluginv1_metadata_proto_msgTypes[7].OneofWrappers = []any{}
+	file_pluginv1_metadata_proto_msgTypes[9].OneofWrappers = []any{}
+	file_pluginv1_metadata_proto_msgTypes[13].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_pluginv1_metadata_proto_rawDesc), len(file_pluginv1_metadata_proto_rawDesc)),
 			NumEnums:      8,
-			NumMessages:   38,
+			NumMessages:   40,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
