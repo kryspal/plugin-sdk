@@ -130,11 +130,11 @@ func TestOneRequestAtATimeByDefaultAndSpaced(t *testing.T) {
 func TestMaxConcurrentAllowsOverlapAndOnlySpacesTheStarts(t *testing.T) {
 	peak, _ := runParallel(t, Config{Name: "x", UserAgent: "ua", MaxConcurrent: 4, MinInterval: 10 * time.Millisecond}, 4)
 	// Four requests of 60 ms each, started 10 ms apart, overlap. If the interval held back running requests,
-	// at most one would be in flight; a wall-clock bound is not used because it fails on a loaded machine.
+	// at most one would be in flight. Wall-clock bounds and server-side arrival gaps are not checked: on a
+	// loaded machine requests sent 10 ms apart can arrive together. TestOneRequestAtATimeByDefaultAndSpaced covers the spacing.
 	if peak < 2 || peak > 4 {
 		t.Fatalf("peak concurrency = %d, want 2 to 4: the interval held back running requests", peak)
 	}
-	// The spacing of the starts is checked by TestOneRequestAtATimeByDefaultAndSpaced; the server sees a start late on a loaded machine, so it is not measured here.
 }
 
 // runParallel sends n requests at once to a server that takes 60 ms each, and returns the highest number it saw in flight and the start times in order.

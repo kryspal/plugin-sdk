@@ -3,7 +3,7 @@
 All notable changes to the Kryspal Media Plugin SDK. The protocol major version is `v1` (proto package
 `kryspal.plugin.v1`); within v1 only compatible additions are made (new fields, RPCs, services, capabilities).
 
-## Unreleased
+## v0.6.0 (2026-10-22)
 
 - `sdk/httpclient`: the HTTP client most plugins need for an upstream service: a cap on parallel requests (`MaxConcurrent`), a
   minimum interval between request starts, a recognizable User-Agent, a cap on the answer size, `Retry-After` in seconds or as an
