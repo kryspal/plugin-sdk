@@ -318,13 +318,17 @@ func socketDir(t *testing.T) string {
 }
 
 // hostFeatures are the features a current host announces in EnvHostFeatures. field_sources is not among them: the
-// host does not store field sources yet.
+// host does not store field sources yet. The host's own list is checked against this one in its tests.
 var hostFeatures = []string{
 	pluginapi.HostFeatureAttributes, pluginapi.HostFeaturePhoto, pluginapi.HostFeatureStill, pluginapi.HostFeatureConfigTypes,
 	pluginapi.HostFeatureImageReferer, pluginapi.HostFeatureTasks, pluginapi.HostFeatureImageCrop, pluginapi.HostFeatureConfigItems,
 	pluginapi.HostFeatureItemChecks, pluginapi.HostFeatureScrapeNotices, pluginapi.HostFeaturePersonBackdrop,
 	pluginapi.HostFeatureAutoFillLimit, pluginapi.HostFeatureSearchConfirmed, pluginapi.HostFeatureBadgeSuggestions,
+	pluginapi.HostFeatureConfirmedNumbering, pluginapi.HostFeatureLibraryConfig, pluginapi.HostFeatureRecognitionHint,
 }
+
+// DefaultHostFeatures returns the features the suite announces to the plugin by default, the list of a current host.
+func DefaultHostFeatures() []string { return slices.Clone(hostFeatures) }
 
 // hostEnv is the clean environment the host passes (PROTOCOL.md §2.1), followed by the test's extra variables.
 func hostEnv(t *testing.T, sockDir string, protocols []int, extra []string) []string {
