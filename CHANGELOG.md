@@ -5,6 +5,14 @@ All notable changes to the Kryspal Media Plugin SDK. The protocol major version 
 
 ## Unreleased (v0.7.0)
 
+- Added after the v0.7.0 preview: `GetDanmakuRequest` and `SubtitleTarget` carry `original_title` and `product_code` (host feature `lookup_names`,
+  `pluginapi.HostFeatureLookupNames`): the item's original title (for an episode, the series') and its product code (catalog
+  number), so a source that knows works by another name or by code can use them. The host still sends the current title, the year,
+  the provider IDs and the season and episode; which to use is the plugin's choice. Both are empty on older hosts and when the item
+  has none.
+- `plugintest`: `Options.Danmaku` runs `GetDanmaku` and checks the answer (time order, non-negative times, known modes, colors up to
+  `0xFFFFFF`, non-empty text, at most 20000 comments); `SubtitleCase` takes `OriginalTitle` and `ProductCode`; the default host
+  features include `lookup_names`.
 - Per-library settings (host feature `library_config`, PROTOCOL §5.4): `ConfigField.library_override`, `LibraryContext` on
   Search, GetItem, GetImages, Recognize and subtitle Search requests, and `Configure` with `dry_run` and `library` for
   checking a library's values. `sdk.Settings` keeps the global values and gives each request its effective settings

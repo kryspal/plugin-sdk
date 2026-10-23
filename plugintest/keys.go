@@ -77,7 +77,8 @@ func checkSubtitles(ctx context.Context, t *testing.T, conn *grpc.ClientConn, m 
 		langs = []string{"en"}
 	}
 	const limit = 3
-	target := &pluginv1.SubtitleTarget{Type: sc.Type, Title: sc.Title, Year: sc.Year, ProviderIds: sc.ProviderIDs}
+	target := &pluginv1.SubtitleTarget{Type: sc.Type, Title: sc.Title, Year: sc.Year, ProviderIds: sc.ProviderIDs,
+		OriginalTitle: sc.OriginalTitle, ProductCode: sc.ProductCode}
 	if sc.Type == pluginv1.ItemType_ITEM_TYPE_EPISODE {
 		target.SeasonNumber, target.EpisodeNumber = &sc.Season, &sc.Episode
 	}
@@ -169,4 +170,58 @@ func hostListsFeature(extra []string, feature string) bool {
 		}
 	}
 	return slices.Contains(hostFeatures, feature)
+}
+
+// maxDanmaku is how many comments the host uses of an answer (PROTOCOL.md §7.5).
+const (
+	maxDanmaku         = 20000
+	maxDanmakuTextRune = 500
+)
+
+// checkDanmaku runs GetDanmaku for the case and checks what the player depends on.
+func checkDanmaku(ctx context.Context, t *testing.T, conn *grpc.ClientConn, m *pluginv1.Manifest, dc *DanmakuCase) {
+	t.Helper()
+	if !declares(m, pluginv1.CapabilityDanmakuProvider) {
+		t.Fatalf("the manifest does not declare %s", pluginv1.CapabilityDanmakuProvider)
+	}
+	req := &pluginv1.GetDanmakuRequest{Type: dc.Type, Title: dc.Title, Year: dc.Year, ProviderIds: dc.ProviderIDs,
+		OriginalTitle: dc.OriginalTitle, ProductCode: dc.ProductCode}
+	if dc.Type == pluginv1.ItemType_ITEM_TYPE_EPISODE {
+		req.SeasonNumber, req.EpisodeNumber = &dc.Season, &dc.Episode
+	}
+	res, err := call(ctx, danmakuTimeout, func(cctx context.Context) (*pluginv1.GetDanmakuResponse, error) {
+		return pluginv1.NewDanmakuProviderClient(conn).GetDanmaku(cctx, req)
+	})
+	if err != nil {
+		t.Fatalf("GetDanmaku(%q): %v", dc.Title, err)
+	}
+	if len(res.GetComments()) == 0 {
+		t.Fatalf("GetDanmaku(%q) found nothing", dc.Title)
+	}
+	if n := len(res.GetComments()); n > maxDanmaku {
+		t.Errorf("GetDanmaku returned %d comments; the host uses at most %d", n, maxDanmaku)
+	}
+	var last int64
+	for i, c := range res.GetComments() {
+		at := "danmaku comment " + strconv.Itoa(i)
+		switch {
+		case c.GetTimeMs() < 0:
+			t.Errorf("%s: time_ms %d is negative", at, c.GetTimeMs())
+		case c.GetTimeMs() < last:
+			t.Errorf("%s: time_ms %d comes after %d; comments must be in increasing time order", at, c.GetTimeMs(), last)
+		}
+		last = max(last, c.GetTimeMs())
+		if strings.TrimSpace(c.GetText()) == "" {
+			t.Errorf("%s: text is empty", at)
+		}
+		if utf8.RuneCountInString(c.GetText()) > maxDanmakuTextRune {
+			t.Errorf("%s: text has more than %d characters", at, maxDanmakuTextRune)
+		}
+		if c.GetColor() > 0xFFFFFF {
+			t.Errorf("%s: color %#x is above 0xFFFFFF (0xRRGGBB; 0 means white)", at, c.GetColor())
+		}
+		if _, ok := pluginv1.DanmakuMode_name[int32(c.GetMode())]; !ok {
+			t.Errorf("%s: mode %d is not a known DanmakuMode", at, c.GetMode())
+		}
+	}
 }

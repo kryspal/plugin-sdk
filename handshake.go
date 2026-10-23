@@ -217,6 +217,9 @@ const (
 	// provider IDs a recognition plugin found into the item's provider IDs (not over manual or NFO ones). Without it
 	// recognition results reach metadata plugins only as titles and known IDs.
 	HostFeatureRecognitionHint = "recognition_hint"
+	// HostFeatureLookupNames: GetDanmakuRequest and SubtitleTarget carry original_title and product_code. Without it
+	// both are empty, and a plugin looks up by title, year, provider IDs and season and episode only.
+	HostFeatureLookupNames = "lookup_names"
 )
 
 // HostFeatures returns the features listed in EnvHostFeatures. The result is empty, not nil, when the variable is

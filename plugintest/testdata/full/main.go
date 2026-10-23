@@ -53,7 +53,7 @@ func (p *provider) toneOf(lib *pluginv1.LibraryContext) string {
 func main() {
 	p := &provider{upstream: os.Getenv("FULL_UPSTREAM"), broken: os.Getenv("FULL_BREAK"), features: pluginapi.HostFeatures(os.Getenv),
 		settings: sdk.NewSettings(configFields())}
-	sdk.Main(sdk.Config{Plugin: p, MetadataProvider: p, ImageProvider: p, Recognizer: p, TaskRunner: p, SubtitleProvider: &subtitles{broken: p.broken}})
+	sdk.Main(sdk.Config{Plugin: p, MetadataProvider: p, ImageProvider: p, Recognizer: p, TaskRunner: p, SubtitleProvider: &subtitles{broken: p.broken}, DanmakuProvider: &danmaku{broken: p.broken}})
 }
 
 func (p *provider) Describe(context.Context, *pluginv1.DescribeRequest) (*pluginv1.Manifest, error) {
@@ -62,7 +62,7 @@ func (p *provider) Describe(context.Context, *pluginv1.DescribeRequest) (*plugin
 		Capabilities: []string{
 			pluginv1.CapabilityMetadataMovie, pluginv1.CapabilityMetadataPerson,
 			pluginv1.CapabilityImagesMovie, pluginv1.CapabilityImagesPerson, pluginv1.CapabilityMediaRecognize,
-			pluginv1.CapabilityPluginTasks, pluginv1.CapabilityMetadataPersonSearch, pluginv1.CapabilitySubtitlesSearch,
+			pluginv1.CapabilityPluginTasks, pluginv1.CapabilityMetadataPersonSearch, pluginv1.CapabilitySubtitlesSearch, pluginv1.CapabilityDanmakuProvider,
 		},
 		ConfigFields: append(configFields(), []*pluginv1.ConfigField{
 			{Key: "use_db", Label: "Use a database", Type: pluginv1.ConfigFieldType_CONFIG_FIELD_TYPE_BOOL, DefaultValue: "false"},
@@ -251,4 +251,25 @@ func (p *provider) Recognize(_ context.Context, req *pluginv1.RecognizeRequest) 
 		}}
 	}
 	return resp, nil
+}
+
+// danmaku is a danmaku source. It answers for the film only when the request carries the name the source knows it by: the original title, or
+// the product code.
+type danmaku struct {
+	pluginv1.UnimplementedDanmakuProviderServer
+	broken string
+}
+
+func (d *danmaku) GetDanmaku(_ context.Context, req *pluginv1.GetDanmakuRequest) (*pluginv1.GetDanmakuResponse, error) {
+	if req.GetOriginalTitle() != "Sample Movie Original" && req.GetProductCode() != "SMP-001" {
+		return &pluginv1.GetDanmakuResponse{}, nil
+	}
+	comments := []*pluginv1.DanmakuComment{
+		{TimeMs: 1000, Text: "first", Color: 0xFFFFFF, Mode: pluginv1.DanmakuMode_DANMAKU_MODE_SCROLL, Source: "sample"},
+		{TimeMs: 2500, Text: "second", Color: 0xFF0000, Mode: pluginv1.DanmakuMode_DANMAKU_MODE_TOP},
+	}
+	if d.broken == "danmaku" {
+		comments[1].TimeMs, comments[1].Color, comments[1].Text = 500, 0x1000000, " "
+	}
+	return &pluginv1.GetDanmakuResponse{Comments: comments}, nil
 }

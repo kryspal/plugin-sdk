@@ -180,8 +180,13 @@ type SubtitleTarget struct {
 	// OpenSubtitles moviehash; the empty string when the host cannot read the first and last 64 KB of the file (remote strm).
 	MovieHash       string `protobuf:"bytes,9,opt,name=movie_hash,json=movieHash,proto3" json:"movie_hash,omitempty"`
 	DurationSeconds int32  `protobuf:"varint,10,opt,name=duration_seconds,json=durationSeconds,proto3" json:"duration_seconds,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// The original title of the item (for an episode, of the series), when it has one that differs from title; empty
+	// otherwise. Sent by hosts with the host feature lookup_names.
+	OriginalTitle string `protobuf:"bytes,11,opt,name=original_title,json=originalTitle,proto3" json:"original_title,omitempty"`
+	// The item's product code (catalog number); empty when it has none. Sent by hosts with the host feature lookup_names.
+	ProductCode   string `protobuf:"bytes,12,opt,name=product_code,json=productCode,proto3" json:"product_code,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *SubtitleTarget) Reset() {
@@ -282,6 +287,20 @@ func (x *SubtitleTarget) GetDurationSeconds() int32 {
 		return x.DurationSeconds
 	}
 	return 0
+}
+
+func (x *SubtitleTarget) GetOriginalTitle() string {
+	if x != nil {
+		return x.OriginalTitle
+	}
+	return ""
+}
+
+func (x *SubtitleTarget) GetProductCode() string {
+	if x != nil {
+		return x.ProductCode
+	}
+	return ""
 }
 
 type SearchSubtitlesResponse struct {
@@ -704,7 +723,7 @@ const file_pluginv1_subtitle_proto_rawDesc = "" +
 	"\tlanguages\x18\x02 \x03(\tR\tlanguages\x128\n" +
 	"\x18include_hearing_impaired\x18\x03 \x01(\bR\x16includeHearingImpaired\x12\x14\n" +
 	"\x05limit\x18\x04 \x01(\x05R\x05limit\x12;\n" +
-	"\alibrary\x18\x05 \x01(\v2!.kryspal.plugin.v1.LibraryContextR\alibrary\"\x81\x04\n" +
+	"\alibrary\x18\x05 \x01(\v2!.kryspal.plugin.v1.LibraryContextR\alibrary\"\xcb\x04\n" +
 	"\x0eSubtitleTarget\x12/\n" +
 	"\x04type\x18\x01 \x01(\x0e2\x1b.kryspal.plugin.v1.ItemTypeR\x04type\x12\x14\n" +
 	"\x05title\x18\x02 \x01(\tR\x05title\x12\x12\n" +
@@ -717,7 +736,9 @@ const file_pluginv1_subtitle_proto_rawDesc = "" +
 	"\n" +
 	"movie_hash\x18\t \x01(\tR\tmovieHash\x12)\n" +
 	"\x10duration_seconds\x18\n" +
-	" \x01(\x05R\x0fdurationSeconds\x1a>\n" +
+	" \x01(\x05R\x0fdurationSeconds\x12%\n" +
+	"\x0eoriginal_title\x18\v \x01(\tR\roriginalTitle\x12!\n" +
+	"\fproduct_code\x18\f \x01(\tR\vproductCode\x1a>\n" +
 	"\x10ProviderIdsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01B\x10\n" +

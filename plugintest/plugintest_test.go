@@ -47,6 +47,7 @@ func fullOptions() plugintest.Options {
 		LibraryCases: libraryCases(),
 		Metadata:     &plugintest.MetadataCase{Type: pluginv1.ItemType_ITEM_TYPE_MOVIE, Name: "Sample Movie", Year: 2020},
 		PersonSearch: &plugintest.PersonSearchCase{Name: "Sample Person"},
+		Danmaku:      &plugintest.DanmakuCase{Type: pluginv1.ItemType_ITEM_TYPE_MOVIE, Title: "Sample Movie", OriginalTitle: "Sample Movie Original", ProductCode: "SMP-001", Year: 2020},
 		Subtitles:    &plugintest.SubtitleCase{Type: pluginv1.ItemType_ITEM_TYPE_MOVIE, Title: "Sample Movie", Year: 2020},
 		Recognize:    &plugintest.RecognizeCase{Type: pluginv1.ItemType_ITEM_TYPE_MOVIE, Path: []string{"SMP-001 Sample.mkv"}},
 		// GetItem fails unless the variable from Setup reaches the plugin.
@@ -83,6 +84,7 @@ func TestTheSuiteCatchesBrokenAnswers(t *testing.T) {
 			`SearchCandidate 0: provider_ids = map[short:m1]`, `GetItem(m1): provider_ids = map[short:m1]; want the entry's own ID under the plugin ID, "full": "m1"; the ID is there under the key "short"`,
 			`GetItem credit 0 (Sample Person)`, `SearchPerson candidate 0`,
 		},
+		"danmaku":   {"comments must be in increasing time order", "text is empty", "above 0xFFFFFF"},
 		"subtitles": {"matched_by is not set", `format ".SRT"`, "score 1.5 is outside 0–1"},
 		"autofill":  {`field "autofill_daily_limit": default "5000" is not an integer from 0 to 1000`},
 		"images":    {"is not an absolute HTTPS URL", "IMAGE_TYPE_LOGO is not allowed here"},

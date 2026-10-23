@@ -52,6 +52,7 @@ const (
 	recognizeTimeout = 5 * time.Second
 
 	subtitleSearchTimeout = 15 * time.Second
+	danmakuTimeout        = 30 * time.Second
 )
 
 // call runs f with a deadline of d.
@@ -79,6 +80,9 @@ type Options struct {
 	// Subtitles, when set, runs the subtitle Search for this video and checks the candidates: IDs, language, format,
 	// matched_by, ranges and the limit. The plugin must declare subtitles.search.
 	Subtitles *SubtitleCase
+	// Danmaku, when set, runs GetDanmaku for this item and checks the answer: comments in time order, known modes, colors up to
+	// 0xFFFFFF, text, and at most 20000 of them. The plugin must declare danmaku.provider.
+	Danmaku *DanmakuCase
 	// RunTasks names tasks (Manifest.tasks) to run once each with RunTask. The plugin must declare plugin.tasks.
 	// Tasks are not run unless listed, since they may reach the network or take long.
 	RunTasks []string
@@ -122,13 +126,28 @@ type PersonSearchCase struct {
 type SubtitleCase struct {
 	Type  pluginv1.ItemType // ITEM_TYPE_MOVIE or ITEM_TYPE_EPISODE
 	Title string
-	Year  int32
+	// OriginalTitle and ProductCode are sent as the host sends them (host feature lookup_names); empty when the item has none.
+	OriginalTitle, ProductCode string
+	Year                       int32
 	// Season and Episode are sent for an episode.
 	Season, Episode int32
 	// ProviderIDs are the item's IDs as the host sends them (lower case keys, for example imdb).
 	ProviderIDs map[string]string
 	// Languages are the wanted languages (BCP 47); en when empty.
 	Languages []string
+}
+
+// DanmakuCase is a movie or an episode the plugin is known to have danmaku for.
+type DanmakuCase struct {
+	Type  pluginv1.ItemType // ITEM_TYPE_MOVIE or ITEM_TYPE_EPISODE
+	Title string
+	// OriginalTitle and ProductCode are sent as the host sends them (host feature lookup_names); empty when the item has none.
+	OriginalTitle, ProductCode string
+	Year                       int32
+	// Season and Episode are sent for an episode.
+	Season, Episode int32
+	// ProviderIDs are the item's IDs as the host sends them (lower case keys, for example imdb).
+	ProviderIDs map[string]string
 }
 
 // RecognizeCase is a path the plugin is known to recognize.
@@ -222,6 +241,9 @@ func Run(t *testing.T, binary string, opts Options) {
 	}
 	if pc := opts.PersonSearch; pc != nil {
 		t.Run("PersonSearch", func(t *testing.T) { checkSearchPerson(ctx, t, p.conn, manifest, pc) })
+	}
+	if dc := opts.Danmaku; dc != nil {
+		t.Run("Danmaku", func(t *testing.T) { checkDanmaku(ctx, t, p.conn, manifest, dc) })
 	}
 	if sc := opts.Subtitles; sc != nil {
 		t.Run("Subtitles", func(t *testing.T) { checkSubtitles(ctx, t, p.conn, manifest, sc) })
@@ -325,6 +347,7 @@ var hostFeatures = []string{
 	pluginapi.HostFeatureItemChecks, pluginapi.HostFeatureScrapeNotices, pluginapi.HostFeaturePersonBackdrop,
 	pluginapi.HostFeatureAutoFillLimit, pluginapi.HostFeatureSearchConfirmed, pluginapi.HostFeatureBadgeSuggestions,
 	pluginapi.HostFeatureConfirmedNumbering, pluginapi.HostFeatureLibraryConfig, pluginapi.HostFeatureRecognitionHint,
+	pluginapi.HostFeatureLookupNames,
 }
 
 // DefaultHostFeatures returns the features the suite announces to the plugin by default, the list of a current host.

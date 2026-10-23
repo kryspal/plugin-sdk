@@ -93,8 +93,15 @@ type GetDanmakuRequest struct {
 	Title string `protobuf:"bytes,5,opt,name=title,proto3" json:"title,omitempty"`
 	Year  int32  `protobuf:"varint,6,opt,name=year,proto3" json:"year,omitempty"`
 	// Runtime of the local file (milliseconds); 0 means unknown.
-	DurationMs    int64      `protobuf:"varint,7,opt,name=duration_ms,json=durationMs,proto3" json:"duration_ms,omitempty"`
-	Languages     *Languages `protobuf:"bytes,8,opt,name=languages,proto3" json:"languages,omitempty"`
+	DurationMs int64      `protobuf:"varint,7,opt,name=duration_ms,json=durationMs,proto3" json:"duration_ms,omitempty"`
+	Languages  *Languages `protobuf:"bytes,8,opt,name=languages,proto3" json:"languages,omitempty"`
+	// The original title of the item (for an episode, of the series), when it has one that differs from title; empty
+	// otherwise. Sent by hosts with the host feature lookup_names. A source that lists works under their original
+	// names can try it when title finds nothing.
+	OriginalTitle string `protobuf:"bytes,9,opt,name=original_title,json=originalTitle,proto3" json:"original_title,omitempty"`
+	// The item's product code (catalog number), for a movie or an episode; empty when it has none. Sent by hosts with
+	// the host feature lookup_names.
+	ProductCode   string `protobuf:"bytes,10,opt,name=product_code,json=productCode,proto3" json:"product_code,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -183,6 +190,20 @@ func (x *GetDanmakuRequest) GetLanguages() *Languages {
 		return x.Languages
 	}
 	return nil
+}
+
+func (x *GetDanmakuRequest) GetOriginalTitle() string {
+	if x != nil {
+		return x.OriginalTitle
+	}
+	return ""
+}
+
+func (x *GetDanmakuRequest) GetProductCode() string {
+	if x != nil {
+		return x.ProductCode
+	}
+	return ""
 }
 
 type DanmakuComment struct {
@@ -313,7 +334,7 @@ var File_pluginv1_danmaku_proto protoreflect.FileDescriptor
 
 const file_pluginv1_danmaku_proto_rawDesc = "" +
 	"\n" +
-	"\x16pluginv1/danmaku.proto\x12\x11kryspal.plugin.v1\x1a\x17pluginv1/metadata.proto\"\xe0\x03\n" +
+	"\x16pluginv1/danmaku.proto\x12\x11kryspal.plugin.v1\x1a\x17pluginv1/metadata.proto\"\xaa\x04\n" +
 	"\x11GetDanmakuRequest\x12/\n" +
 	"\x04type\x18\x01 \x01(\x0e2\x1b.kryspal.plugin.v1.ItemTypeR\x04type\x12X\n" +
 	"\fprovider_ids\x18\x02 \x03(\v25.kryspal.plugin.v1.GetDanmakuRequest.ProviderIdsEntryR\vproviderIds\x12(\n" +
@@ -323,7 +344,10 @@ const file_pluginv1_danmaku_proto_rawDesc = "" +
 	"\x04year\x18\x06 \x01(\x05R\x04year\x12\x1f\n" +
 	"\vduration_ms\x18\a \x01(\x03R\n" +
 	"durationMs\x12:\n" +
-	"\tlanguages\x18\b \x01(\v2\x1c.kryspal.plugin.v1.LanguagesR\tlanguages\x1a>\n" +
+	"\tlanguages\x18\b \x01(\v2\x1c.kryspal.plugin.v1.LanguagesR\tlanguages\x12%\n" +
+	"\x0eoriginal_title\x18\t \x01(\tR\roriginalTitle\x12!\n" +
+	"\fproduct_code\x18\n" +
+	" \x01(\tR\vproductCode\x1a>\n" +
 	"\x10ProviderIdsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01B\x10\n" +

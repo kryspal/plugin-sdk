@@ -31,6 +31,13 @@ message GetDanmakuRequest {
   // Runtime of the local file (milliseconds); 0 means unknown.
   int64 duration_ms = 7;
   Languages languages = 8;
+  // The original title of the item (for an episode, of the series), when it has one that differs from title; empty
+  // otherwise. Sent by hosts with the host feature lookup_names. A source that lists works under their original
+  // names can try it when title finds nothing.
+  string original_title = 9;
+  // The item's product code (catalog number), for a movie or an episode; empty when it has none. Sent by hosts with
+  // the host feature lookup_names.
+  string product_code = 10;
 }
 
 // DanmakuMode is how a danmaku comment is displayed.

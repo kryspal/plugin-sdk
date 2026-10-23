@@ -54,6 +54,11 @@ message SubtitleTarget {
   // OpenSubtitles moviehash; the empty string when the host cannot read the first and last 64 KB of the file (remote strm).
   string movie_hash = 9;
   int32 duration_seconds = 10;
+  // The original title of the item (for an episode, of the series), when it has one that differs from title; empty
+  // otherwise. Sent by hosts with the host feature lookup_names.
+  string original_title = 11;
+  // The item's product code (catalog number); empty when it has none. Sent by hosts with the host feature lookup_names.
+  string product_code = 12;
 }
 
 message SearchSubtitlesResponse {
