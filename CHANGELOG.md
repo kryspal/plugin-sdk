@@ -3,6 +3,19 @@
 All notable changes to the Kryspal Media Plugin SDK. The protocol major version is `v1` (proto package
 `kryspal.plugin.v1`); within v1 only compatible additions are made (new fields, RPCs, services, capabilities).
 
+## v0.8.0 (2026-10-24)
+
+- Behaviour change (host 0.9.10): the host no longer applies a score threshold of its own. Automatic scraping applies a
+  candidate only on a shared provider ID, a single `confirmed` candidate, or an exact title and year match; automatic subtitle
+  download takes only `matched_by` hash or ids and the new `SubtitleCandidate.confirmed` (host feature `subtitle_confirmed`,
+  `pluginapi.HostFeatureSubtitleConfirmed`), in the plugin's order. `score` only orders and is shown. Set `confirmed` when you
+  are sure; older hosts still read `score` (0.9 for metadata, 0.8 for subtitle name matches), so keep sending an honest one.
+- `SearchRequest.file_paths` and `GetItemRequest.file_paths` (host feature `file_paths`, `pluginapi.HostFeatureFilePaths`): the
+  item's files as paths relative to their library folder, main version first, sent with or without a recognition plugin and also
+  on refreshes that call `GetItem` by a stored ID. A metadata plugin can read markers the user put in folder and file names.
+- `SearchRequest.name` is documented: the NFO title, or the host's Emby-level parse of the file name, which keeps markers such as
+  a `-C` suffix (§7).
+
 ## v0.7.0 (2026-10-23)
 
 - Added after the v0.7.0 preview: `GetDanmakuRequest` and `SubtitleTarget` carry `original_title` and `product_code` (host feature `lookup_names`,

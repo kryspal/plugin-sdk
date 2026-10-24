@@ -596,7 +596,9 @@ type SearchRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Only ever ITEM_TYPE_MOVIE or ITEM_TYPE_SERIES.
 	Type ItemType `protobuf:"varint,1,opt,name=type,proto3,enum=kryspal.plugin.v1.ItemType" json:"type,omitempty"`
-	// Name, usually the title taken from the file name or the NFO.
+	// Name: the title from the NFO; otherwise the host's own parse of the file or folder name, which only removes the
+	// extension, a trailing year in brackets and dots or underscores used as spaces (Emby's rules). Other markers in the
+	// name, such as a suffix like "-C", stay. A recognition plugin's first title replaces it when the library has one.
 	Name string `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
 	// Year; 0 means unknown. The plugin may use the year to filter or to rank.
 	Year      int32      `protobuf:"varint,3,opt,name=year,proto3" json:"year,omitempty"`
@@ -627,7 +629,13 @@ type SearchRequest struct {
 	Library *LibraryContext `protobuf:"bytes,14,opt,name=library,proto3" json:"library,omitempty"`
 	// What the library's name recognition plugin found for this file, passed on as it is (host feature
 	// recognition_hint). Sent only to plugins that declare metadata.search.hints.
-	Recognition   *RecognitionHint `protobuf:"bytes,15,opt,name=recognition,proto3" json:"recognition,omitempty"`
+	Recognition *RecognitionHint `protobuf:"bytes,15,opt,name=recognition,proto3" json:"recognition,omitempty"`
+	// The item's files as paths relative to the library folder they are in, with "/" between folders, main version
+	// first, then the other versions (host feature file_paths). For example "Studio A/ABC-123/ABC-123-C.mp4"; a disc
+	// folder is given as the folder. Folder names often tell which source to search. Sent whether or not the library
+	// has a recognition plugin. Never an absolute path on the server: plugins do not read media files themselves.
+	// Empty for series.
+	FilePaths     []string `protobuf:"bytes,16,rep,name=file_paths,json=filePaths,proto3" json:"file_paths,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -763,6 +771,13 @@ func (x *SearchRequest) GetLibrary() *LibraryContext {
 func (x *SearchRequest) GetRecognition() *RecognitionHint {
 	if x != nil {
 		return x.Recognition
+	}
+	return nil
+}
+
+func (x *SearchRequest) GetFilePaths() []string {
+	if x != nil {
+		return x.FilePaths
 	}
 	return nil
 }
@@ -1245,7 +1260,10 @@ type GetItemRequest struct {
 	// feature library_config).
 	Library *LibraryContext `protobuf:"bytes,8,opt,name=library,proto3" json:"library,omitempty"`
 	// As in SearchRequest.recognition (host feature recognition_hint).
-	Recognition   *RecognitionHint `protobuf:"bytes,9,opt,name=recognition,proto3" json:"recognition,omitempty"`
+	Recognition *RecognitionHint `protobuf:"bytes,9,opt,name=recognition,proto3" json:"recognition,omitempty"`
+	// Movies and episodes only: as in SearchRequest.file_paths (host feature file_paths). Also sent on refreshes that
+	// call GetItem by a stored ID without a search.
+	FilePaths     []string `protobuf:"bytes,10,rep,name=file_paths,json=filePaths,proto3" json:"file_paths,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1339,6 +1357,13 @@ func (x *GetItemRequest) GetLibrary() *LibraryContext {
 func (x *GetItemRequest) GetRecognition() *RecognitionHint {
 	if x != nil {
 		return x.Recognition
+	}
+	return nil
+}
+
+func (x *GetItemRequest) GetFilePaths() []string {
+	if x != nil {
+		return x.FilePaths
 	}
 	return nil
 }
@@ -3112,7 +3137,7 @@ const file_pluginv1_metadata_proto_rawDesc = "" +
 	"\x17pluginv1/metadata.proto\x12\x11kryspal.plugin.v1\x1a\x15pluginv1/plugin.proto\"E\n" +
 	"\tLanguages\x12\x1a\n" +
 	"\blanguage\x18\x01 \x01(\tR\blanguage\x12\x1c\n" +
-	"\tfallbacks\x18\x02 \x03(\tR\tfallbacks\"\x8a\x06\n" +
+	"\tfallbacks\x18\x02 \x03(\tR\tfallbacks\"\xa9\x06\n" +
 	"\rSearchRequest\x12/\n" +
 	"\x04type\x18\x01 \x01(\x0e2\x1b.kryspal.plugin.v1.ItemTypeR\x04type\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x12\n" +
@@ -3130,7 +3155,9 @@ const file_pluginv1_metadata_proto_rawDesc = "" +
 	"\x05flags\x18\f \x03(\tR\x05flags\x12)\n" +
 	"\x10duration_seconds\x18\r \x01(\x05R\x0fdurationSeconds\x12;\n" +
 	"\alibrary\x18\x0e \x01(\v2!.kryspal.plugin.v1.LibraryContextR\alibrary\x12D\n" +
-	"\vrecognition\x18\x0f \x01(\v2\".kryspal.plugin.v1.RecognitionHintR\vrecognition\x1a>\n" +
+	"\vrecognition\x18\x0f \x01(\v2\".kryspal.plugin.v1.RecognitionHintR\vrecognition\x12\x1d\n" +
+	"\n" +
+	"file_paths\x18\x10 \x03(\tR\tfilePaths\x1a>\n" +
 	"\x10ProviderIdsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xe6\x02\n" +
@@ -3180,7 +3207,7 @@ const file_pluginv1_metadata_proto_rawDesc = "" +
 	"\x06source\x18\r \x01(\tR\x06source\x1a>\n" +
 	"\x10ProviderIdsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\x81\x04\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xa0\x04\n" +
 	"\x0eGetItemRequest\x12/\n" +
 	"\x04type\x18\x01 \x01(\x0e2\x1b.kryspal.plugin.v1.ItemTypeR\x04type\x12\x0e\n" +
 	"\x02id\x18\x02 \x01(\tR\x02id\x12\x1b\n" +
@@ -3190,7 +3217,10 @@ const file_pluginv1_metadata_proto_rawDesc = "" +
 	"\tlanguages\x18\x06 \x01(\v2\x1c.kryspal.plugin.v1.LanguagesR\tlanguages\x12;\n" +
 	"\x17absolute_episode_number\x18\a \x01(\x05H\x02R\x15absoluteEpisodeNumber\x88\x01\x01\x12;\n" +
 	"\alibrary\x18\b \x01(\v2!.kryspal.plugin.v1.LibraryContextR\alibrary\x12D\n" +
-	"\vrecognition\x18\t \x01(\v2\".kryspal.plugin.v1.RecognitionHintR\vrecognitionB\x10\n" +
+	"\vrecognition\x18\t \x01(\v2\".kryspal.plugin.v1.RecognitionHintR\vrecognition\x12\x1d\n" +
+	"\n" +
+	"file_paths\x18\n" +
+	" \x03(\tR\tfilePathsB\x10\n" +
 	"\x0e_season_numberB\x11\n" +
 	"\x0f_episode_numberB\x1a\n" +
 	"\x18_absolute_episode_number\"\x87\x01\n" +

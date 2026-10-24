@@ -203,6 +203,9 @@ const (
 	// automatically whatever its score; several confirmed candidates are ambiguous and left for the user to choose.
 	// Without it the host judges candidates by its own scoring only, so a plugin still sends a score.
 	HostFeatureSearchConfirmed = "search_confirmed"
+	// HostFeatureSubtitleConfirmed: SubtitleCandidate.confirmed. Automatic subtitle download takes only hash, ids
+	// and confirmed candidates, in the plugin's order, and no longer applies a score threshold to name matches.
+	HostFeatureSubtitleConfirmed = "subtitle_confirmed"
 	// HostFeatureBadgeSuggestions: Manifest.suggested_badge_rules. The host lists them on its badge settings for the
 	// administrator to add; it never enables them by itself. Without it they are ignored.
 	HostFeatureBadgeSuggestions = "badge_suggestions"
@@ -220,6 +223,10 @@ const (
 	// HostFeatureLookupNames: GetDanmakuRequest and SubtitleTarget carry original_title and product_code. Without it
 	// both are empty, and a plugin looks up by title, year, provider IDs and season and episode only.
 	HostFeatureLookupNames = "lookup_names"
+	// HostFeatureFilePaths: SearchRequest.file_paths and GetItemRequest.file_paths carry the item's files as paths
+	// relative to their library folder (main version first), also when the library has no recognition plugin.
+	// Without it neither carries any file information.
+	HostFeatureFilePaths = "file_paths"
 )
 
 // HostFeatures returns the features listed in EnvHostFeatures. The result is empty, not nil, when the variable is

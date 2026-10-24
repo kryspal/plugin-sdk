@@ -347,7 +347,7 @@ var hostFeatures = []string{
 	pluginapi.HostFeatureItemChecks, pluginapi.HostFeatureScrapeNotices, pluginapi.HostFeaturePersonBackdrop,
 	pluginapi.HostFeatureAutoFillLimit, pluginapi.HostFeatureSearchConfirmed, pluginapi.HostFeatureBadgeSuggestions,
 	pluginapi.HostFeatureConfirmedNumbering, pluginapi.HostFeatureLibraryConfig, pluginapi.HostFeatureRecognitionHint,
-	pluginapi.HostFeatureLookupNames,
+	pluginapi.HostFeatureLookupNames, pluginapi.HostFeatureFilePaths, pluginapi.HostFeatureSubtitleConfirmed,
 }
 
 // DefaultHostFeatures returns the features the suite announces to the plugin by default, the list of a current host.

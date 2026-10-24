@@ -62,7 +62,9 @@ enum ItemType {
 message SearchRequest {
   // Only ever ITEM_TYPE_MOVIE or ITEM_TYPE_SERIES.
   ItemType type = 1;
-  // Name, usually the title taken from the file name or the NFO.
+  // Name: the title from the NFO; otherwise the host's own parse of the file or folder name, which only removes the
+  // extension, a trailing year in brackets and dots or underscores used as spaces (Emby's rules). Other markers in the
+  // name, such as a suffix like "-C", stay. A recognition plugin's first title replaces it when the library has one.
   string name = 2;
   // Year; 0 means unknown. The plugin may use the year to filter or to rank.
   int32 year = 3;
@@ -95,6 +97,12 @@ message SearchRequest {
   // What the library's name recognition plugin found for this file, passed on as it is (host feature
   // recognition_hint). Sent only to plugins that declare metadata.search.hints.
   RecognitionHint recognition = 15;
+  // The item's files as paths relative to the library folder they are in, with "/" between folders, main version
+  // first, then the other versions (host feature file_paths). For example "Studio A/ABC-123/ABC-123-C.mp4"; a disc
+  // folder is given as the folder. Folder names often tell which source to search. Sent whether or not the library
+  // has a recognition plugin. Never an absolute path on the server: plugins do not read media files themselves.
+  // Empty for series.
+  repeated string file_paths = 16;
 }
 
 // RecognitionHint carries a name recognition result to metadata plugins as it is; the host does not interpret it.
@@ -221,6 +229,9 @@ message GetItemRequest {
   LibraryContext library = 8;
   // As in SearchRequest.recognition (host feature recognition_hint).
   RecognitionHint recognition = 9;
+  // Movies and episodes only: as in SearchRequest.file_paths (host feature file_paths). Also sent on refreshes that
+  // call GetItem by a stored ID without a search.
+  repeated string file_paths = 10;
 }
 
 // ItemMetadata is an item's metadata. Fields without data are left empty; the host never treats an empty value as

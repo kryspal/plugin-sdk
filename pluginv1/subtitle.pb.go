@@ -375,8 +375,9 @@ type SubtitleCandidate struct {
 	DownloadCount int32 `protobuf:"varint,7,opt,name=download_count,json=downloadCount,proto3" json:"download_count,omitempty"`
 	// 0 to 10; 0 means unknown.
 	Rating float64 `protobuf:"fixed64,8,opt,name=rating,proto3" json:"rating,omitempty"`
-	// The plugin's own score from 0 to 1; 0 means not supplied. Automatic download takes a candidate matched by name
-	// only with a score of at least 0.8; hash and ids matches do not need a score (PROTOCOL.md §7.2).
+	// The plugin's own score from 0 to 1; 0 means not supplied. It orders candidates for users; hosts with the
+	// subtitle_confirmed feature do not use it to decide automatic downloads (see confirmed). Older hosts
+	// download a candidate matched by name automatically only with a score of at least 0.8 (PROTOCOL.md §7.2).
 	Score float64 `protobuf:"fixed64,9,opt,name=score,proto3" json:"score,omitempty"`
 	// The following help users and the host pick a subtitle that fits before downloading it. Fill in what the source
 	// provides; leave the rest at the default (unknown). Added within v1; older hosts ignore them.
@@ -396,7 +397,11 @@ type SubtitleCandidate struct {
 	// Number of subtitle files in the download (for example one per episode in a season pack); 0 means unknown.
 	FileCount int32 `protobuf:"varint,16,opt,name=file_count,json=fileCount,proto3" json:"file_count,omitempty"`
 	// A short note from the source, for example "synced for the extended cut"; plain text, at most 200 characters.
-	Comment       string `protobuf:"bytes,17,opt,name=comment,proto3" json:"comment,omitempty"`
+	Comment string `protobuf:"bytes,17,opt,name=comment,proto3" json:"comment,omitempty"`
+	// The plugin recommends this candidate for automatic download: it is sure the subtitle fits this video. A host
+	// with the subtitle_confirmed feature downloads automatically only hash, ids and confirmed candidates, in the
+	// order the plugin returned them; it sets no score threshold of its own. Never set it on a guess.
+	Confirmed     bool `protobuf:"varint,18,opt,name=confirmed,proto3" json:"confirmed,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -548,6 +553,13 @@ func (x *SubtitleCandidate) GetComment() string {
 		return x.Comment
 	}
 	return ""
+}
+
+func (x *SubtitleCandidate) GetConfirmed() bool {
+	if x != nil {
+		return x.Confirmed
+	}
+	return false
 }
 
 type DownloadSubtitleRequest struct {
@@ -749,7 +761,7 @@ const file_pluginv1_subtitle_proto_rawDesc = "" +
 	"candidates\x18\x01 \x03(\v2$.kryspal.plugin.v1.SubtitleCandidateR\n" +
 	"candidates\x12,\n" +
 	"\x0fquota_remaining\x18\x02 \x01(\x05H\x00R\x0equotaRemaining\x88\x01\x01B\x12\n" +
-	"\x10_quota_remaining\"\xbc\x05\n" +
+	"\x10_quota_remaining\"\xda\x05\n" +
 	"\x11SubtitleCandidate\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1a\n" +
 	"\blanguage\x18\x02 \x01(\tR\blanguage\x12!\n" +
@@ -773,7 +785,8 @@ const file_pluginv1_subtitle_proto_rawDesc = "" +
 	"\atrusted\x18\x0f \x01(\bR\atrusted\x12\x1d\n" +
 	"\n" +
 	"file_count\x18\x10 \x01(\x05R\tfileCount\x12\x18\n" +
-	"\acomment\x18\x11 \x01(\tR\acomment\"e\n" +
+	"\acomment\x18\x11 \x01(\tR\acomment\x12\x1c\n" +
+	"\tconfirmed\x18\x12 \x01(\bR\tconfirmed\"e\n" +
 	"\tMatchedBy\x12\x1a\n" +
 	"\x16MATCHED_BY_UNSPECIFIED\x10\x00\x12\x13\n" +
 	"\x0fMATCHED_BY_HASH\x10\x01\x12\x12\n" +
