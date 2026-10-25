@@ -212,8 +212,16 @@ type Manifest struct {
 	// by itself: it lists them on its badge settings and the administrator adds the ones they want. Hosts that do not
 	// declare the host feature badge_suggestions ignore this field.
 	SuggestedBadgeRules []*SuggestedBadgeRule `protobuf:"bytes,20,rep,name=suggested_badge_rules,json=suggestedBadgeRules,proto3" json:"suggested_badge_rules,omitempty"`
-	unknownFields       protoimpl.UnknownFields
-	sizeCache           protoimpl.SizeCache
+	// The plugin's icon for plugins without a catalog entry and in development mode (host feature plugin_icon): a square
+	// PNG or WebP image, 256 x 256 recommended, at most 32 KiB. SVG is not accepted. When the plugin's catalog entry has
+	// an icon, the host uses that one. The host checks the real format and size and ignores an icon that does not fit.
+	IconPng []byte `protobuf:"bytes,21,opt,name=icon_png,json=iconPng,proto3" json:"icon_png,omitempty"`
+	// The rating sources the plugin writes when it declares ratings.* capabilities (host feature rating_providers):
+	// lowercase source codes such as trakt, at most 8. The host keeps only ratings of these sources from GetRatings, and
+	// removes them from every item when the plugin is disabled or uninstalled.
+	RatingSources []string `protobuf:"bytes,22,rep,name=rating_sources,json=ratingSources,proto3" json:"rating_sources,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Manifest) Reset() {
@@ -382,6 +390,20 @@ func (x *Manifest) GetChecks() []*CheckDeclaration {
 func (x *Manifest) GetSuggestedBadgeRules() []*SuggestedBadgeRule {
 	if x != nil {
 		return x.SuggestedBadgeRules
+	}
+	return nil
+}
+
+func (x *Manifest) GetIconPng() []byte {
+	if x != nil {
+		return x.IconPng
+	}
+	return nil
+}
+
+func (x *Manifest) GetRatingSources() []string {
+	if x != nil {
+		return x.RatingSources
 	}
 	return nil
 }
@@ -1519,7 +1541,7 @@ const file_pluginv1_plugin_proto_rawDesc = "" +
 	"\n" +
 	"\x15pluginv1/plugin.proto\x12\x11kryspal.plugin.v1\"-\n" +
 	"\x0fDescribeRequest\x12\x1a\n" +
-	"\blanguage\x18\x01 \x01(\tR\blanguage\"\xc0\a\n" +
+	"\blanguage\x18\x01 \x01(\tR\blanguage\"\x82\b\n" +
 	"\bManifest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12 \n" +
@@ -1541,7 +1563,9 @@ const file_pluginv1_plugin_proto_rawDesc = "" +
 	"\x06author\x18\x11 \x01(\tR\x06author\x12\x1a\n" +
 	"\bhomepage\x18\x12 \x01(\tR\bhomepage\x12;\n" +
 	"\x06checks\x18\x13 \x03(\v2#.kryspal.plugin.v1.CheckDeclarationR\x06checks\x12Y\n" +
-	"\x15suggested_badge_rules\x18\x14 \x03(\v2%.kryspal.plugin.v1.SuggestedBadgeRuleR\x13suggestedBadgeRules\"\x8b\x01\n" +
+	"\x15suggested_badge_rules\x18\x14 \x03(\v2%.kryspal.plugin.v1.SuggestedBadgeRuleR\x13suggestedBadgeRules\x12\x19\n" +
+	"\bicon_png\x18\x15 \x01(\fR\aiconPng\x12%\n" +
+	"\x0erating_sources\x18\x16 \x03(\tR\rratingSources\"\x8b\x01\n" +
 	"\x10CheckDeclaration\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05label\x18\x02 \x01(\tR\x05label\x12 \n" +

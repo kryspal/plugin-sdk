@@ -83,6 +83,10 @@ type Options struct {
 	// Danmaku, when set, runs GetDanmaku for this item and checks the answer: comments in time order, known modes, colors up to
 	// 0xFFFFFF, text, and at most 20000 of them. The plugin must declare danmaku.provider.
 	Danmaku *DanmakuCase
+	// Ratings, when set, runs GetRatings for this item and checks the answer (sources from rating_sources, one per source,
+	// values above 0 and at most their max). The plugin must declare the matching ratings.* capability. Plugins that are
+	// also metadata providers are checked with the item of Metadata as well.
+	Ratings *RatingsCase
 	// RunTasks names tasks (Manifest.tasks) to run once each with RunTask. The plugin must declare plugin.tasks.
 	// Tasks are not run unless listed, since they may reach the network or take long.
 	RunTasks []string
@@ -147,6 +151,13 @@ type DanmakuCase struct {
 	// Season and Episode are sent for an episode.
 	Season, Episode int32
 	// ProviderIDs are the item's IDs as the host sends them (lower case keys, for example imdb).
+	ProviderIDs map[string]string
+}
+
+// RatingsCase is an item a rating provider knows.
+type RatingsCase struct {
+	Type pluginv1.ItemType // ITEM_TYPE_MOVIE or ITEM_TYPE_SERIES
+	// ProviderIDs are the item's IDs as the host sends them (lower case keys, for example tmdb).
 	ProviderIDs map[string]string
 }
 
@@ -235,12 +246,23 @@ func Run(t *testing.T, binary string, opts Options) {
 		if item != nil && declares(manifest, imageCapability[item.GetType()]) {
 			t.Run("ItemImages", func(t *testing.T) { itemImages(ctx, t, p.conn, item) })
 		}
+		if item != nil && declares(manifest, ratingCapability[item.GetType()]) {
+			t.Run("ItemRatings", func(t *testing.T) { itemRatings(ctx, t, p.conn, manifest, item) })
+		}
 	}
 	if personID := personToCheck(t, manifest, opts.Person, item); personID != "" {
 		t.Run("Person", func(t *testing.T) { personRoundTrip(ctx, t, p.conn, manifest, personID) })
 	}
 	if pc := opts.PersonSearch; pc != nil {
 		t.Run("PersonSearch", func(t *testing.T) { checkSearchPerson(ctx, t, p.conn, manifest, pc) })
+	}
+	if rc := opts.Ratings; rc != nil {
+		t.Run("Ratings", func(t *testing.T) {
+			if !declares(manifest, ratingCapability[rc.Type]) {
+				t.Fatalf("the manifest does not declare %s", ratingCapability[rc.Type])
+			}
+			itemRatings(ctx, t, p.conn, manifest, &pluginv1.ItemMetadata{Type: rc.Type, ProviderIds: rc.ProviderIDs})
+		})
 	}
 	if dc := opts.Danmaku; dc != nil {
 		t.Run("Danmaku", func(t *testing.T) { checkDanmaku(ctx, t, p.conn, manifest, dc) })
@@ -347,7 +369,8 @@ var hostFeatures = []string{
 	pluginapi.HostFeatureItemChecks, pluginapi.HostFeatureScrapeNotices, pluginapi.HostFeaturePersonBackdrop,
 	pluginapi.HostFeatureAutoFillLimit, pluginapi.HostFeatureSearchConfirmed, pluginapi.HostFeatureBadgeSuggestions,
 	pluginapi.HostFeatureConfirmedNumbering, pluginapi.HostFeatureLibraryConfig, pluginapi.HostFeatureRecognitionHint,
-	pluginapi.HostFeatureLookupNames, pluginapi.HostFeatureFilePaths, pluginapi.HostFeatureSubtitleConfirmed,
+	pluginapi.HostFeatureLookupNames, pluginapi.HostFeatureFilePaths, pluginapi.HostFeatureSubtitleConfirmed, pluginapi.HostFeatureVersionLabels,
+	pluginapi.HostFeaturePluginIcon,
 }
 
 // DefaultHostFeatures returns the features the suite announces to the plugin by default, the list of a current host.

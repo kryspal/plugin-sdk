@@ -69,6 +69,8 @@ type Config struct {
 	ImageProvider    pluginv1.ImageProviderServer
 	SubtitleProvider pluginv1.SubtitleProviderServer
 	UserSync         pluginv1.UserSyncServer
+	// RatingProvider is required when the plugin declares ratings.*; when nil, it is not registered.
+	RatingProvider pluginv1.RatingProviderServer
 	// Recognizer is required when the plugin declares media.recognize; when nil, the service is not registered.
 	Recognizer pluginv1.RecognizerServer
 	// SegmentProvider and DanmakuProvider are required when the plugin declares segments.* and danmaku.provider; when nil,
@@ -186,6 +188,10 @@ func Serve(ctx context.Context, cfg Config) error {
 	if cfg.ImageProvider != nil {
 		pluginv1.RegisterImageProviderServer(srv, cfg.ImageProvider)
 		hs.SetServingStatus(pluginv1.HealthServiceImageProvider, healthpb.HealthCheckResponse_SERVING)
+	}
+	if cfg.RatingProvider != nil {
+		pluginv1.RegisterRatingProviderServer(srv, cfg.RatingProvider)
+		hs.SetServingStatus(pluginv1.HealthServiceRatingProvider, healthpb.HealthCheckResponse_SERVING)
 	}
 	if cfg.SubtitleProvider != nil {
 		pluginv1.RegisterSubtitleProviderServer(srv, cfg.SubtitleProvider)

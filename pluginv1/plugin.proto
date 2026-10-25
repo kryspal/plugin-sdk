@@ -90,6 +90,14 @@ message Manifest {
   // by itself: it lists them on its badge settings and the administrator adds the ones they want. Hosts that do not
   // declare the host feature badge_suggestions ignore this field.
   repeated SuggestedBadgeRule suggested_badge_rules = 20;
+  // The plugin's icon for plugins without a catalog entry and in development mode (host feature plugin_icon): a square
+  // PNG or WebP image, 256 x 256 recommended, at most 32 KiB. SVG is not accepted. When the plugin's catalog entry has
+  // an icon, the host uses that one. The host checks the real format and size and ignores an icon that does not fit.
+  bytes icon_png = 21;
+  // The rating sources the plugin writes when it declares ratings.* capabilities (host feature rating_providers):
+  // lowercase source codes such as trakt, at most 8. The host keeps only ratings of these sources from GetRatings, and
+  // removes them from every item when the plugin is disabled or uninstalled.
+  repeated string rating_sources = 22;
 }
 
 // CheckDeclaration is one check shown as a button on the plugin's settings page.

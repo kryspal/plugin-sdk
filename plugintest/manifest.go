@@ -17,6 +17,7 @@ import (
 
 	"google.golang.org/grpc"
 
+	"github.com/kryspal/plugin-sdk"
 	pluginv1 "github.com/kryspal/plugin-sdk/pluginv1"
 )
 
@@ -197,6 +198,20 @@ func checkManifest(t *testing.T, m *pluginv1.Manifest) {
 	}
 	for _, p := range badgeSuggestionProblems(m.GetSuggestedBadgeRules()) {
 		t.Error(p)
+	}
+	rates := declares(m, pluginv1.CapabilityRatingsMovie) || declares(m, pluginv1.CapabilityRatingsSeries)
+	switch src := m.GetRatingSources(); {
+	case rates && len(src) == 0:
+		t.Errorf("the manifest declares ratings.* but lists no rating_sources; the host drops every rating")
+	case !rates && len(src) > 0:
+		t.Errorf("the manifest lists rating_sources but declares neither %s nor %s", pluginv1.CapabilityRatingsMovie, pluginv1.CapabilityRatingsSeries)
+	case len(src) > pluginapi.MaxRatingSources:
+		t.Errorf("%d rating_sources; the host uses the first %d", len(src), pluginapi.MaxRatingSources)
+	}
+	for _, s := range m.GetRatingSources() {
+		if !pluginapi.ValidRatingSource(s) {
+			t.Errorf("rating source %q: 1 to 32 lowercase letters, digits, '_' or '-'", s)
+		}
 	}
 }
 

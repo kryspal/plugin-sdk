@@ -53,7 +53,8 @@ func (p *provider) toneOf(lib *pluginv1.LibraryContext) string {
 func main() {
 	p := &provider{upstream: os.Getenv("FULL_UPSTREAM"), broken: os.Getenv("FULL_BREAK"), features: pluginapi.HostFeatures(os.Getenv),
 		settings: sdk.NewSettings(configFields())}
-	sdk.Main(sdk.Config{Plugin: p, MetadataProvider: p, ImageProvider: p, Recognizer: p, TaskRunner: p, SubtitleProvider: &subtitles{broken: p.broken}, DanmakuProvider: &danmaku{broken: p.broken}})
+	sdk.Main(sdk.Config{Plugin: p, MetadataProvider: p, ImageProvider: p, Recognizer: p, TaskRunner: p, SubtitleProvider: &subtitles{broken: p.broken}, DanmakuProvider: &danmaku{broken: p.broken},
+		RatingProvider: &ratings{broken: p.broken}})
 }
 
 func (p *provider) Describe(context.Context, *pluginv1.DescribeRequest) (*pluginv1.Manifest, error) {
@@ -63,7 +64,9 @@ func (p *provider) Describe(context.Context, *pluginv1.DescribeRequest) (*plugin
 			pluginv1.CapabilityMetadataMovie, pluginv1.CapabilityMetadataPerson,
 			pluginv1.CapabilityImagesMovie, pluginv1.CapabilityImagesPerson, pluginv1.CapabilityMediaRecognize,
 			pluginv1.CapabilityPluginTasks, pluginv1.CapabilityMetadataPersonSearch, pluginv1.CapabilitySubtitlesSearch, pluginv1.CapabilityDanmakuProvider,
+			pluginv1.CapabilityRatingsMovie,
 		},
+		RatingSources: []string{"fullrate"},
 		ConfigFields: append(configFields(), []*pluginv1.ConfigField{
 			{Key: "use_db", Label: "Use a database", Type: pluginv1.ConfigFieldType_CONFIG_FIELD_TYPE_BOOL, DefaultValue: "false"},
 			{Key: "dsn", Label: "Database address", Type: pluginv1.ConfigFieldType_CONFIG_FIELD_TYPE_STRING,
@@ -272,4 +275,22 @@ func (d *danmaku) GetDanmaku(_ context.Context, req *pluginv1.GetDanmakuRequest)
 		comments[1].TimeMs, comments[1].Color, comments[1].Text = 500, 0x1000000, " "
 	}
 	return &pluginv1.GetDanmakuResponse{Comments: comments}, nil
+}
+
+// ratings is the plugin's rating provider: one fullrate rating for any movie with a tmdb ID. FULL_BREAK=ratings returns a
+// source the manifest does not list.
+type ratings struct {
+	pluginv1.UnimplementedRatingProviderServer
+	broken string
+}
+
+func (r *ratings) GetRatings(_ context.Context, req *pluginv1.GetRatingsRequest) (*pluginv1.GetRatingsResponse, error) {
+	if req.GetProviderIds()["tmdb"] == "" {
+		return &pluginv1.GetRatingsResponse{}, nil
+	}
+	src := "fullrate"
+	if r.broken == "ratings" {
+		src = "imdb"
+	}
+	return &pluginv1.GetRatingsResponse{Ratings: []*pluginv1.Rating{{Source: src, Value: 7.5, Max: 10, Votes: 42}}}, nil
 }

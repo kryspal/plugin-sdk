@@ -50,6 +50,44 @@ func itemImages(ctx context.Context, t *testing.T, conn *grpc.ClientConn, item *
 	checkImages(t, "GetImages", resp.GetImages(), nil)
 }
 
+var ratingCapability = map[pluginv1.ItemType]string{
+	pluginv1.ItemType_ITEM_TYPE_MOVIE:  pluginv1.CapabilityRatingsMovie,
+	pluginv1.ItemType_ITEM_TYPE_SERIES: pluginv1.CapabilityRatingsSeries,
+}
+
+// itemRatings runs GetRatings for the item; the plugin declares the matching ratings.* capability. Every rating must be
+// of a source in Manifest.rating_sources, at most one per source, with a positive value not above its maximum.
+func itemRatings(ctx context.Context, t *testing.T, conn *grpc.ClientConn, m *pluginv1.Manifest, item *pluginv1.ItemMetadata) {
+	if len(item.GetProviderIds()) == 0 {
+		t.Fatal("GetItem returned no provider_ids, so GetRatings has nothing to look up")
+	}
+	resp, err := call(ctx, lookupTimeout, func(cctx context.Context) (*pluginv1.GetRatingsResponse, error) {
+		return pluginv1.NewRatingProviderClient(conn).GetRatings(cctx, &pluginv1.GetRatingsRequest{
+			Type: item.GetType(), ProviderIds: item.GetProviderIds(),
+		})
+	})
+	if err != nil {
+		t.Fatalf("GetRatings(%v): %v", item.GetProviderIds(), err)
+	}
+	seen := map[string]bool{}
+	for _, r := range resp.GetRatings() {
+		src := r.GetSource()
+		max := r.GetMax()
+		if max == 0 {
+			max = 10
+		}
+		switch {
+		case !slices.Contains(m.GetRatingSources(), src):
+			t.Errorf("rating source %q is not in rating_sources %v; the host drops it", src, m.GetRatingSources())
+		case seen[src]:
+			t.Errorf("rating source %q appears twice; the host keeps the first", src)
+		case !(r.GetValue() > 0) || r.GetValue() > max:
+			t.Errorf("rating %q value %v must be above 0 and at most its max %v", src, r.GetValue(), max)
+		}
+		seen[src] = true
+	}
+}
+
 // personToCheck returns the person ID to run GetPerson with, or "" when the person check does not apply.
 func personToCheck(t *testing.T, m *pluginv1.Manifest, pc *PersonCase, item *pluginv1.ItemMetadata) string {
 	t.Helper()

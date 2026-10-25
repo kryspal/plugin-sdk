@@ -50,6 +50,7 @@ func fullOptions() plugintest.Options {
 		Danmaku:      &plugintest.DanmakuCase{Type: pluginv1.ItemType_ITEM_TYPE_MOVIE, Title: "Sample Movie", OriginalTitle: "Sample Movie Original", ProductCode: "SMP-001", Year: 2020},
 		Subtitles:    &plugintest.SubtitleCase{Type: pluginv1.ItemType_ITEM_TYPE_MOVIE, Title: "Sample Movie", Year: 2020},
 		Recognize:    &plugintest.RecognizeCase{Type: pluginv1.ItemType_ITEM_TYPE_MOVIE, Path: []string{"SMP-001 Sample.mkv"}},
+		Ratings:      &plugintest.RatingsCase{Type: pluginv1.ItemType_ITEM_TYPE_MOVIE, ProviderIDs: map[string]string{"tmdb": "1"}},
 		// GetItem fails unless the variable from Setup reaches the plugin.
 		Setup: func(t *testing.T) map[string]string {
 			srv := httptest.NewTLSServer(http.NotFoundHandler())
@@ -89,6 +90,7 @@ func TestTheSuiteCatchesBrokenAnswers(t *testing.T) {
 		"autofill":  {`field "autofill_daily_limit": default "5000" is not an integer from 0 to 1000`},
 		"images":    {"is not an absolute HTTPS URL", "IMAGE_TYPE_LOGO is not allowed here"},
 		"recognize": {"parser_version is empty"},
+		"ratings":   {`rating source "imdb" is not in rating_sources [fullrate]`},
 		"library":   {"keeps a library's values", "mixes up the settings"},
 		"manifest": {
 			`visible_when refers to "names" of type`, `default contains "c", which is not an option`,

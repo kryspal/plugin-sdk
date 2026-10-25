@@ -3,6 +3,22 @@
 All notable changes to the Kryspal Media Plugin SDK. The protocol major version is `v1` (proto package
 `kryspal.plugin.v1`); within v1 only compatible additions are made (new fields, RPCs, services, capabilities).
 
+## v0.9.0 (2026-10-25)
+
+- `ItemMetadata.version_labels` (host feature `version_labels`, `pluginapi.HostFeatureVersionLabels`): a metadata plugin names the
+  versions of a movie or episode, one entry per `GetItemRequest.file_paths` entry in the same order, for example `Chinese subs` and
+  an empty string for the plain version. One or two words, at most 20 characters; the host adds the resolution and other measured
+  parts itself. A name the user gave a version in the file name (`Name - label`) still wins (§7 "Version names").
+- `plugintest` announces `version_labels` by default.
+- Rating providers (host feature `rating_providers`, `pluginapi.HostFeatureRatingProviders`): the new service `RatingProvider`
+  with `GetRatings` and the capabilities `ratings.movie` and `ratings.series`. A rating provider adds its own sources, for example
+  Trakt's community rating, to items another plugin matched, by their provider IDs only. List the sources in the new
+  `Manifest.rating_sources` (at most 8; `pluginapi.ValidRatingSource`); register the service with `sdk.Config.RatingProvider`.
+  The host merges them after the item's own ratings and removes them when the plugin is disabled or uninstalled (§7.11).
+- `plugintest` checks `rating_sources` against the `ratings.*` capabilities, runs `GetRatings` for the item of `Metadata` and for
+  the new `Options.Ratings` (`RatingsCase`), and rejects ratings of undeclared sources. It does not announce `rating_providers`
+  by default yet.
+
 ## v0.8.0 (2026-10-24)
 
 - Behaviour change (host 0.9.10): the host no longer applies a score threshold of its own. Automatic scraping applies a

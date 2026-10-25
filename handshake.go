@@ -227,6 +227,16 @@ const (
 	// relative to their library folder (main version first), also when the library has no recognition plugin.
 	// Without it neither carries any file information.
 	HostFeatureFilePaths = "file_paths"
+	// HostFeatureVersionLabels: ItemMetadata.version_labels. The host shows them as the names of the item's versions,
+	// in the order of GetItemRequest.file_paths, unless the user named a version. Without it they are ignored.
+	HostFeatureVersionLabels = "version_labels"
+	// HostFeaturePluginIcon: Manifest.icon_png and the catalog entry's icon are shown in the plugin center, and
+	// ConfigGroup.icon accepts the 16 names listed in PROTOCOL.md §5.2. Without it they are ignored.
+	HostFeaturePluginIcon = "plugin_icon"
+	// HostFeatureRatingProviders: the host calls GetRatings of plugins with ratings.* capabilities for the libraries
+	// that selected them, keeps the sources in Manifest.rating_sources, and removes those ratings when the plugin is
+	// disabled or uninstalled. Without it the RatingProvider service is never called.
+	HostFeatureRatingProviders = "rating_providers"
 )
 
 // HostFeatures returns the features listed in EnvHostFeatures. The result is empty, not nil, when the variable is

@@ -344,6 +344,12 @@ message ItemMetadata {
   // same name as Notice.source. At most 64 entries. Images carry their own Image.source. Leave it empty when every
   // field comes from one source. Shown to the user next to each field (PROTOCOL.md §7.10).
   map<string, string> field_sources = 36;
+  // Optional, movies and episodes with several versions (host feature version_labels): a short display name for each
+  // version, in the order of GetItemRequest.file_paths, for example "Chinese subs" or "Uncut", read from markers in the
+  // file and folder names. Plain text, one or two words, at most 20 characters. An empty string keeps the host's own name for that
+  // version; a list whose length differs from file_paths is ignored as a whole. A name the user gave a version is
+  // never replaced (PROTOCOL.md §7).
+  repeated string version_labels = 37;
 }
 
 // Rating is one source's rating.

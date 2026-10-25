@@ -1,0 +1,43 @@
+// Kryspal Media Plugin protocol v1: rating providers.
+//
+// Capabilities and the methods they map to:
+//   ratings.movie   GetRatings(ITEM_TYPE_MOVIE)
+//   ratings.series  GetRatings(ITEM_TYPE_SERIES)
+// For capabilities the plugin does not declare, the corresponding calls return UNIMPLEMENTED. A rating provider only adds
+// ratings to items another plugin has matched: it looks up by the item's provider IDs, never by name, and never decides
+// which work an item is. The sources it may return are the ones in Manifest.rating_sources. No rating means an empty list,
+// not NOT_FOUND.
+syntax = "proto3";
+
+package kryspal.plugin.v1;
+
+import "pluginv1/metadata.proto";
+import "pluginv1/plugin.proto";
+
+option go_package = "github.com/kryspal/plugin-sdk/pluginv1;pluginv1";
+
+// RatingProvider is implemented by plugins that declare ratings.* capabilities (host feature rating_providers).
+service RatingProvider {
+  // GetRatings returns the item's ratings by its provider IDs. It returns an empty list when the plugin recognizes none
+  // of the IDs or the source has no rating for the item.
+  rpc GetRatings(GetRatingsRequest) returns (GetRatingsResponse);
+}
+
+message GetRatingsRequest {
+  // ITEM_TYPE_MOVIE or ITEM_TYPE_SERIES.
+  ItemType type = 1;
+  // The item's known provider IDs, e.g. {"tmdb": "550", "imdb": "tt0137523"}. The plugin picks the keys it recognizes.
+  map<string, string> provider_ids = 2;
+  // The library the item is in, with its per-library overrides (host feature library_config).
+  LibraryContext library = 3;
+}
+
+message GetRatingsResponse {
+  // At most one rating per source; sources not in Manifest.rating_sources are dropped by the host.
+  repeated Rating ratings = 1;
+  // Same meaning as ItemMetadata.notices: what happened at the source.
+  repeated Notice notices = 2;
+  // When the source asks to be called less often, the earliest time to ask again for this item, in seconds; 0 means
+  // no hint. A rate limit is reported as RESOURCE_EXHAUSTED instead (PROTOCOL.md §8).
+  uint32 retry_after_seconds = 3;
+}

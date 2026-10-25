@@ -1,5 +1,5 @@
 // Package pluginv1 holds the gRPC definitions of the Kryspal Media Plugin protocol v1 (generated from plugin.proto,
-// metadata.proto, image.proto, subtitle.proto, usersync.proto, recognize.proto, segments.proto, danmaku.proto and
+// metadata.proto, image.proto, rating.proto, subtitle.proto, usersync.proto, recognize.proto, segments.proto, danmaku.proto and
 // host.proto) and the protocol constants. See PROTOCOL.md at the module root for the specification.
 //
 // Apart from this file, every *.pb.go file is generated; regenerate them with pluginapi/gen.sh, do not edit them by hand.
@@ -41,6 +41,9 @@ const (
 	CapabilityImagesSeries = "images.series"
 	// CapabilityImagesPerson: GetImages(ITEM_TYPE_PERSON) returns a person's photos; the request carries provider_ids, name and aliases.
 	CapabilityImagesPerson = "images.person"
+	// Ratings: GetRatings adds ratings of the sources in Manifest.rating_sources to items matched by another plugin.
+	CapabilityRatingsMovie  = "ratings.movie"
+	CapabilityRatingsSeries = "ratings.series"
 	// Subtitles: Search, Download.
 	CapabilitySubtitlesSearch = "subtitles.search"
 	// User sync: member linking, now-playing reports (scrobbling), two-way sync of watched state.
@@ -89,6 +92,7 @@ const (
 	HealthServicePlugin              = "kryspal.plugin.v1.Plugin"
 	HealthServiceMetadataProvider    = "kryspal.plugin.v1.MetadataProvider"
 	HealthServiceImageProvider       = "kryspal.plugin.v1.ImageProvider"
+	HealthServiceRatingProvider      = "kryspal.plugin.v1.RatingProvider"
 	HealthServiceSubtitleProvider    = "kryspal.plugin.v1.SubtitleProvider"
 	HealthServiceUserSync            = "kryspal.plugin.v1.UserSync"
 	HealthServiceRecognizer          = "kryspal.plugin.v1.Recognizer"

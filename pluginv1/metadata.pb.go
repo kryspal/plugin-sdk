@@ -1524,7 +1524,13 @@ type ItemMetadata struct {
 	// "attributes.<key>" for a single attribute; values are the source as the user knows it, at most 48 characters, the
 	// same name as Notice.source. At most 64 entries. Images carry their own Image.source. Leave it empty when every
 	// field comes from one source. Shown to the user next to each field (PROTOCOL.md §7.10).
-	FieldSources  map[string]string `protobuf:"bytes,36,rep,name=field_sources,json=fieldSources,proto3" json:"field_sources,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	FieldSources map[string]string `protobuf:"bytes,36,rep,name=field_sources,json=fieldSources,proto3" json:"field_sources,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// Optional, movies and episodes with several versions (host feature version_labels): a short display name for each
+	// version, in the order of GetItemRequest.file_paths, for example "Chinese subs" or "Uncut", read from markers in the
+	// file and folder names. Plain text, one or two words, at most 20 characters. An empty string keeps the host's own name for that
+	// version; a list whose length differs from file_paths is ignored as a whole. A name the user gave a version is
+	// never replaced (PROTOCOL.md §7).
+	VersionLabels []string `protobuf:"bytes,37,rep,name=version_labels,json=versionLabels,proto3" json:"version_labels,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1800,6 +1806,13 @@ func (x *ItemMetadata) GetRetryAfterSeconds() uint32 {
 func (x *ItemMetadata) GetFieldSources() map[string]string {
 	if x != nil {
 		return x.FieldSources
+	}
+	return nil
+}
+
+func (x *ItemMetadata) GetVersionLabels() []string {
+	if x != nil {
+		return x.VersionLabels
 	}
 	return nil
 }
@@ -3228,7 +3241,7 @@ const file_pluginv1_metadata_proto_rawDesc = "" +
 	"\x06source\x18\x01 \x01(\tR\x06source\x127\n" +
 	"\x06status\x18\x02 \x01(\x0e2\x1f.kryspal.plugin.v1.NoticeStatusR\x06status\x12\x18\n" +
 	"\amessage\x18\x03 \x01(\tR\amessage\x12\x12\n" +
-	"\x04item\x18\x04 \x01(\tR\x04item\"\xf3\r\n" +
+	"\x04item\x18\x04 \x01(\tR\x04item\"\x9a\x0e\n" +
 	"\fItemMetadata\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12/\n" +
 	"\x04type\x18\x02 \x01(\x0e2\x1b.kryspal.plugin.v1.ItemTypeR\x04type\x12\x12\n" +
@@ -3271,7 +3284,8 @@ const file_pluginv1_metadata_proto_rawDesc = "" +
 	"incomplete\x18\" \x01(\bR\n" +
 	"incomplete\x12.\n" +
 	"\x13retry_after_seconds\x18# \x01(\rR\x11retryAfterSeconds\x12V\n" +
-	"\rfield_sources\x18$ \x03(\v21.kryspal.plugin.v1.ItemMetadata.FieldSourcesEntryR\ffieldSources\x1a>\n" +
+	"\rfield_sources\x18$ \x03(\v21.kryspal.plugin.v1.ItemMetadata.FieldSourcesEntryR\ffieldSources\x12%\n" +
+	"\x0eversion_labels\x18% \x03(\tR\rversionLabels\x1a>\n" +
 	"\x10ProviderIdsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1a=\n" +
