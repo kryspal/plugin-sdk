@@ -3,7 +3,7 @@
 All notable changes to the Kryspal Media Plugin SDK. The protocol major version is `v1` (proto package
 `kryspal.plugin.v1`); within v1 only compatible additions are made (new fields, RPCs, services, capabilities).
 
-## v0.9.0 (2026-10-25)
+## Unreleased
 
 - `ItemMetadata.version_labels` (host feature `version_labels`, `pluginapi.HostFeatureVersionLabels`): a metadata plugin names the
   versions of a movie or episode, one entry per `GetItemRequest.file_paths` entry in the same order, for example `Chinese subs` and
@@ -16,8 +16,12 @@ All notable changes to the Kryspal Media Plugin SDK. The protocol major version 
   `Manifest.rating_sources` (at most 8; `pluginapi.ValidRatingSource`); register the service with `sdk.Config.RatingProvider`.
   The host merges them after the item's own ratings and removes them when the plugin is disabled or uninstalled (§7.11).
 - `plugintest` checks `rating_sources` against the `ratings.*` capabilities, runs `GetRatings` for the item of `Metadata` and for
-  the new `Options.Ratings` (`RatingsCase`), and rejects ratings of undeclared sources. It does not announce `rating_providers`
-  by default yet.
+  the new `Options.Ratings` (`RatingsCase`), and rejects ratings of undeclared sources. It announces `rating_providers` by
+  default.
+- Plugin icons (host feature `plugin_icon`, `pluginapi.HostFeaturePluginIcon`): `Manifest.icon_png`, a square PNG or WebP of
+  16-1024 px and at most 32 KiB, shown in the plugin center for development-mode plugins and plugins without a catalog entry.
+  Catalog plugins attach `icon.png` (at most 128 KiB) to the release instead; the catalog icon wins when both exist (§5.2).
+  SVG is not accepted. `plugintest` announces `plugin_icon` by default.
 
 ## v0.8.0 (2026-10-24)
 
