@@ -3,7 +3,7 @@
 All notable changes to the Kryspal Media Plugin SDK. The protocol major version is `v1` (proto package
 `kryspal.plugin.v1`); within v1 only compatible additions are made (new fields, RPCs, services, capabilities).
 
-## v0.9.0 (2026-10-25)
+## Unreleased
 
 - `ItemMetadata.version_labels` (host feature `version_labels`, `pluginapi.HostFeatureVersionLabels`): a metadata plugin names the
   versions of a movie or episode, one entry per `GetItemRequest.file_paths` entry in the same order, for example `Chinese subs` and
@@ -21,7 +21,8 @@ All notable changes to the Kryspal Media Plugin SDK. The protocol major version 
 - Plugin icons (host feature `plugin_icon`, `pluginapi.HostFeaturePluginIcon`): `Manifest.icon_png`, a square PNG or WebP of
   16-1024 px and at most 32 KiB, shown in the plugin center for development-mode plugins and plugins without a catalog entry.
   Catalog plugins attach `icon.png` (at most 128 KiB) to the release instead; the catalog icon wins when both exist (§5.2).
-  SVG is not accepted. `plugintest` announces `plugin_icon` by default.
+  SVG is not accepted. `pluginapi.CheckIcon` (with `MaxEmbeddedIcon`, `MaxCatalogIcon`) is the host's rule; `plugintest` checks
+  `icon_png` with it and announces `plugin_icon` by default. The SDK module now requires `golang.org/x/image` (WebP).
 
 ## v0.8.0 (2026-10-24)
 

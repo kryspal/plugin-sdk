@@ -213,6 +213,11 @@ func checkManifest(t *testing.T, m *pluginv1.Manifest) {
 			t.Errorf("rating source %q: 1 to 32 lowercase letters, digits, '_' or '-'", s)
 		}
 	}
+	if icon := m.GetIconPng(); len(icon) > 0 {
+		if _, err := pluginapi.CheckIcon(icon, pluginapi.MaxEmbeddedIcon); err != nil {
+			t.Errorf("icon_png: %v; the host ignores it (§5.2)", err)
+		}
+	}
 }
 
 // badgeSuggestionProblems lists the suggested badge rules the host would skip (§5.1).
