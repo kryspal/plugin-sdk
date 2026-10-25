@@ -3,7 +3,7 @@
 All notable changes to the Kryspal Media Plugin SDK. The protocol major version is `v1` (proto package
 `kryspal.plugin.v1`); within v1 only compatible additions are made (new fields, RPCs, services, capabilities).
 
-## Unreleased
+## v0.9.0 (2026-10-25)
 
 - `ItemMetadata.version_labels` (host feature `version_labels`, `pluginapi.HostFeatureVersionLabels`): a metadata plugin names the
   versions of a movie or episode, one entry per `GetItemRequest.file_paths` entry in the same order, for example `Chinese subs` and
