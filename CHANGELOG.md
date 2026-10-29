@@ -3,7 +3,24 @@
 All notable changes to the Kryspal Media Plugin SDK. The protocol major version is `v1` (proto package
 `kryspal.plugin.v1`); within v1 only compatible additions are made (new fields, RPCs, services, capabilities).
 
-## Unreleased
+## v0.10.0 (2026-10-29)
+
+- Picking a danmaku match (host feature `danmaku_override`, `pluginapi.HostFeatureDanmakuOverride`): the new capability `danmaku.match`
+  (`pluginv1.CapabilityDanmakuMatch`, declared together with `danmaku.provider`) and the new RPC `DanmakuProvider.SearchDanmakuCandidates`.
+  An administrator searches with it for an item (`SearchDanmakuCandidatesRequest`: the typed text, which may be a title or the address of a
+  video page, the item type, optional season and episode, languages); the plugin answers with `DanmakuCandidate`s (`key`, `title`, `subtitle`,
+  `episode_count`), best first, of which the host shows at most 50. The host stores the chosen `key` (at most 2048 bytes, opaque to it) for the
+  item and the plugin and sends it back as the new `GetDanmakuRequest.match_override`; when it is set, use it instead of searching. Plugins that
+  do not declare `danmaku.match` are unchanged (§7).
+- Local danmaku files (host feature `danmaku_media_paths`, `pluginapi.HostFeatureDanmakuMediaPaths`): `GetDanmakuRequest.media_paths` lists the
+  absolute paths of the item's local media files, main version first; files on cloud drives and remote sources are not listed. A plugin that
+  reads danmaku files next to the video uses them and only reads.
+- `plugintest`: `DanmakuCase.MediaPaths` is sent as `media_paths`. `DanmakuCase.Match` makes the plugin declare `danmaku.match`, runs
+  `SearchDanmakuCandidates` with that text and checks the candidates (at least one, at most 50, non-empty keys of at most 2048 bytes without NUL,
+  non-empty titles, no negative episode counts), then sends the first key back as `match_override` and requires comments. It announces both
+  host features by default.
+
+## v0.9.0 (2026-10-27)
 
 - `ItemMetadata.version_labels` (host feature `version_labels`, `pluginapi.HostFeatureVersionLabels`): a metadata plugin names the
   versions of a movie or episode, one entry per `GetItemRequest.file_paths` entry in the same order, for example `Chinese subs` and
