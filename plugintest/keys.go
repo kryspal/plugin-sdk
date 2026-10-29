@@ -172,31 +172,90 @@ func hostListsFeature(extra []string, feature string) bool {
 	return slices.Contains(hostFeatures, feature)
 }
 
-// maxDanmaku is how many comments the host uses of an answer (PROTOCOL.md §7.5).
+// maxDanmaku is how many comments the host uses of an answer (PROTOCOL.md §7.5); maxDanmakuCandidates and
+// maxDanmakuMatchKey are what the host shows and stores of SearchDanmakuCandidates.
 const (
-	maxDanmaku         = 20000
-	maxDanmakuTextRune = 500
+	maxDanmaku           = 20000
+	maxDanmakuTextRune   = 500
+	maxDanmakuCandidates = 50
+	maxDanmakuMatchKey   = 2048
 )
 
-// checkDanmaku runs GetDanmaku for the case and checks what the player depends on.
+// checkDanmaku runs GetDanmaku for the case and checks what the player depends on; with Match it also checks picking a match.
 func checkDanmaku(ctx context.Context, t *testing.T, conn *grpc.ClientConn, m *pluginv1.Manifest, dc *DanmakuCase) {
 	t.Helper()
 	if !declares(m, pluginv1.CapabilityDanmakuProvider) {
 		t.Fatalf("the manifest does not declare %s", pluginv1.CapabilityDanmakuProvider)
 	}
+	req := danmakuRequest(dc)
+	checkDanmakuComments(ctx, t, conn, req, dc.Title)
+	if dc.Match == "" {
+		return
+	}
+	if !declares(m, pluginv1.CapabilityDanmakuMatch) {
+		t.Fatalf("DanmakuCase.Match is set but the manifest does not declare %s", pluginv1.CapabilityDanmakuMatch)
+	}
+	search := &pluginv1.SearchDanmakuCandidatesRequest{Text: dc.Match, Type: dc.Type}
+	if dc.Type == pluginv1.ItemType_ITEM_TYPE_EPISODE {
+		search.SeasonNumber, search.EpisodeNumber = &dc.Season, &dc.Episode
+	}
+	res, err := call(ctx, danmakuMatchTimeout, func(cctx context.Context) (*pluginv1.SearchDanmakuCandidatesResponse, error) {
+		return pluginv1.NewDanmakuProviderClient(conn).SearchDanmakuCandidates(cctx, search)
+	})
+	if err != nil {
+		t.Fatalf("SearchDanmakuCandidates(%q): %v", dc.Match, err)
+	}
+	cands := res.GetCandidates()
+	if len(cands) == 0 {
+		t.Fatalf("SearchDanmakuCandidates(%q) found nothing", dc.Match)
+	}
+	if len(cands) > maxDanmakuCandidates {
+		t.Errorf("SearchDanmakuCandidates returned %d candidates; the host shows at most %d", len(cands), maxDanmakuCandidates)
+	}
+	for i, c := range cands {
+		at := "danmaku candidate " + strconv.Itoa(i)
+		switch k := c.GetKey(); {
+		case k == "":
+			t.Errorf("%s: key is empty", at)
+		case len(k) > maxDanmakuMatchKey:
+			t.Errorf("%s: key has %d bytes; the host stores at most %d", at, len(k), maxDanmakuMatchKey)
+		case strings.ContainsRune(k, 0):
+			t.Errorf("%s: key contains a NUL byte", at)
+		}
+		if strings.TrimSpace(c.GetTitle()) == "" {
+			t.Errorf("%s: title is empty", at)
+		}
+		if c.GetEpisodeCount() < 0 {
+			t.Errorf("%s: episode_count %d is negative", at, c.GetEpisodeCount())
+		}
+	}
+	// The first candidate played back as the item's match must find comments without searching.
+	picked := danmakuRequest(dc)
+	picked.MatchOverride = cands[0].GetKey()
+	checkDanmakuComments(ctx, t, conn, picked, dc.Title+" with match_override "+strconv.Quote(cands[0].GetKey()))
+}
+
+func danmakuRequest(dc *DanmakuCase) *pluginv1.GetDanmakuRequest {
 	req := &pluginv1.GetDanmakuRequest{Type: dc.Type, Title: dc.Title, Year: dc.Year, ProviderIds: dc.ProviderIDs,
-		OriginalTitle: dc.OriginalTitle, ProductCode: dc.ProductCode}
+		OriginalTitle: dc.OriginalTitle, ProductCode: dc.ProductCode, MediaPaths: dc.MediaPaths}
 	if dc.Type == pluginv1.ItemType_ITEM_TYPE_EPISODE {
 		req.SeasonNumber, req.EpisodeNumber = &dc.Season, &dc.Episode
 	}
+	return req
+}
+
+// checkDanmakuComments runs GetDanmaku and checks the comments: some, at most 20000, in time order, with text, known modes
+// and colors up to 0xFFFFFF.
+func checkDanmakuComments(ctx context.Context, t *testing.T, conn *grpc.ClientConn, req *pluginv1.GetDanmakuRequest, what string) {
+	t.Helper()
 	res, err := call(ctx, danmakuTimeout, func(cctx context.Context) (*pluginv1.GetDanmakuResponse, error) {
 		return pluginv1.NewDanmakuProviderClient(conn).GetDanmaku(cctx, req)
 	})
 	if err != nil {
-		t.Fatalf("GetDanmaku(%q): %v", dc.Title, err)
+		t.Fatalf("GetDanmaku(%s): %v", what, err)
 	}
 	if len(res.GetComments()) == 0 {
-		t.Fatalf("GetDanmaku(%q) found nothing", dc.Title)
+		t.Fatalf("GetDanmaku(%s) found nothing", what)
 	}
 	if n := len(res.GetComments()); n > maxDanmaku {
 		t.Errorf("GetDanmaku returned %d comments; the host uses at most %d", n, maxDanmaku)

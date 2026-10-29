@@ -213,6 +213,7 @@ Host feature `library_config`. A plugin marks the settings that make sense per l
 | `metadata.series.absolute` | `GetItem` accepts an episode's `absolute_episode_number` | Metadata |
 | `segments.provider`, `segments.submit` | `SegmentProvider.GetSegments`, `SubmitSegments`: querying and uploading community intro and credits data | Playback |
 | `danmaku.provider` | `DanmakuProvider.GetDanmaku`: danmaku | Playback |
+| `danmaku.match` | `DanmakuProvider.SearchDanmakuCandidates`: candidates an administrator picks as the item's match (declare together with `danmaku.provider`) | Item menu, "Danmaku match" |
 | `media.recognize` | `Recognizer.Recognize`: infers what a title is from its path and name only | Name recognition |
 | `people.aliasmap` | `PersonAliasProvider.GetAliasMap`: the plugin's whole name map of people (real names, stage names, former names and other spellings) | People |
 | `cast.target` | `CastTarget`: finds playback devices on the local network and plays a media URL on them (declare `cast_protocol`: `dlna` or `chromecast`, and the permission `network.lan`) | Casting |
@@ -360,9 +361,11 @@ See [`pluginv1/segments.proto`](pluginv1/segments.proto) and [`pluginv1/danmaku.
 - **Segments**: what comes back are candidates. The host adopts one only when the local runtime is within 2 seconds of the candidate's `duration_ms`, or when an audio fingerprint spot check matches; everything else is discarded. Candidates without `duration_ms` always require an audio fingerprint spot check.
 - **Upload**: the host calls `SubmitSegments` only after an administrator turns it on, and sends only provider IDs, season and episode, runtime and times, never file names or paths. The plugin must use the administrator's own account or key (a configuration field) and must not embed a shared key.
 - **Danmaku**: the host handles caching and uses at most 20000 comments. The plugin only returns data and is not responsible for display. The request carries the item's `title` and `year`, its provider IDs, the season and episode, and, on hosts with the feature `lookup_names` (§11.6), the `original_title` and the `product_code` as well. Use whichever your source understands; for example try `original_title` when `title` finds nothing. Comments are expected in time order with `time_ms` from 0, a `color` of at most `0xFFFFFF` and non-empty `text`.
+  - **Picking a match** (`danmaku.match`, host feature `danmaku_override`): an administrator searches with `SearchDanmakuCandidates` and picks one candidate for an item. The host stores the candidate's `key` (at most 2048 bytes, opaque to the host) for that item and plugin and sends it back as `GetDanmakuRequest.match_override`; when it is set, use it instead of searching. The text may be a title or, if your source supports it, the address of a video page. The host shows at most 50 candidates, best first.
+  - **Local files** (host feature `danmaku_media_paths`): `GetDanmakuRequest.media_paths` lists the absolute paths of the item's local media files, main version first; files on cloud drives and remote sources are not listed. A plugin that reads danmaku files next to the video uses them, and only reads.
 - **Ratings**: `ItemMetadata.ratings` carries the scores from each source (source code, score, maximum score, vote count); `community_rating` stays as before.
 - **Product code**: `ItemMetadata.product_code` is the item's catalog number (for example `ABC-123`), for providers whose catalog is keyed by such codes. Only movies and episodes carry one; the host ignores it for other types. Surrounding whitespace is ignored, it is cut to 64 characters, and a value with control characters is dropped. Leave it empty when there is none (an empty value never clears an existing code). The provider's own internal content ID belongs in `provider_ids`, not here. The host stores it from the provider like any other field (NFO and manual edits take precedence) and uses it for product-code search, sorting, filtering and the NFO `<num>` element.
-- Timeouts: `GetSegments` 15 seconds, `SubmitSegments` 30 seconds, `GetDanmaku` 30 seconds.
+- Timeouts: `GetSegments` 15 seconds, `SubmitSegments` 30 seconds, `GetDanmaku` 30 seconds, `SearchDanmakuCandidates` 15 seconds.
 - Complying with the upstream's terms and rate limits is the plugin author's responsibility.
 
 ### 7.6 Person alias maps
@@ -582,6 +585,7 @@ The host sets each call's timeout as the gRPC deadline. When it passes, the host
 | `PullWatched`, `PushWatched` | 60 seconds |
 | `GetSegments` / `SubmitSegments` | 15 / 30 seconds |
 | `GetDanmaku` | 30 seconds |
+| `SearchDanmakuCandidates` | 15 seconds |
 | `GetAliasMap` (whole stream) | 5 minutes |
 | Cast `Discover`, `Probe` / `Load` / `Prepare`, `Control`, `Status` | 15 / 30 / 10 seconds |
 | `RunTask` | 30 minutes |
@@ -646,6 +650,8 @@ Additions to v1 are compatible: an older host ignores fields it does not know, s
 | `library_config` | Per-library settings (§5.4): `ConfigField.library_override`, `LibraryContext` in requests, and `Configure` with `dry_run` |
 | `recognition_hint` | `SearchRequest.recognition` and `GetItemRequest.recognition` carry the library recognition plugin's part, tags, flags, edition, hints, evidence and the identifiers the host does not know; recognized provider IDs are written into the item's provider IDs (not over manual or NFO ones) |
 | `lookup_names` | `GetDanmakuRequest` and `SubtitleTarget` carry `original_title` and `product_code` |
+| `danmaku_override` | `GetDanmakuRequest.match_override` carries the match an administrator picked, and `SearchDanmakuCandidates` is called for plugins that declare `danmaku.match` (§7) |
+| `danmaku_media_paths` | `GetDanmakuRequest.media_paths` carries the absolute paths of the item's local media files |
 | `file_paths` | `SearchRequest.file_paths` and `GetItemRequest.file_paths` carry the item's files as paths relative to their library folder, main version first, with or without a recognition plugin (§7) |
 | `rating_providers` | `RatingProvider.GetRatings` is called for libraries that select the plugin, `Manifest.rating_sources` is kept, and those ratings are removed when the plugin is disabled or uninstalled (§7.11) |
 | `version_labels` | `ItemMetadata.version_labels` (§7): names for an item's versions, in the order of `GetItemRequest.file_paths`, shown unless the user named a version |

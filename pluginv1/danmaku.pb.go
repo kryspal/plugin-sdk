@@ -2,6 +2,7 @@
 //
 // Capabilities and the methods they map to:
 //   danmaku.provider  GetDanmaku
+//   danmaku.match     SearchDanmakuCandidates (with danmaku.provider)
 // For capabilities the plugin does not declare, the corresponding calls return UNIMPLEMENTED. No results means an empty
 // list, not NOT_FOUND.
 
@@ -101,7 +102,14 @@ type GetDanmakuRequest struct {
 	OriginalTitle string `protobuf:"bytes,9,opt,name=original_title,json=originalTitle,proto3" json:"original_title,omitempty"`
 	// The item's product code (catalog number), for a movie or an episode; empty when it has none. Sent by hosts with
 	// the host feature lookup_names.
-	ProductCode   string `protobuf:"bytes,10,opt,name=product_code,json=productCode,proto3" json:"product_code,omitempty"`
+	ProductCode string `protobuf:"bytes,10,opt,name=product_code,json=productCode,proto3" json:"product_code,omitempty"`
+	// The match an administrator picked for this item from SearchDanmakuCandidates, as the plugin's own key; empty
+	// when there is none. When set, use it instead of searching. Sent by hosts with the host feature danmaku_override.
+	MatchOverride string `protobuf:"bytes,11,opt,name=match_override,json=matchOverride,proto3" json:"match_override,omitempty"`
+	// Absolute paths of the item's local media files (every version, main version first), for plugins that read
+	// danmaku files next to the video. Files on cloud drives and remote sources are not listed. Sent by hosts with the
+	// host feature danmaku_media_paths.
+	MediaPaths    []string `protobuf:"bytes,12,rep,name=media_paths,json=mediaPaths,proto3" json:"media_paths,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -206,6 +214,214 @@ func (x *GetDanmakuRequest) GetProductCode() string {
 	return ""
 }
 
+func (x *GetDanmakuRequest) GetMatchOverride() string {
+	if x != nil {
+		return x.MatchOverride
+	}
+	return ""
+}
+
+func (x *GetDanmakuRequest) GetMediaPaths() []string {
+	if x != nil {
+		return x.MediaPaths
+	}
+	return nil
+}
+
+type SearchDanmakuCandidatesRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// What the administrator typed; may be a title or, if the plugin supports it, the address of a video page.
+	Text string `protobuf:"bytes,1,opt,name=text,proto3" json:"text,omitempty"`
+	// ITEM_TYPE_MOVIE or ITEM_TYPE_EPISODE: the kind of item the match is for.
+	Type          ItemType   `protobuf:"varint,2,opt,name=type,proto3,enum=kryspal.plugin.v1.ItemType" json:"type,omitempty"`
+	SeasonNumber  *int32     `protobuf:"varint,3,opt,name=season_number,json=seasonNumber,proto3,oneof" json:"season_number,omitempty"`
+	EpisodeNumber *int32     `protobuf:"varint,4,opt,name=episode_number,json=episodeNumber,proto3,oneof" json:"episode_number,omitempty"`
+	Languages     *Languages `protobuf:"bytes,5,opt,name=languages,proto3" json:"languages,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SearchDanmakuCandidatesRequest) Reset() {
+	*x = SearchDanmakuCandidatesRequest{}
+	mi := &file_pluginv1_danmaku_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SearchDanmakuCandidatesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SearchDanmakuCandidatesRequest) ProtoMessage() {}
+
+func (x *SearchDanmakuCandidatesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_pluginv1_danmaku_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SearchDanmakuCandidatesRequest.ProtoReflect.Descriptor instead.
+func (*SearchDanmakuCandidatesRequest) Descriptor() ([]byte, []int) {
+	return file_pluginv1_danmaku_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *SearchDanmakuCandidatesRequest) GetText() string {
+	if x != nil {
+		return x.Text
+	}
+	return ""
+}
+
+func (x *SearchDanmakuCandidatesRequest) GetType() ItemType {
+	if x != nil {
+		return x.Type
+	}
+	return ItemType_ITEM_TYPE_UNSPECIFIED
+}
+
+func (x *SearchDanmakuCandidatesRequest) GetSeasonNumber() int32 {
+	if x != nil && x.SeasonNumber != nil {
+		return *x.SeasonNumber
+	}
+	return 0
+}
+
+func (x *SearchDanmakuCandidatesRequest) GetEpisodeNumber() int32 {
+	if x != nil && x.EpisodeNumber != nil {
+		return *x.EpisodeNumber
+	}
+	return 0
+}
+
+func (x *SearchDanmakuCandidatesRequest) GetLanguages() *Languages {
+	if x != nil {
+		return x.Languages
+	}
+	return nil
+}
+
+type DanmakuCandidate struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Opaque to the host; stored as is (at most 2048 bytes) and sent back as GetDanmakuRequest.match_override.
+	Key   string `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
+	Title string `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`
+	// For example the episode title; may be empty.
+	Subtitle string `protobuf:"bytes,3,opt,name=subtitle,proto3" json:"subtitle,omitempty"`
+	// Number of episodes of the work; 0 when unknown.
+	EpisodeCount  int32 `protobuf:"varint,4,opt,name=episode_count,json=episodeCount,proto3" json:"episode_count,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DanmakuCandidate) Reset() {
+	*x = DanmakuCandidate{}
+	mi := &file_pluginv1_danmaku_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DanmakuCandidate) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DanmakuCandidate) ProtoMessage() {}
+
+func (x *DanmakuCandidate) ProtoReflect() protoreflect.Message {
+	mi := &file_pluginv1_danmaku_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DanmakuCandidate.ProtoReflect.Descriptor instead.
+func (*DanmakuCandidate) Descriptor() ([]byte, []int) {
+	return file_pluginv1_danmaku_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *DanmakuCandidate) GetKey() string {
+	if x != nil {
+		return x.Key
+	}
+	return ""
+}
+
+func (x *DanmakuCandidate) GetTitle() string {
+	if x != nil {
+		return x.Title
+	}
+	return ""
+}
+
+func (x *DanmakuCandidate) GetSubtitle() string {
+	if x != nil {
+		return x.Subtitle
+	}
+	return ""
+}
+
+func (x *DanmakuCandidate) GetEpisodeCount() int32 {
+	if x != nil {
+		return x.EpisodeCount
+	}
+	return 0
+}
+
+type SearchDanmakuCandidatesResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Best first; the host shows at most 50.
+	Candidates    []*DanmakuCandidate `protobuf:"bytes,1,rep,name=candidates,proto3" json:"candidates,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SearchDanmakuCandidatesResponse) Reset() {
+	*x = SearchDanmakuCandidatesResponse{}
+	mi := &file_pluginv1_danmaku_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SearchDanmakuCandidatesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SearchDanmakuCandidatesResponse) ProtoMessage() {}
+
+func (x *SearchDanmakuCandidatesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_pluginv1_danmaku_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SearchDanmakuCandidatesResponse.ProtoReflect.Descriptor instead.
+func (*SearchDanmakuCandidatesResponse) Descriptor() ([]byte, []int) {
+	return file_pluginv1_danmaku_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *SearchDanmakuCandidatesResponse) GetCandidates() []*DanmakuCandidate {
+	if x != nil {
+		return x.Candidates
+	}
+	return nil
+}
+
 type DanmakuComment struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// When it appears (milliseconds, relative to 0 at the start of the video).
@@ -222,7 +438,7 @@ type DanmakuComment struct {
 
 func (x *DanmakuComment) Reset() {
 	*x = DanmakuComment{}
-	mi := &file_pluginv1_danmaku_proto_msgTypes[1]
+	mi := &file_pluginv1_danmaku_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -234,7 +450,7 @@ func (x *DanmakuComment) String() string {
 func (*DanmakuComment) ProtoMessage() {}
 
 func (x *DanmakuComment) ProtoReflect() protoreflect.Message {
-	mi := &file_pluginv1_danmaku_proto_msgTypes[1]
+	mi := &file_pluginv1_danmaku_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -247,7 +463,7 @@ func (x *DanmakuComment) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DanmakuComment.ProtoReflect.Descriptor instead.
 func (*DanmakuComment) Descriptor() ([]byte, []int) {
-	return file_pluginv1_danmaku_proto_rawDescGZIP(), []int{1}
+	return file_pluginv1_danmaku_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *DanmakuComment) GetTimeMs() int64 {
@@ -295,7 +511,7 @@ type GetDanmakuResponse struct {
 
 func (x *GetDanmakuResponse) Reset() {
 	*x = GetDanmakuResponse{}
-	mi := &file_pluginv1_danmaku_proto_msgTypes[2]
+	mi := &file_pluginv1_danmaku_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -307,7 +523,7 @@ func (x *GetDanmakuResponse) String() string {
 func (*GetDanmakuResponse) ProtoMessage() {}
 
 func (x *GetDanmakuResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_pluginv1_danmaku_proto_msgTypes[2]
+	mi := &file_pluginv1_danmaku_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -320,7 +536,7 @@ func (x *GetDanmakuResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetDanmakuResponse.ProtoReflect.Descriptor instead.
 func (*GetDanmakuResponse) Descriptor() ([]byte, []int) {
-	return file_pluginv1_danmaku_proto_rawDescGZIP(), []int{2}
+	return file_pluginv1_danmaku_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *GetDanmakuResponse) GetComments() []*DanmakuComment {
@@ -334,7 +550,7 @@ var File_pluginv1_danmaku_proto protoreflect.FileDescriptor
 
 const file_pluginv1_danmaku_proto_rawDesc = "" +
 	"\n" +
-	"\x16pluginv1/danmaku.proto\x12\x11kryspal.plugin.v1\x1a\x17pluginv1/metadata.proto\"\xaa\x04\n" +
+	"\x16pluginv1/danmaku.proto\x12\x11kryspal.plugin.v1\x1a\x17pluginv1/metadata.proto\"\xf2\x04\n" +
 	"\x11GetDanmakuRequest\x12/\n" +
 	"\x04type\x18\x01 \x01(\x0e2\x1b.kryspal.plugin.v1.ItemTypeR\x04type\x12X\n" +
 	"\fprovider_ids\x18\x02 \x03(\v25.kryspal.plugin.v1.GetDanmakuRequest.ProviderIdsEntryR\vproviderIds\x12(\n" +
@@ -347,12 +563,32 @@ const file_pluginv1_danmaku_proto_rawDesc = "" +
 	"\tlanguages\x18\b \x01(\v2\x1c.kryspal.plugin.v1.LanguagesR\tlanguages\x12%\n" +
 	"\x0eoriginal_title\x18\t \x01(\tR\roriginalTitle\x12!\n" +
 	"\fproduct_code\x18\n" +
-	" \x01(\tR\vproductCode\x1a>\n" +
+	" \x01(\tR\vproductCode\x12%\n" +
+	"\x0ematch_override\x18\v \x01(\tR\rmatchOverride\x12\x1f\n" +
+	"\vmedia_paths\x18\f \x03(\tR\n" +
+	"mediaPaths\x1a>\n" +
 	"\x10ProviderIdsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01B\x10\n" +
 	"\x0e_season_numberB\x11\n" +
-	"\x0f_episode_number\"\x9f\x01\n" +
+	"\x0f_episode_number\"\x9c\x02\n" +
+	"\x1eSearchDanmakuCandidatesRequest\x12\x12\n" +
+	"\x04text\x18\x01 \x01(\tR\x04text\x12/\n" +
+	"\x04type\x18\x02 \x01(\x0e2\x1b.kryspal.plugin.v1.ItemTypeR\x04type\x12(\n" +
+	"\rseason_number\x18\x03 \x01(\x05H\x00R\fseasonNumber\x88\x01\x01\x12*\n" +
+	"\x0eepisode_number\x18\x04 \x01(\x05H\x01R\repisodeNumber\x88\x01\x01\x12:\n" +
+	"\tlanguages\x18\x05 \x01(\v2\x1c.kryspal.plugin.v1.LanguagesR\tlanguagesB\x10\n" +
+	"\x0e_season_numberB\x11\n" +
+	"\x0f_episode_number\"{\n" +
+	"\x10DanmakuCandidate\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05title\x18\x02 \x01(\tR\x05title\x12\x1a\n" +
+	"\bsubtitle\x18\x03 \x01(\tR\bsubtitle\x12#\n" +
+	"\repisode_count\x18\x04 \x01(\x05R\fepisodeCount\"f\n" +
+	"\x1fSearchDanmakuCandidatesResponse\x12C\n" +
+	"\n" +
+	"candidates\x18\x01 \x03(\v2#.kryspal.plugin.v1.DanmakuCandidateR\n" +
+	"candidates\"\x9f\x01\n" +
 	"\x0eDanmakuComment\x12\x17\n" +
 	"\atime_ms\x18\x01 \x01(\x03R\x06timeMs\x12\x12\n" +
 	"\x04text\x18\x02 \x01(\tR\x04text\x12\x14\n" +
@@ -365,10 +601,11 @@ const file_pluginv1_danmaku_proto_rawDesc = "" +
 	"\x18DANMAKU_MODE_UNSPECIFIED\x10\x00\x12\x17\n" +
 	"\x13DANMAKU_MODE_SCROLL\x10\x01\x12\x14\n" +
 	"\x10DANMAKU_MODE_TOP\x10\x02\x12\x17\n" +
-	"\x13DANMAKU_MODE_BOTTOM\x10\x032l\n" +
+	"\x13DANMAKU_MODE_BOTTOM\x10\x032\xef\x01\n" +
 	"\x0fDanmakuProvider\x12Y\n" +
 	"\n" +
-	"GetDanmaku\x12$.kryspal.plugin.v1.GetDanmakuRequest\x1a%.kryspal.plugin.v1.GetDanmakuResponseB1Z/github.com/kryspal/plugin-sdk/pluginv1;pluginv1b\x06proto3"
+	"GetDanmaku\x12$.kryspal.plugin.v1.GetDanmakuRequest\x1a%.kryspal.plugin.v1.GetDanmakuResponse\x12\x80\x01\n" +
+	"\x17SearchDanmakuCandidates\x121.kryspal.plugin.v1.SearchDanmakuCandidatesRequest\x1a2.kryspal.plugin.v1.SearchDanmakuCandidatesResponseB1Z/github.com/kryspal/plugin-sdk/pluginv1;pluginv1b\x06proto3"
 
 var (
 	file_pluginv1_danmaku_proto_rawDescOnce sync.Once
@@ -383,29 +620,37 @@ func file_pluginv1_danmaku_proto_rawDescGZIP() []byte {
 }
 
 var file_pluginv1_danmaku_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_pluginv1_danmaku_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
+var file_pluginv1_danmaku_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
 var file_pluginv1_danmaku_proto_goTypes = []any{
-	(DanmakuMode)(0),           // 0: kryspal.plugin.v1.DanmakuMode
-	(*GetDanmakuRequest)(nil),  // 1: kryspal.plugin.v1.GetDanmakuRequest
-	(*DanmakuComment)(nil),     // 2: kryspal.plugin.v1.DanmakuComment
-	(*GetDanmakuResponse)(nil), // 3: kryspal.plugin.v1.GetDanmakuResponse
-	nil,                        // 4: kryspal.plugin.v1.GetDanmakuRequest.ProviderIdsEntry
-	(ItemType)(0),              // 5: kryspal.plugin.v1.ItemType
-	(*Languages)(nil),          // 6: kryspal.plugin.v1.Languages
+	(DanmakuMode)(0),                        // 0: kryspal.plugin.v1.DanmakuMode
+	(*GetDanmakuRequest)(nil),               // 1: kryspal.plugin.v1.GetDanmakuRequest
+	(*SearchDanmakuCandidatesRequest)(nil),  // 2: kryspal.plugin.v1.SearchDanmakuCandidatesRequest
+	(*DanmakuCandidate)(nil),                // 3: kryspal.plugin.v1.DanmakuCandidate
+	(*SearchDanmakuCandidatesResponse)(nil), // 4: kryspal.plugin.v1.SearchDanmakuCandidatesResponse
+	(*DanmakuComment)(nil),                  // 5: kryspal.plugin.v1.DanmakuComment
+	(*GetDanmakuResponse)(nil),              // 6: kryspal.plugin.v1.GetDanmakuResponse
+	nil,                                     // 7: kryspal.plugin.v1.GetDanmakuRequest.ProviderIdsEntry
+	(ItemType)(0),                           // 8: kryspal.plugin.v1.ItemType
+	(*Languages)(nil),                       // 9: kryspal.plugin.v1.Languages
 }
 var file_pluginv1_danmaku_proto_depIdxs = []int32{
-	5, // 0: kryspal.plugin.v1.GetDanmakuRequest.type:type_name -> kryspal.plugin.v1.ItemType
-	4, // 1: kryspal.plugin.v1.GetDanmakuRequest.provider_ids:type_name -> kryspal.plugin.v1.GetDanmakuRequest.ProviderIdsEntry
-	6, // 2: kryspal.plugin.v1.GetDanmakuRequest.languages:type_name -> kryspal.plugin.v1.Languages
-	0, // 3: kryspal.plugin.v1.DanmakuComment.mode:type_name -> kryspal.plugin.v1.DanmakuMode
-	2, // 4: kryspal.plugin.v1.GetDanmakuResponse.comments:type_name -> kryspal.plugin.v1.DanmakuComment
-	1, // 5: kryspal.plugin.v1.DanmakuProvider.GetDanmaku:input_type -> kryspal.plugin.v1.GetDanmakuRequest
-	3, // 6: kryspal.plugin.v1.DanmakuProvider.GetDanmaku:output_type -> kryspal.plugin.v1.GetDanmakuResponse
-	6, // [6:7] is the sub-list for method output_type
-	5, // [5:6] is the sub-list for method input_type
-	5, // [5:5] is the sub-list for extension type_name
-	5, // [5:5] is the sub-list for extension extendee
-	0, // [0:5] is the sub-list for field type_name
+	8,  // 0: kryspal.plugin.v1.GetDanmakuRequest.type:type_name -> kryspal.plugin.v1.ItemType
+	7,  // 1: kryspal.plugin.v1.GetDanmakuRequest.provider_ids:type_name -> kryspal.plugin.v1.GetDanmakuRequest.ProviderIdsEntry
+	9,  // 2: kryspal.plugin.v1.GetDanmakuRequest.languages:type_name -> kryspal.plugin.v1.Languages
+	8,  // 3: kryspal.plugin.v1.SearchDanmakuCandidatesRequest.type:type_name -> kryspal.plugin.v1.ItemType
+	9,  // 4: kryspal.plugin.v1.SearchDanmakuCandidatesRequest.languages:type_name -> kryspal.plugin.v1.Languages
+	3,  // 5: kryspal.plugin.v1.SearchDanmakuCandidatesResponse.candidates:type_name -> kryspal.plugin.v1.DanmakuCandidate
+	0,  // 6: kryspal.plugin.v1.DanmakuComment.mode:type_name -> kryspal.plugin.v1.DanmakuMode
+	5,  // 7: kryspal.plugin.v1.GetDanmakuResponse.comments:type_name -> kryspal.plugin.v1.DanmakuComment
+	1,  // 8: kryspal.plugin.v1.DanmakuProvider.GetDanmaku:input_type -> kryspal.plugin.v1.GetDanmakuRequest
+	2,  // 9: kryspal.plugin.v1.DanmakuProvider.SearchDanmakuCandidates:input_type -> kryspal.plugin.v1.SearchDanmakuCandidatesRequest
+	6,  // 10: kryspal.plugin.v1.DanmakuProvider.GetDanmaku:output_type -> kryspal.plugin.v1.GetDanmakuResponse
+	4,  // 11: kryspal.plugin.v1.DanmakuProvider.SearchDanmakuCandidates:output_type -> kryspal.plugin.v1.SearchDanmakuCandidatesResponse
+	10, // [10:12] is the sub-list for method output_type
+	8,  // [8:10] is the sub-list for method input_type
+	8,  // [8:8] is the sub-list for extension type_name
+	8,  // [8:8] is the sub-list for extension extendee
+	0,  // [0:8] is the sub-list for field type_name
 }
 
 func init() { file_pluginv1_danmaku_proto_init() }
@@ -415,13 +660,14 @@ func file_pluginv1_danmaku_proto_init() {
 	}
 	file_pluginv1_metadata_proto_init()
 	file_pluginv1_danmaku_proto_msgTypes[0].OneofWrappers = []any{}
+	file_pluginv1_danmaku_proto_msgTypes[1].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_pluginv1_danmaku_proto_rawDesc), len(file_pluginv1_danmaku_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   4,
+			NumMessages:   7,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

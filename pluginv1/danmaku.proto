@@ -2,6 +2,7 @@
 //
 // Capabilities and the methods they map to:
 //   danmaku.provider  GetDanmaku
+//   danmaku.match     SearchDanmakuCandidates (with danmaku.provider)
 // For capabilities the plugin does not declare, the corresponding calls return UNIMPLEMENTED. No results means an empty
 // list, not NOT_FOUND.
 syntax = "proto3";
@@ -16,6 +17,9 @@ option go_package = "github.com/kryspal/plugin-sdk/pluginv1;pluginv1";
 service DanmakuProvider {
   // GetDanmaku fetches the danmaku of a movie or an episode. The host is responsible for caching.
   rpc GetDanmaku(GetDanmakuRequest) returns (GetDanmakuResponse);
+  // SearchDanmakuCandidates lists what an administrator can pick as this plugin's match for an item (danmaku.match).
+  // The key of the chosen candidate comes back in GetDanmakuRequest.match_override.
+  rpc SearchDanmakuCandidates(SearchDanmakuCandidatesRequest) returns (SearchDanmakuCandidatesResponse);
 }
 
 message GetDanmakuRequest {
@@ -38,6 +42,38 @@ message GetDanmakuRequest {
   // The item's product code (catalog number), for a movie or an episode; empty when it has none. Sent by hosts with
   // the host feature lookup_names.
   string product_code = 10;
+  // The match an administrator picked for this item from SearchDanmakuCandidates, as the plugin's own key; empty
+  // when there is none. When set, use it instead of searching. Sent by hosts with the host feature danmaku_override.
+  string match_override = 11;
+  // Absolute paths of the item's local media files (every version, main version first), for plugins that read
+  // danmaku files next to the video. Files on cloud drives and remote sources are not listed. Sent by hosts with the
+  // host feature danmaku_media_paths.
+  repeated string media_paths = 12;
+}
+
+message SearchDanmakuCandidatesRequest {
+  // What the administrator typed; may be a title or, if the plugin supports it, the address of a video page.
+  string text = 1;
+  // ITEM_TYPE_MOVIE or ITEM_TYPE_EPISODE: the kind of item the match is for.
+  ItemType type = 2;
+  optional int32 season_number = 3;
+  optional int32 episode_number = 4;
+  Languages languages = 5;
+}
+
+message DanmakuCandidate {
+  // Opaque to the host; stored as is (at most 2048 bytes) and sent back as GetDanmakuRequest.match_override.
+  string key = 1;
+  string title = 2;
+  // For example the episode title; may be empty.
+  string subtitle = 3;
+  // Number of episodes of the work; 0 when unknown.
+  int32 episode_count = 4;
+}
+
+message SearchDanmakuCandidatesResponse {
+  // Best first; the host shows at most 50.
+  repeated DanmakuCandidate candidates = 1;
 }
 
 // DanmakuMode is how a danmaku comment is displayed.

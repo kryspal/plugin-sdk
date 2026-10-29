@@ -63,7 +63,7 @@ func (p *provider) Describe(context.Context, *pluginv1.DescribeRequest) (*plugin
 		Capabilities: []string{
 			pluginv1.CapabilityMetadataMovie, pluginv1.CapabilityMetadataPerson,
 			pluginv1.CapabilityImagesMovie, pluginv1.CapabilityImagesPerson, pluginv1.CapabilityMediaRecognize,
-			pluginv1.CapabilityPluginTasks, pluginv1.CapabilityMetadataPersonSearch, pluginv1.CapabilitySubtitlesSearch, pluginv1.CapabilityDanmakuProvider,
+			pluginv1.CapabilityPluginTasks, pluginv1.CapabilityMetadataPersonSearch, pluginv1.CapabilitySubtitlesSearch, pluginv1.CapabilityDanmakuProvider, pluginv1.CapabilityDanmakuMatch,
 			pluginv1.CapabilityRatingsMovie,
 		},
 		RatingSources: []string{"fullrate"},
@@ -263,8 +263,22 @@ type danmaku struct {
 	broken string
 }
 
+// sampleMatchKey is the key SearchDanmakuCandidates gives for the film; GetDanmaku answers for it without searching.
+const sampleMatchKey = "work:1"
+
+func (d *danmaku) SearchDanmakuCandidates(_ context.Context, req *pluginv1.SearchDanmakuCandidatesRequest) (*pluginv1.SearchDanmakuCandidatesResponse, error) {
+	if !strings.Contains(strings.ToLower(req.GetText()), "sample") {
+		return &pluginv1.SearchDanmakuCandidatesResponse{}, nil
+	}
+	c := &pluginv1.DanmakuCandidate{Key: sampleMatchKey, Title: "Sample Movie Original", EpisodeCount: 1}
+	if d.broken == "match" {
+		c.Key, c.Title = strings.Repeat("k", 2049), " "
+	}
+	return &pluginv1.SearchDanmakuCandidatesResponse{Candidates: []*pluginv1.DanmakuCandidate{c}}, nil
+}
+
 func (d *danmaku) GetDanmaku(_ context.Context, req *pluginv1.GetDanmakuRequest) (*pluginv1.GetDanmakuResponse, error) {
-	if req.GetOriginalTitle() != "Sample Movie Original" && req.GetProductCode() != "SMP-001" {
+	if req.GetMatchOverride() != sampleMatchKey && req.GetOriginalTitle() != "Sample Movie Original" && req.GetProductCode() != "SMP-001" {
 		return &pluginv1.GetDanmakuResponse{}, nil
 	}
 	comments := []*pluginv1.DanmakuComment{

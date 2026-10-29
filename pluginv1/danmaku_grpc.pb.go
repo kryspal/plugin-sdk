@@ -2,6 +2,7 @@
 //
 // Capabilities and the methods they map to:
 //   danmaku.provider  GetDanmaku
+//   danmaku.match     SearchDanmakuCandidates (with danmaku.provider)
 // For capabilities the plugin does not declare, the corresponding calls return UNIMPLEMENTED. No results means an empty
 // list, not NOT_FOUND.
 
@@ -26,7 +27,8 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	DanmakuProvider_GetDanmaku_FullMethodName = "/kryspal.plugin.v1.DanmakuProvider/GetDanmaku"
+	DanmakuProvider_GetDanmaku_FullMethodName              = "/kryspal.plugin.v1.DanmakuProvider/GetDanmaku"
+	DanmakuProvider_SearchDanmakuCandidates_FullMethodName = "/kryspal.plugin.v1.DanmakuProvider/SearchDanmakuCandidates"
 )
 
 // DanmakuProviderClient is the client API for DanmakuProvider service.
@@ -37,6 +39,9 @@ const (
 type DanmakuProviderClient interface {
 	// GetDanmaku fetches the danmaku of a movie or an episode. The host is responsible for caching.
 	GetDanmaku(ctx context.Context, in *GetDanmakuRequest, opts ...grpc.CallOption) (*GetDanmakuResponse, error)
+	// SearchDanmakuCandidates lists what an administrator can pick as this plugin's match for an item (danmaku.match).
+	// The key of the chosen candidate comes back in GetDanmakuRequest.match_override.
+	SearchDanmakuCandidates(ctx context.Context, in *SearchDanmakuCandidatesRequest, opts ...grpc.CallOption) (*SearchDanmakuCandidatesResponse, error)
 }
 
 type danmakuProviderClient struct {
@@ -57,6 +62,16 @@ func (c *danmakuProviderClient) GetDanmaku(ctx context.Context, in *GetDanmakuRe
 	return out, nil
 }
 
+func (c *danmakuProviderClient) SearchDanmakuCandidates(ctx context.Context, in *SearchDanmakuCandidatesRequest, opts ...grpc.CallOption) (*SearchDanmakuCandidatesResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SearchDanmakuCandidatesResponse)
+	err := c.cc.Invoke(ctx, DanmakuProvider_SearchDanmakuCandidates_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // DanmakuProviderServer is the server API for DanmakuProvider service.
 // All implementations must embed UnimplementedDanmakuProviderServer
 // for forward compatibility.
@@ -65,6 +80,9 @@ func (c *danmakuProviderClient) GetDanmaku(ctx context.Context, in *GetDanmakuRe
 type DanmakuProviderServer interface {
 	// GetDanmaku fetches the danmaku of a movie or an episode. The host is responsible for caching.
 	GetDanmaku(context.Context, *GetDanmakuRequest) (*GetDanmakuResponse, error)
+	// SearchDanmakuCandidates lists what an administrator can pick as this plugin's match for an item (danmaku.match).
+	// The key of the chosen candidate comes back in GetDanmakuRequest.match_override.
+	SearchDanmakuCandidates(context.Context, *SearchDanmakuCandidatesRequest) (*SearchDanmakuCandidatesResponse, error)
 	mustEmbedUnimplementedDanmakuProviderServer()
 }
 
@@ -77,6 +95,9 @@ type UnimplementedDanmakuProviderServer struct{}
 
 func (UnimplementedDanmakuProviderServer) GetDanmaku(context.Context, *GetDanmakuRequest) (*GetDanmakuResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetDanmaku not implemented")
+}
+func (UnimplementedDanmakuProviderServer) SearchDanmakuCandidates(context.Context, *SearchDanmakuCandidatesRequest) (*SearchDanmakuCandidatesResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method SearchDanmakuCandidates not implemented")
 }
 func (UnimplementedDanmakuProviderServer) mustEmbedUnimplementedDanmakuProviderServer() {}
 func (UnimplementedDanmakuProviderServer) testEmbeddedByValue()                         {}
@@ -117,6 +138,24 @@ func _DanmakuProvider_GetDanmaku_Handler(srv interface{}, ctx context.Context, d
 	return interceptor(ctx, in, info, handler)
 }
 
+func _DanmakuProvider_SearchDanmakuCandidates_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SearchDanmakuCandidatesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DanmakuProviderServer).SearchDanmakuCandidates(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: DanmakuProvider_SearchDanmakuCandidates_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DanmakuProviderServer).SearchDanmakuCandidates(ctx, req.(*SearchDanmakuCandidatesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // DanmakuProvider_ServiceDesc is the grpc.ServiceDesc for DanmakuProvider service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -127,6 +166,10 @@ var DanmakuProvider_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetDanmaku",
 			Handler:    _DanmakuProvider_GetDanmaku_Handler,
+		},
+		{
+			MethodName: "SearchDanmakuCandidates",
+			Handler:    _DanmakuProvider_SearchDanmakuCandidates_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

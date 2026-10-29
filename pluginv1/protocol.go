@@ -58,6 +58,8 @@ const (
 	CapabilitySegmentsSubmit   = "segments.submit"
 	// Danmaku providers: GetDanmaku.
 	CapabilityDanmakuProvider = "danmaku.provider"
+	// Danmaku match picking: SearchDanmakuCandidates and GetDanmakuRequest.match_override (with danmaku.provider).
+	CapabilityDanmakuMatch = "danmaku.match"
 	// Cast targets: Discover, Probe, Prepare, Load, Control, Status.
 	CapabilityCastTarget = "cast.target"
 	// Person alias maps: GetAliasMap.

@@ -237,6 +237,12 @@ const (
 	// that selected them, keeps the sources in Manifest.rating_sources, and removes those ratings when the plugin is
 	// disabled or uninstalled. Without it the RatingProvider service is never called.
 	HostFeatureRatingProviders = "rating_providers"
+	// HostFeatureDanmakuOverride: GetDanmakuRequest.match_override carries the match an administrator picked, and the
+	// host calls SearchDanmakuCandidates of plugins that declare danmaku.match. Without it neither happens.
+	HostFeatureDanmakuOverride = "danmaku_override"
+	// HostFeatureDanmakuMediaPaths: GetDanmakuRequest.media_paths carries the absolute paths of the item's local media
+	// files. Without it the field is empty.
+	HostFeatureDanmakuMediaPaths = "danmaku_media_paths"
 )
 
 // HostFeatures returns the features listed in EnvHostFeatures. The result is empty, not nil, when the variable is

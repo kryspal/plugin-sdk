@@ -53,6 +53,7 @@ const (
 
 	subtitleSearchTimeout = 15 * time.Second
 	danmakuTimeout        = 30 * time.Second
+	danmakuMatchTimeout   = 15 * time.Second
 )
 
 // call runs f with a deadline of d.
@@ -81,7 +82,8 @@ type Options struct {
 	// matched_by, ranges and the limit. The plugin must declare subtitles.search.
 	Subtitles *SubtitleCase
 	// Danmaku, when set, runs GetDanmaku for this item and checks the answer: comments in time order, known modes, colors up to
-	// 0xFFFFFF, text, and at most 20000 of them. The plugin must declare danmaku.provider.
+	// 0xFFFFFF, text, and at most 20000 of them. The plugin must declare danmaku.provider. With DanmakuCase.Match it also
+	// checks picking a match (danmaku.match).
 	Danmaku *DanmakuCase
 	// Ratings, when set, runs GetRatings for this item and checks the answer (sources from rating_sources, one per source,
 	// values above 0 and at most their max). The plugin must declare the matching ratings.* capability. Plugins that are
@@ -152,6 +154,13 @@ type DanmakuCase struct {
 	Season, Episode int32
 	// ProviderIDs are the item's IDs as the host sends them (lower case keys, for example imdb).
 	ProviderIDs map[string]string
+	// MediaPaths are sent as GetDanmakuRequest.media_paths (host feature danmaku_media_paths), for plugins that read
+	// danmaku files next to the video.
+	MediaPaths []string
+	// Match, when set, is the text an administrator would search for. The plugin must declare danmaku.match: the check
+	// runs SearchDanmakuCandidates with it, checks the candidates, and plays the first one back as match_override, which
+	// must find comments as well.
+	Match string
 }
 
 // RatingsCase is an item a rating provider knows.
@@ -370,7 +379,8 @@ var hostFeatures = []string{
 	pluginapi.HostFeatureAutoFillLimit, pluginapi.HostFeatureSearchConfirmed, pluginapi.HostFeatureBadgeSuggestions,
 	pluginapi.HostFeatureConfirmedNumbering, pluginapi.HostFeatureLibraryConfig, pluginapi.HostFeatureRecognitionHint,
 	pluginapi.HostFeatureLookupNames, pluginapi.HostFeatureFilePaths, pluginapi.HostFeatureSubtitleConfirmed, pluginapi.HostFeatureVersionLabels,
-	pluginapi.HostFeaturePluginIcon, pluginapi.HostFeatureRatingProviders,
+	pluginapi.HostFeaturePluginIcon, pluginapi.HostFeatureRatingProviders, pluginapi.HostFeatureDanmakuOverride,
+	pluginapi.HostFeatureDanmakuMediaPaths,
 }
 
 // DefaultHostFeatures returns the features the suite announces to the plugin by default, the list of a current host.
