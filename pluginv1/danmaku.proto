@@ -46,7 +46,7 @@ message GetDanmakuRequest {
   // when there is none. When set, use it instead of searching. Sent by hosts with the host feature danmaku_override.
   string match_override = 11;
   // Absolute paths of the item's local media files (every version, main version first), for plugins that read
-  // danmaku files next to the video. Files on cloud drives and remote sources are not listed. Sent by hosts with the
+  // danmaku files next to the video: the file on the server's file system (for a pointer such as .strm, the pointer file itself). Missing versions and versions without an absolute path are not listed. Sent by hosts with the
   // host feature danmaku_media_paths.
   repeated string media_paths = 12;
 }

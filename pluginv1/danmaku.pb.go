@@ -107,7 +107,7 @@ type GetDanmakuRequest struct {
 	// when there is none. When set, use it instead of searching. Sent by hosts with the host feature danmaku_override.
 	MatchOverride string `protobuf:"bytes,11,opt,name=match_override,json=matchOverride,proto3" json:"match_override,omitempty"`
 	// Absolute paths of the item's local media files (every version, main version first), for plugins that read
-	// danmaku files next to the video. Files on cloud drives and remote sources are not listed. Sent by hosts with the
+	// danmaku files next to the video: the file on the server's file system (for a pointer such as .strm, the pointer file itself). Missing versions and versions without an absolute path are not listed. Sent by hosts with the
 	// host feature danmaku_media_paths.
 	MediaPaths    []string `protobuf:"bytes,12,rep,name=media_paths,json=mediaPaths,proto3" json:"media_paths,omitempty"`
 	unknownFields protoimpl.UnknownFields

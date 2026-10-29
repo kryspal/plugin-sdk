@@ -13,7 +13,7 @@ All notable changes to the Kryspal Media Plugin SDK. The protocol major version 
   item and the plugin and sends it back as the new `GetDanmakuRequest.match_override`; when it is set, use it instead of searching. Plugins that
   do not declare `danmaku.match` are unchanged (§7).
 - Local danmaku files (host feature `danmaku_media_paths`, `pluginapi.HostFeatureDanmakuMediaPaths`): `GetDanmakuRequest.media_paths` lists the
-  absolute paths of the item's local media files, main version first; files on cloud drives and remote sources are not listed. A plugin that
+  absolute paths of the item's files on the server's file system, main version first (for a pointer such as .strm, the pointer file itself); missing versions and versions without an absolute path are not listed. A plugin that
   reads danmaku files next to the video uses them and only reads.
 - `plugintest`: `DanmakuCase.MediaPaths` is sent as `media_paths`. `DanmakuCase.Match` makes the plugin declare `danmaku.match`, runs
   `SearchDanmakuCandidates` with that text and checks the candidates (at least one, at most 50, non-empty keys of at most 2048 bytes without NUL,
