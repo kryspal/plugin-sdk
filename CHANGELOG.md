@@ -3,7 +3,7 @@
 All notable changes to the Kryspal Media Plugin SDK. The protocol major version is `v1` (proto package
 `kryspal.plugin.v1`); within v1 only compatible additions are made (new fields, RPCs, services, capabilities).
 
-## v0.11.0 (unreleased)
+## v0.10.0 (2026-11-06)
 
 - Discover and work actions (host feature `discover`, `pluginapi.HostFeatureDiscover`, §7.12): two new independent capabilities, free on every
   plan. `discover.source` (`pluginv1.CapabilityDiscoverSource`, service `DiscoverSource`: `DescribeDiscoverSource`, `GetDiscoverPage`,
@@ -14,9 +14,7 @@ All notable changes to the Kryspal Media Plugin SDK. The protocol major version 
   capability that receives member information. Register them with `sdk.Config.DiscoverSource` and `sdk.Config.WorkActionProvider`. `plugintest` checks a plugin that
   declares them; the new `Options.DiscoverQuery`, `Options.WorkRef` and `Options.RunWorkAction` control the checks. Limits and validators are in
   `pluginapi` (`MaxWorkStates`, `MaxDiscoverFilters`, `ValidWorkKey`, `ValidDiscoverRef` and others). Plugins that declare neither are unchanged.
-
-## v0.10.0 (2026-10-29)
-
+- Discover additions made while the Seerr connector was built: `DiscoverPageHeader.image_kind` says what the header image of a genre, studio, network or person page is (a whole logo, which hosts may recolor, or a portrait); `MemberWork.stage` (`MemberWorkStage`: queued, downloading, paused, stalled, importing) and `MemberWork.estimated_completion` (RFC 3339, UTC) describe a download while a member's work is `PROCESSING`; `DiscoverSeed`s and `DiscoverRow.refreshable` as described above. All are optional and compatible.
 - Picking a danmaku match (host feature `danmaku_override`, `pluginapi.HostFeatureDanmakuOverride`): the new capability `danmaku.match`
   (`pluginv1.CapabilityDanmakuMatch`, declared together with `danmaku.provider`) and the new RPC `DanmakuProvider.SearchDanmakuCandidates`.
   An administrator searches with it for an item (`SearchDanmakuCandidatesRequest`: the typed text, which may be a title or the address of a
