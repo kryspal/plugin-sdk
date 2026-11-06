@@ -1,0 +1,602 @@
+// Kryspal Media Plugin protocol v1: browsing works outside the library, and acting on them.
+//
+// Capabilities and the methods they map to:
+//   discover.source  DiscoverSource: DescribeDiscoverSource, GetDiscoverPage, SearchWorks, GetWork
+//   work.action      WorkActionProvider: GetWorkStates, RunWorkAction, ListMemberWorks
+// For capabilities the plugin does not declare, the corresponding calls return UNIMPLEMENTED. Host feature discover;
+// older hosts never call these services.
+//
+// The two capabilities are independent: a plugin may implement one or both, and the host may show one plugin's actions
+// on another plugin's works. They meet only through a work's type and provider IDs.
+//
+// Works are the plugin's data. The host does not store them as library items, and it does not store actions or states:
+// it asks again, and caches answers for seconds only. The host finds a work in the library by its provider IDs.
+//
+// Only WorkActionProvider receives member information; DiscoverSource never does. Settings arrive through Configure, as
+// for every other capability, not with each call.
+//
+// All text in these messages is plain text. The host removes control characters and cuts it to the stated length, and it
+// never treats it as HTML: markup appears to the viewer as the characters you sent.
+syntax = "proto3";
+
+package kryspal.plugin.v1;
+
+import "pluginv1/metadata.proto";
+
+option go_package = "github.com/kryspal/plugin-sdk/pluginv1;pluginv1";
+
+// DiscoverSource is implemented by plugins that declare discover.source. The plugin defines the pages: tabs, rows, entry
+// cards and links are its own, and the host has one way of showing them. It has no idea of a genre page or a person page.
+service DiscoverSource {
+  // DescribeDiscoverSource says how the source is entered. The host caches the answer for minutes per language. Answer
+  // without the upstream when you can; UNAVAILABLE marks the source offline when the host has no earlier answer.
+  rpc DescribeDiscoverSource(DescribeDiscoverSourceRequest) returns (DiscoverSourceInfo);
+  // GetDiscoverPage returns one page, or one row of it. Tabs, genres, studios, people, "view more" and related works are all
+  // this method. NOT_FOUND when the ref does not resolve. Answer within the host's time limit, which includes waiting for a
+  // slot: aim for 10 seconds, send slow rows empty so that they load when they come into view (DiscoverRow.works), and give
+  // slow enrichment such as per-work lookups its own time budget and cache.
+  rpc GetDiscoverPage(GetDiscoverPageRequest) returns (DiscoverPage);
+  // SearchWorks finds works by text. No match is an empty list, not NOT_FOUND.
+  rpc SearchWorks(SearchWorksRequest) returns (SearchWorksResponse);
+  // GetWork returns one work in full, for its detail page. NOT_FOUND when the key no longer resolves.
+  rpc GetWork(GetWorkRequest) returns (Work);
+}
+
+// WorkActionProvider is implemented by plugins that declare work.action. The actions are in Manifest.work_actions.
+service WorkActionProvider {
+  // GetWorkStates reports the state of up to 50 works for one member. It must not change anything.
+  rpc GetWorkStates(GetWorkStatesRequest) returns (GetWorkStatesResponse);
+  // RunWorkAction runs one action on one work for one member. The host never retries it on its own: it may change
+  // something outside the server. The member may send any selection, so check it against what you offered.
+  rpc RunWorkAction(RunWorkActionRequest) returns (RunWorkActionResponse);
+  // ListMemberWorks lists the works this member started through this plugin, newest first. It must not change anything,
+  // and it lists only this member's works whatever page_token says. A member the tool does not know gets an empty list.
+  // A plugin that cannot list them returns UNIMPLEMENTED: the host then shows nothing for it and reports no failure.
+  rpc ListMemberWorks(ListMemberWorksRequest) returns (ListMemberWorksResponse);
+}
+
+message DescribeDiscoverSourceRequest {
+  // Language of the name, labels and choices.
+  Languages languages = 1;
+}
+
+// DiscoverSourceInfo is what a source declares about itself.
+message DiscoverSourceInfo {
+  // Display name of the source, at most 48 characters; empty uses Manifest.name.
+  string name = 1;
+  // Each tab is a page, in display order, at most 8. The first is where viewers land. The host hides the tabs when there is
+  // only one. A source without any valid tab is not listed.
+  repeated DiscoverTab tabs = 2;
+  // The types SearchWorks can filter by, in display order, ITEM_TYPE_MOVIE and ITEM_TYPE_SERIES. Empty: the source cannot
+  // be searched, and the host does not call SearchWorks.
+  repeated ItemType search_types = 3;
+}
+
+// DiscoverTab is one tab of a source.
+message DiscoverTab {
+  // At most 32 characters. Tabs without a title or a valid ref are dropped.
+  string title = 1;
+  // The page it opens.
+  string ref = 2;
+  // The page is built from GetDiscoverPageRequest.seeds, for example recommendations. The host shows the tab only to a member
+  // who has seeds for this plugin: the administrator allowed discover.seeds and there is at least one seed. Only requests for
+  // this ref get seeds. The first tab cannot be seeded, because it is where viewers land; the host drops a first tab that is.
+  bool seeded = 3;
+}
+
+// A ref names a page of this plugin, and the plugin alone gives it meaning, for example "genre:28" or "person:31". Required
+// wherever it appears, except where stated: at most 256 characters, no control characters. It goes through the client and
+// a URL: any member can send any ref, so it must not contain secrets or select another member's data. Return NOT_FOUND for
+// one that does not resolve. Refs stay valid across restarts when you can, because viewers bookmark pages.
+message GetDiscoverPageRequest {
+  // DiscoverTab.ref, or a ref from anywhere else in the plugin's answers. Never empty: without one from the viewer the host
+  // sends the first tab's ref.
+  string ref = 1;
+  // Empty: return the page, each row with its first page. Set: return only this row (DiscoverRow.id) from page_token, in
+  // the response's rows, with the row's own filters in the response's filters. The header is ignored then.
+  string row_id = 2;
+  // DiscoverRow.next_page_token from the previous answer; empty for the first page. Sent with the same selections.
+  string page_token = 3;
+  // The member's choices. The host has checked that each key and value is in the filters you declared for this ref and
+  // row_id, and that a single-choice key has one value. A key that is not sent means your default.
+  repeated WorkSelection selections = 4;
+  // Language of the text.
+  Languages languages = 5;
+  // A few works for a seeded tab (DiscoverTab.seeded), at most 50: what the member watched lately and what the library has,
+  // see DiscoverSeed.origin. Only with the permission discover.seeds, for the IDs the administrator allowed, and only when ref
+  // is a seeded tab's ref, including its row_id requests. Empty otherwise, and also when no work fits: the plugin cannot tell
+  // which, so a page must work without them. The seeds do not depend on batch.
+  // Use them only to answer this request and do not write them to disk; you may cache upstream answers by ID in memory for a
+  // limited time. Filters and sort must not depend on them, and an answer for one set of seeds must not be reused for another.
+  repeated DiscoverSeed seeds = 6;
+  // Which batch of a refreshable row (DiscoverRow.refreshable) the member wants: 0 is the first, and each "refresh" sends a
+  // new value. Only with row_id; kept for that batch's later pages. Any value is possible and must be answered: use it, for
+  // example, as the seed of your own random choice of related works. Rows that are not refreshable ignore it.
+  uint32 batch = 7;
+}
+
+// DiscoverSeed is one work from the library: what it is and how to identify it, and nothing else.
+message DiscoverSeed {
+  // ITEM_TYPE_MOVIE or ITEM_TYPE_SERIES.
+  ItemType type = 1;
+  // Only the keys declared in Manifest.discover_seed_ids and allowed by the administrator, lowercase.
+  map<string, string> provider_ids = 2;
+  // Only when product_code is declared and allowed. The same rules as ItemMetadata.product_code.
+  string product_code = 3;
+  // Where the seed comes from. Decide the kind of row by it.
+  DiscoverSeedOrigin origin = 4;
+}
+
+enum DiscoverSeedOrigin {
+  DISCOVER_SEED_ORIGIN_UNSPECIFIED = 0;
+  // The library, at most 20: what the viewer can reach, added before the week began, about half recent and half at random.
+  // The same for a whole week for everyone with the same access. For rows such as the rest of a collection.
+  DISCOVER_SEED_ORIGIN_LIBRARY = 1;
+  // What this member watched lately, finished or partly, at most 30, in no particular order. Only for this member, and not
+  // when the member turned it off. Do not name these works in titles: the viewer is not told what the recommendations come
+  // from.
+  DISCOVER_SEED_ORIGIN_WATCHED = 2;
+}
+
+// DiscoverPage is one page, or one row of it.
+message DiscoverPage {
+  // Optional top of the page. Tabs usually have none.
+  DiscoverPageHeader header = 1;
+  // What the member can filter by for exactly this request (ref and row_id), in display order, at most 8. Without any the host
+  // shows no controls. A time range is a filter with one choice per range, because the host has no range input. Of
+  // WorkOption, these use key, label, multiple and choices; of each WorkChoice, value, label and selected, which marks what
+  // is chosen when the control appears. required, disabled and note do not apply. Filters and sort must not depend on the
+  // current selections: the host checks later requests against them. Those of a page apply to the whole page; a row's own
+  // list declares its own when asked for row_id.
+  repeated WorkOption filters = 2;
+  // In display order, at most 20. The host drops the rest, and it keeps at most 200 works across all the rows of an answer.
+  // An empty list is a valid answer.
+  repeated DiscoverRow rows = 3;
+  // How the works can be sorted for this request: a single choice, shown apart from the filters. Its key shares the filters'
+  // key space, and selections carry both. Unset: no sort control. The same fields apply as for filters.
+  WorkOption sort = 4;
+}
+
+// DiscoverPageHeader is the top of a page. It has no fixed meaning: a person's page and a genre's page look the same to the
+// host. Everything but the title is optional.
+message DiscoverPageHeader {
+  // At most 128 characters. A header without a title is ignored.
+  string title = 1;
+  // At most 128 characters.
+  string subtitle = 2;
+  // At most 8000 characters.
+  string overview = 3;
+  // Absolute http or https URLs, with the same rules as Work.poster_url.
+  string image_url = 4;
+  string backdrop_url = 5;
+  // Short facts in display order, at most 8, for example a person's birthday or a studio's country.
+  repeated DiscoverFact facts = 6;
+  // What image_url shows, with the same values as DiscoverCard.image_kind: DISCOVER_CARD_IMAGE_KIND_LOGO for a studio's or a
+  // network's logo, DISCOVER_CARD_IMAGE_KIND_PORTRAIT for a person. Unlike a card, unspecified is not a cover: it means the plugin
+  // did not say, and the host guesses from the image itself. Set it whenever you know.
+  DiscoverCardImageKind image_kind = 7;
+}
+
+// DiscoverFact is one label and value, in the request's language. Facts without both are dropped.
+message DiscoverFact {
+  // At most 32 characters.
+  string label = 1;
+  // At most 128 characters.
+  string value = 2;
+}
+
+// DiscoverRowStyle is how a row is shown. Values the host does not know count as DISCOVER_ROW_STYLE_POSTERS.
+enum DiscoverRowStyle {
+  DISCOVER_ROW_STYLE_UNSPECIFIED = 0;
+  // A row of posters from works. The default.
+  DISCOVER_ROW_STYLE_POSTERS = 1;
+  // Large recommendations from works, at most 10. Each needs a backdrop_url and can have an overview; the host skips works
+  // without a backdrop. Only the first row of a page can be one, elsewhere it counts as posters. It has no next page and no
+  // "view more", and it cannot load later.
+  DISCOVER_ROW_STYLE_HERO = 2;
+  // Entry cards from cards, for example a wall of genres or studios.
+  DISCOVER_ROW_STYLE_CARDS = 3;
+  // A row of landscape images from works: each shows backdrop_url, or a placeholder when it has none. The poster is not used
+  // instead, so that the row keeps one aspect ratio. Works should still have a poster_url: a host that does not know this
+  // style shows posters.
+  DISCOVER_ROW_STYLE_LANDSCAPE = 4;
+}
+
+// DiscoverRow is one titled row. A row has works or cards, never both: cards with DISCOVER_ROW_STYLE_CARDS, works otherwise,
+// and the host ignores the other list.
+message DiscoverRow {
+  // Unique within the page: a lowercase letter, then lowercase letters, digits and underscores, at most 48 characters.
+  string id = 1;
+  // Row title, in the request's language, at most 64 characters. Empty is allowed only for a hero row.
+  string title = 2;
+  DiscoverRowStyle style = 3;
+  // At most 50 per page; the host drops the rest. Works in a row need only key, type, title, year, poster_url and
+  // provider_ids. Empty with a next_page_token: the row loads when it comes into view, through row_id and page_token, with at
+  // most 3 such requests at a time and a bounded number of retries. Use that for rows that are slow to fill. A row with
+  // nothing and no token is not shown.
+  repeated Work works = 4;
+  // At most 100 per page; the host drops the rest.
+  repeated DiscoverCard cards = 5;
+  // Opaque token for the next page of this row, at most 1024 characters; empty when there are no more. A row with a token
+  // has "view more", which opens the row by itself: same ref, with row_id.
+  string next_page_token = 6;
+  // Optional ref that "view more" opens instead, for example the genre's own page.
+  string more_ref = 7;
+  // The member can ask for another batch of this row: the host sends the same ref with row_id and a new
+  // GetDiscoverPageRequest.batch, and replaces the row with the answer. Answer every batch, with the same row id.
+  bool refreshable = 8;
+}
+
+// DiscoverCardImageKind is how a card's image is shown. Unspecified values and values the host does not know count as
+// DISCOVER_CARD_IMAGE_KIND_COVER.
+enum DiscoverCardImageKind {
+  DISCOVER_CARD_IMAGE_KIND_UNSPECIFIED = 0;
+  // A picture that fills the card and may be cropped, for example a genre's backdrop.
+  DISCOVER_CARD_IMAGE_KIND_COVER = 1;
+  // A logo, shown whole and never cropped, for example a studio's or a network's.
+  DISCOVER_CARD_IMAGE_KIND_LOGO = 2;
+  // A portrait of a person, for example on a page that lists people.
+  DISCOVER_CARD_IMAGE_KIND_PORTRAIT = 3;
+}
+
+// DiscoverCard is an entry into another page of this plugin. It is not a work: it has no state, no action and no library match.
+message DiscoverCard {
+  // At most 64 characters. Required.
+  string title = 1;
+  // Absolute http or https URL, with the same rules as Work.poster_url. Without one the card shows only its text.
+  string image_url = 2;
+  // The page it opens. Required.
+  string ref = 3;
+  // How image_url is shown.
+  DiscoverCardImageKind image_kind = 4;
+}
+
+message SearchWorksRequest {
+  // The member's search text, at most 200 characters.
+  string query = 1;
+  Languages languages = 2;
+  // One of DiscoverSourceInfo.search_types, or ITEM_TYPE_UNSPECIFIED for all of them. The host refuses others without
+  // calling you.
+  ItemType type = 3;
+  // SearchWorksResponse.next_page_token from the previous answer; empty for the first page.
+  string page_token = 4;
+}
+
+message SearchWorksResponse {
+  // At most 50 per page; the host drops the rest. Same required fields as DiscoverRow.works.
+  repeated Work works = 1;
+  // Opaque token for the next page, at most 1024 characters; empty when there are no more.
+  string next_page_token = 2;
+}
+
+message GetWorkRequest {
+  // Work.key as this plugin returned it.
+  string key = 1;
+  Languages languages = 2;
+}
+
+// Work is a movie or series as the source describes it. Empty text and zero numbers mean unknown.
+message Work {
+  // Opaque and stable: the host passes it back to GetWork and puts it in URLs. Required; at most 256 characters, no
+  // control characters. Works without a valid key are dropped.
+  string key = 1;
+  // ITEM_TYPE_MOVIE or ITEM_TYPE_SERIES. Works of other types are dropped.
+  ItemType type = 2;
+  // Required, in the request's language when the source has it, at most 256 characters.
+  string title = 3;
+  // At most 256 characters.
+  string original_title = 4;
+  int32 year = 5;
+  // At most 8000 characters.
+  string overview = 6;
+  // Absolute http or https URLs. The host downloads and caches them and viewers never connect to them directly, so
+  // private addresses need Manifest.image_fetch_rules like any other plugin image.
+  string poster_url = 7;
+  string backdrop_url = 8;
+  // Content rating as the source writes it, for example PG-13, at most 32 characters.
+  string content_rating = 9;
+  // Same meaning as ItemMetadata.ratings.
+  repeated Rating ratings = 10;
+  // External IDs, with lowercase keys. The host finds the work in the library by them, and work.action plugins identify
+  // the work by them. A work without any can be shown, but offers no action and never matches the library.
+  map<string, string> provider_ids = 11;
+  // Series only, from GetWork. In display order, at most 200.
+  repeated WorkSeason seasons = 12;
+  int32 runtime_minutes = 13;
+  // Short text about this work here, for example the character on a person's page or "Not released, 2027-03-05". At most 64
+  // characters. Lists and GetWork each show what they send: the detail page does not inherit the list's caption.
+  string caption = 14;
+  // Badges on the poster, for example "New" or a score, at most 4 and at most 3 in one corner. Lists and GetWork each show what
+  // they send: the detail page does not inherit the list's badges.
+  repeated WorkBadge badges = 21;
+  // A catalog number for this work, with the same rules as ItemMetadata.product_code. Plain text, at most 64 characters. Lists
+  // and GetWork each show what they send: the detail page does not inherit the list's value.
+  string product_code = 22;
+  // The rest is optional and only used from GetWork: lists ignore it, so skip any upstream call that only it needs. What is
+  // missing is not shown.
+  // Short promotional line, at most 256 characters.
+  string tagline = 15;
+  // At most 20, each with a text of at most 64 characters.
+  repeated WorkRefLink genres = 16;
+  // Companies behind the work, most important first, for example the network of a series and then its studios. At most 20,
+  // each with a text of at most 128 characters.
+  repeated WorkRefLink companies = 17;
+  // Cast and crew in display order, at most 30: the host keeps the first 30, so put the people who matter most first.
+  repeated WorkCredit credits = 18;
+  // Optional page shown below the details, for example related works. The host asks for it only when the viewer scrolls to
+  // it, so GetWork need not fill it. It shows the page's rows; its header and filters are ignored.
+  string related_ref = 19;
+  // Buttons that leave the server, for example a trailer, at most 4. They open in a new tab: the viewer's browser connects to
+  // these sites directly, and the plugin's page tells the administrator so. Only http and https URLs with a host are kept.
+  repeated ExternalLink external_links = 20;
+}
+
+// WorkBadgeCorner is where a badge sits on the poster. The top right corner belongs to the host. Unspecified values and values
+// the host does not know count as WORK_BADGE_CORNER_TOP_LEFT.
+enum WorkBadgeCorner {
+  WORK_BADGE_CORNER_UNSPECIFIED = 0;
+  WORK_BADGE_CORNER_TOP_LEFT = 1;
+  WORK_BADGE_CORNER_BOTTOM_LEFT = 2;
+  WORK_BADGE_CORNER_BOTTOM_RIGHT = 3;
+}
+
+// WorkBadge is a badge on a work's poster, drawn like the server's own badges and at the size the server sets. A badge that
+// breaks a rule below is dropped.
+message WorkBadge {
+  // At most 8 characters, no control characters. Required unless rating is set; with a rating it is the alternative text.
+  string text = 1;
+  // Background color as #RRGGBB; empty uses the host's default.
+  string color = 2;
+  WorkBadgeCorner corner = 3;
+  // Outline color as #RRGGBB; empty draws none.
+  string outline = 4;
+  // Optional: draws the source's mark and the score. Same meaning as ItemMetadata.ratings, but source is required and votes is
+  // not used. source is lowercase letters, digits, "_" and "-", at most 32 characters.
+  Rating rating = 5;
+}
+
+// WorkRefLink is a text that can open a page of this plugin.
+message WorkRefLink {
+  // Required. Entries without a text are dropped.
+  string text = 1;
+  // Optional: without a valid ref the text cannot be opened.
+  string ref = 2;
+}
+
+// WorkCreditKind is what a person did on a work. Unspecified values and values the host does not know count as
+// WORK_CREDIT_KIND_OTHER.
+enum WorkCreditKind {
+  WORK_CREDIT_KIND_UNSPECIFIED = 0;
+  WORK_CREDIT_KIND_ACTOR = 1;
+  WORK_CREDIT_KIND_DIRECTOR = 2;
+  // Created the series.
+  WORK_CREDIT_KIND_CREATOR = 3;
+  WORK_CREDIT_KIND_WRITER = 4;
+  WORK_CREDIT_KIND_PRODUCER = 5;
+  WORK_CREDIT_KIND_COMPOSER = 6;
+  // Any other crew; say the job in role.
+  WORK_CREDIT_KIND_OTHER = 7;
+}
+
+// WorkCredit is one person on a work. People are the plugin's data: the host does not match them with people in the library.
+message WorkCredit {
+  // Required, at most 128 characters. Entries without a name are dropped.
+  string name = 1;
+  WorkCreditKind kind = 2;
+  // The character an actor plays, or a crew member's job as the source writes it; at most 128 characters.
+  string role = 3;
+  // Absolute http or https URL, with the same rules as Work.poster_url; anything else is dropped.
+  string image_url = 4;
+  // Optional: without a valid ref the person cannot be opened.
+  string ref = 5;
+}
+
+// WorkSeason is one season of a series.
+message WorkSeason {
+  // Season number; 0 means specials.
+  int32 number = 1;
+  // Display name in the request's language, at most 64 characters; empty lets the host name it by number.
+  string name = 2;
+  int32 episode_count = 3;
+  int32 year = 4;
+}
+
+// WorkStatus is the fixed set of states a work can have. The host chooses the icon and the plugin the words
+// (WorkState.status_text). Values the host does not know count as WORK_STATUS_NONE.
+enum WorkStatus {
+  // Counts as WORK_STATUS_NONE.
+  WORK_STATUS_UNSPECIFIED = 0;
+  // Nothing has happened for this work.
+  WORK_STATUS_NONE = 1;
+  // Waiting for someone to decide.
+  WORK_STATUS_PENDING = 2;
+  // Accepted and in progress.
+  WORK_STATUS_PROCESSING = 3;
+  // Part of the work is done, for example some seasons of a series.
+  WORK_STATUS_PARTIAL = 4;
+  // The external tool considers it done. The host's own library match always takes precedence on what viewers see.
+  WORK_STATUS_AVAILABLE = 5;
+  // Someone said no. The action may be offered again.
+  WORK_STATUS_DECLINED = 6;
+  // It went wrong outside the server.
+  WORK_STATUS_FAILED = 7;
+}
+
+// WorkRef identifies a work to a work.action plugin. There is no Work.key: the work may come from another plugin.
+message WorkRef {
+  // Chosen by the host, unique within a GetWorkStates request; echo it in WorkState.ref. Empty in RunWorkAction.
+  string ref = 1;
+  // ITEM_TYPE_MOVIE or ITEM_TYPE_SERIES.
+  ItemType type = 2;
+  // All the IDs the host knows for the work. It contains at least one of the action's required_provider_ids.
+  map<string, string> provider_ids = 3;
+}
+
+// WorkMember is the member an action or state is for. Disclosed to administrators on the plugin's page. Use it only for
+// this request; do not log the name.
+message WorkMember {
+  // Opaque code, stable for this member on this plugin, across upgrades and reinstalls. It changes only if the server
+  // loses its plugin data directory. It is not the member's ID on the server.
+  string id = 1;
+  // The member's current sign-in name. It can change, so do not key anything long-lived on it.
+  string name = 2;
+}
+
+message GetWorkStatesRequest {
+  // At most 50.
+  repeated WorkRef works = 1;
+  WorkMember member = 2;
+  // Language of status_text, labels and notes.
+  Languages languages = 3;
+  // True when one work is being opened: fill in WorkState.actions. False when only badges are needed: leave them empty
+  // and skip any upstream call that only they need.
+  bool include_actions = 4;
+}
+
+message GetWorkStatesResponse {
+  // At most one per WorkRef. A work left out shows no state and no action; the others are not affected.
+  repeated WorkState states = 1;
+}
+
+// WorkState is a work's state for one member.
+message WorkState {
+  // WorkRef.ref. Empty in RunWorkActionResponse.
+  string ref = 1;
+  WorkStatus status = 2;
+  // Short text for the status, in the request's language, at most 32 characters, for example "Awaiting approval". Empty
+  // shows the icon alone.
+  string status_text = 3;
+  // What the member can do now. An action left out shows no button for this member on this work.
+  repeated WorkActionOffer actions = 4;
+}
+
+// WorkActionOffer is one action the member can run on a work right now.
+message WorkActionOffer {
+  // WorkActionDeclaration.id; others are dropped.
+  string action = 1;
+  // Button text for this state, for example "Ask again", at most 48 characters; empty uses the declared label.
+  string label = 2;
+  // What the member chooses before the action runs, in display order, at most 4. Empty runs it on one press.
+  repeated WorkOption options = 3;
+}
+
+// WorkOption is one question with a fixed set of answers: what to choose before an action runs, for example which seasons,
+// or a filter or sort of a discover source.
+message WorkOption {
+  // Unique within the offer or kind: a lowercase letter, then lowercase letters, digits and underscores, at most 48 characters.
+  string key = 1;
+  // Question text, in the request's language, at most 64 characters.
+  string label = 2;
+  // The member may choose several; otherwise exactly one when required, at most one when not.
+  bool multiple = 3;
+  // At least one choice must be made before the action can run.
+  bool required = 4;
+  // In display order, at most 100.
+  repeated WorkChoice choices = 5;
+}
+
+// WorkChoice is one answer to a WorkOption.
+message WorkChoice {
+  // Sent back in WorkSelection.values, at most 64 characters.
+  string value = 1;
+  // Display text, in the request's language, at most 64 characters.
+  string label = 2;
+  // Chosen when the dialog or control appears.
+  bool selected = 3;
+  // Shown but cannot be chosen.
+  bool disabled = 4;
+  // Short text next to the choice, for example why it is disabled; at most 32 characters.
+  string note = 5;
+}
+
+message RunWorkActionRequest {
+  // WorkActionDeclaration.id.
+  string action = 1;
+  WorkRef work = 2;
+  WorkMember member = 3;
+  Languages languages = 4;
+  // The member's answers to the offer's options.
+  repeated WorkSelection selections = 5;
+}
+
+// WorkSelection is the member's answer to one WorkOption.
+message WorkSelection {
+  // WorkOption.key.
+  string key = 1;
+  // WorkChoice.value entries.
+  repeated string values = 2;
+}
+
+message RunWorkActionResponse {
+  // The plugin understood the request and the answer is no, for a reason the member can read: a quota is used up, or
+  // the member has no account at the external tool. Report these here, with message and link, not as gRPC errors, which
+  // are for administrators (PROTOCOL.md §8).
+  bool refused = 1;
+  // One sentence for the member, in the request's language, plain text, at most 200 characters. Optional when the action
+  // succeeds.
+  string message = 2;
+  // Optional link that helps the member act on the message.
+  ExternalLink link = 3;
+  // The work's state after the action, with its actions as for include_actions. Unset: the host asks GetWorkStates.
+  WorkState state = 4;
+}
+
+message ListMemberWorksRequest {
+  WorkMember member = 1;
+  // Language of status_text and the works' text.
+  Languages languages = 2;
+  // ListMemberWorksResponse.next_page_token from the previous answer; empty for the first page. It comes through the
+  // client: it must not be able to select another member's works.
+  string page_token = 3;
+}
+
+message ListMemberWorksResponse {
+  // Newest first by updated_at, at most 50. The host merges several plugins by that order.
+  repeated MemberWork works = 1;
+  // Opaque token for the next page, at most 1024 characters; empty when there are no more.
+  string next_page_token = 2;
+}
+
+// MemberWork is one work a member started through this plugin.
+message MemberWork {
+  // Needs a type and a title. key is optional here: set it when this plugin's GetWork can open the work, which also gives
+  // the entry a detail page. Provider IDs let the host find the work in the library.
+  Work work = 1;
+  WorkStatus status = 2;
+  // Same as WorkState.status_text.
+  string status_text = 3;
+  // When this entry last changed (UTC, RFC 3339). Entries without a valid time sort last and show no time.
+  string updated_at = 4;
+  // Progress from 0 to 100 when the upstream knows it. Unset shows no progress; values outside the range are dropped.
+  optional double progress_percent = 5;
+  // Where the download stands while status is PROCESSING, when the upstream knows it. Unspecified shows no stage, and the
+  // host ignores the stage for any other status. Values the host does not know count as unspecified.
+  MemberWorkStage stage = 6;
+  // When the upstream expects the work to be ready (UTC, RFC 3339), while status is PROCESSING. Leave it empty when unknown.
+  // The host drops invalid times and times in the past.
+  string estimated_completion = 7;
+}
+
+// MemberWorkStage is where a download stands. When a request has several downloads (for example one per season), give the
+// stage that needs attention first: STALLED, then PAUSED, then the earliest of QUEUED, DOWNLOADING and IMPORTING.
+enum MemberWorkStage {
+  MEMBER_WORK_STAGE_UNSPECIFIED = 0;
+  // Waiting for the download to start.
+  MEMBER_WORK_STAGE_QUEUED = 1;
+  MEMBER_WORK_STAGE_DOWNLOADING = 2;
+  // Paused on the upstream side.
+  MEMBER_WORK_STAGE_PAUSED = 3;
+  // Not moving, for example no sources or a download error; it may still recover.
+  MEMBER_WORK_STAGE_STALLED = 4;
+  // Downloaded and being moved into the library.
+  MEMBER_WORK_STAGE_IMPORTING = 5;
+}
+
+// ExternalLink is a link that leaves the server.
+message ExternalLink {
+  // Absolute http or https URL with a host, at most 2048 characters. The host drops the link for anything else.
+  string url = 1;
+  // Link text, in the request's language, at most 48 characters. In RunWorkActionResponse.link, empty shows the URL; in
+  // Work.external_links it is required.
+  string label = 2;
+}

@@ -1,6 +1,6 @@
 // Package pluginv1 holds the gRPC definitions of the Kryspal Media Plugin protocol v1 (generated from plugin.proto,
-// metadata.proto, image.proto, rating.proto, subtitle.proto, usersync.proto, recognize.proto, segments.proto, danmaku.proto and
-// host.proto) and the protocol constants. See PROTOCOL.md at the module root for the specification.
+// metadata.proto, image.proto, rating.proto, subtitle.proto, usersync.proto, recognize.proto, segments.proto, danmaku.proto,
+// discover.proto and host.proto) and the protocol constants. See PROTOCOL.md at the module root for the specification.
 //
 // Apart from this file, every *.pb.go file is generated; regenerate them with pluginapi/gen.sh, do not edit them by hand.
 package pluginv1
@@ -68,6 +68,10 @@ const (
 	CapabilityPluginTasks = "plugin.tasks"
 	// Settings checks: RunCheck for the checks in Manifest.checks.
 	CapabilityPluginChecks = "plugin.checks"
+	// Browsing works outside the library: GetDiscoverPage, SearchWorks, GetWork.
+	CapabilityDiscoverSource = "discover.source"
+	// Acting on works: GetWorkStates, RunWorkAction for the actions in Manifest.work_actions. Receives member information.
+	CapabilityWorkAction = "work.action"
 )
 
 // Permissions (Manifest.permissions). The host ignores permissions it does not recognize.
@@ -77,6 +81,11 @@ const (
 	// PermissionLAN: the plugin sends multicast and connects to devices on the local network. Disclosed to the
 	// administrator; enabling the plugin is the consent, unlike llm which is allowed per plugin.
 	PermissionLAN = "network.lan"
+	// PermissionDiscoverSeeds: the plugin receives GetDiscoverPageRequest.seeds. The administrator allows each ID of
+	// Manifest.discover_seed_ids for each plugin; it is off by default.
+	PermissionDiscoverSeeds = "discover.seeds"
+	// DiscoverSeedIDProductCode is the entry of Manifest.discover_seed_ids that asks for DiscoverSeed.product_code.
+	DiscoverSeedIDProductCode = "product_code"
 )
 
 // Fixed codes of the Host service (gRPC status messages; they do not vary by language).
@@ -104,6 +113,8 @@ const (
 	HealthServiceCastTarget          = "kryspal.plugin.v1.CastTarget"
 	HealthServiceTaskRunner          = "kryspal.plugin.v1.TaskRunner"
 	HealthServiceChecker             = "kryspal.plugin.v1.Checker"
+	HealthServiceDiscoverSource      = "kryspal.plugin.v1.DiscoverSource"
+	HealthServiceWorkActionProvider  = "kryspal.plugin.v1.WorkActionProvider"
 )
 
 // TrailerRetryAfter is the trailer key attached to a RESOURCE_EXHAUSTED error; its value is a positive decimal number of

@@ -98,6 +98,25 @@ message Manifest {
   // lowercase source codes such as trakt, at most 8. The host keeps only ratings of these sources from GetRatings, and
   // removes them from every item when the plugin is disabled or uninstalled.
   repeated string rating_sources = 22;
+  // The actions the plugin offers on works when it declares work.action (host feature discover), at most 8. In
+  // DescribeRequest.language. WorkActionOffer says which of them apply to a work and a member at a given moment.
+  repeated WorkActionDeclaration work_actions = 23;
+  // Which IDs a plugin with the permission discover.seeds wants in GetDiscoverPageRequest.seeds, at most 4: lowercase provider
+  // ID keys such as tmdb, or product_code. The administrator allows them one by one, so an ID added in a later version is not
+  // sent until the administrator confirms it.
+  repeated string discover_seed_ids = 24;
+}
+
+// WorkActionDeclaration is one action a work.action plugin can run on works.
+message WorkActionDeclaration {
+  // Unique within the plugin: a lowercase letter, then lowercase letters, digits and underscores, at most 48 characters.
+  // Do not rename it after release.
+  string id = 1;
+  // Button text, in DescribeRequest.language, plain text, at most 48 characters. Required.
+  string label = 2;
+  // Provider ID keys the action can work with, lowercase, at most 8. A work needs at least one of them, or the host does
+  // not show the action or ask the plugin about that work. An action without any is ignored.
+  repeated string required_provider_ids = 3;
 }
 
 // CheckDeclaration is one check shown as a button on the plugin's settings page.
@@ -124,8 +143,10 @@ message AttributeLabel {
 
 // ImageFetchRule tells the host which Referer to send when it downloads an image from certain hosts.
 message ImageFetchRule {
-  // Host names the rule applies to, at most 16: an exact name (img.example.com) or a leading wildcard (*.example.com,
-  // which matches subdomains only). IP addresses and a lone * are not allowed.
+  // Hosts the rule applies to, at most 16: an exact name (img.example.com), a leading wildcard (*.example.com, which matches
+  // subdomains only), an IP address (192.168.1.20) or a CIDR range (192.168.1.0/24, fd00::/8). A lone * and addresses the host
+  // never downloads from (loopback, link-local, multicast, unspecified) are not allowed. Images from a private address also
+  // need the permission network.lan.
   repeated string hosts = 1;
   // The Referer sent with matching downloads: an absolute https or http URL.
   string referer = 2;

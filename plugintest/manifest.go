@@ -54,6 +54,7 @@ func checkManifest(t *testing.T, m *pluginv1.Manifest) {
 	t.Helper()
 	checkConfigItems(t, m)
 	checkLibraryOverrides(t, m)
+	checkDiscoverSeedDeclaration(t, m)
 	fields := map[string]*pluginv1.ConfigField{}
 	for _, f := range m.GetConfigFields() {
 		fields[f.GetKey()] = f
@@ -212,6 +213,9 @@ func checkManifest(t *testing.T, m *pluginv1.Manifest) {
 		if !pluginapi.ValidRatingSource(s) {
 			t.Errorf("rating source %q: 1 to 32 lowercase letters, digits, '_' or '-'", s)
 		}
+	}
+	for _, p := range workActionManifestProblems(m) {
+		t.Error(p)
 	}
 	if icon := m.GetIconPng(); len(icon) > 0 {
 		if _, err := pluginapi.CheckIcon(icon, pluginapi.MaxEmbeddedIcon); err != nil {

@@ -10,6 +10,9 @@ import (
 	"strings"
 	"sync/atomic"
 
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+
 	"github.com/kryspal/plugin-sdk"
 	pluginv1 "github.com/kryspal/plugin-sdk/pluginv1"
 	"github.com/kryspal/plugin-sdk/sdk"
@@ -54,7 +57,7 @@ func main() {
 	p := &provider{upstream: os.Getenv("FULL_UPSTREAM"), broken: os.Getenv("FULL_BREAK"), features: pluginapi.HostFeatures(os.Getenv),
 		settings: sdk.NewSettings(configFields())}
 	sdk.Main(sdk.Config{Plugin: p, MetadataProvider: p, ImageProvider: p, Recognizer: p, TaskRunner: p, SubtitleProvider: &subtitles{broken: p.broken}, DanmakuProvider: &danmaku{broken: p.broken},
-		RatingProvider: &ratings{broken: p.broken}})
+		RatingProvider: &ratings{broken: p.broken}, DiscoverSource: &works{broken: p.broken}, WorkActionProvider: &workActions{broken: p.broken}})
 }
 
 func (p *provider) Describe(context.Context, *pluginv1.DescribeRequest) (*pluginv1.Manifest, error) {
@@ -64,9 +67,12 @@ func (p *provider) Describe(context.Context, *pluginv1.DescribeRequest) (*plugin
 			pluginv1.CapabilityMetadataMovie, pluginv1.CapabilityMetadataPerson,
 			pluginv1.CapabilityImagesMovie, pluginv1.CapabilityImagesPerson, pluginv1.CapabilityMediaRecognize,
 			pluginv1.CapabilityPluginTasks, pluginv1.CapabilityMetadataPersonSearch, pluginv1.CapabilitySubtitlesSearch, pluginv1.CapabilityDanmakuProvider, pluginv1.CapabilityDanmakuMatch,
-			pluginv1.CapabilityRatingsMovie,
+			pluginv1.CapabilityRatingsMovie, pluginv1.CapabilityDiscoverSource, pluginv1.CapabilityWorkAction,
 		},
-		RatingSources: []string{"fullrate"},
+		WorkActions:     []*pluginv1.WorkActionDeclaration{{Id: "ask", Label: "Ask", RequiredProviderIds: []string{"full"}}},
+		Permissions:     []string{pluginv1.PermissionDiscoverSeeds},
+		DiscoverSeedIds: []string{"full", pluginv1.DiscoverSeedIDProductCode},
+		RatingSources:   []string{"fullrate"},
 		ConfigFields: append(configFields(), []*pluginv1.ConfigField{
 			{Key: "use_db", Label: "Use a database", Type: pluginv1.ConfigFieldType_CONFIG_FIELD_TYPE_BOOL, DefaultValue: "false"},
 			{Key: "dsn", Label: "Database address", Type: pluginv1.ConfigFieldType_CONFIG_FIELD_TYPE_STRING,
@@ -90,6 +96,12 @@ func (p *provider) Describe(context.Context, *pluginv1.DescribeRequest) (*plugin
 		},
 		AttributeLabels: []*pluginv1.AttributeLabel{{Key: "shoe_size", Label: "Shoe size"}},
 	}
+	if p.broken == "seedperm" {
+		m.Permissions = nil
+	}
+	if p.broken == "seedids" {
+		m.DiscoverSeedIds = []string{"full", "Bad Key", "a", "b", "c"}
+	}
 	if p.broken == "manifest" {
 		m.ConfigFields[2].VisibleWhen.Key = "names"
 		m.ConfigFields[3].DefaultValue = `["c"]`
@@ -97,6 +109,10 @@ func (p *provider) Describe(context.Context, *pluginv1.DescribeRequest) (*plugin
 		m.Tasks[0].DefaultSchedule = &pluginv1.TaskSchedule{IntervalMinutes: 1}
 		m.AttributeLabels[0].Key = "Shoe-Size"
 		m.ConfigFields[7].Item = "c"
+	}
+	if p.broken == "declaration" {
+		m.WorkActions = append(m.WorkActions, &pluginv1.WorkActionDeclaration{Id: "bad", Label: "Bad"},
+			&pluginv1.WorkActionDeclaration{Id: "upper", Label: "Upper", RequiredProviderIds: []string{"TMDB"}})
 	}
 	if p.broken == "autofill" {
 		m.ConfigFields[8].DefaultValue = "5000"
@@ -307,4 +323,213 @@ func (r *ratings) GetRatings(_ context.Context, req *pluginv1.GetRatingsRequest)
 		src = "imdb"
 	}
 	return &pluginv1.GetRatingsResponse{Ratings: []*pluginv1.Rating{{Source: src, Value: 7.5, Max: 10, Votes: 42}}}, nil
+}
+
+// works is the plugin's discover.source: a home tab with a hero and a row, a tab of genre cards, and genre and person pages
+// that are nothing special to the host. FULL_BREAK=discover answers with something wrong in each of them.
+type works struct {
+	pluginv1.UnimplementedDiscoverSourceServer
+	broken string
+}
+
+func (w *works) work(key string, t pluginv1.ItemType) *pluginv1.Work {
+	out := &pluginv1.Work{Key: key, Type: t, Title: "Work " + key, Year: 2020, PosterUrl: "https://img.example.com/" + key + ".jpg", BackdropUrl: "https://img.example.com/" + key + "-wide.jpg", ProviderIds: map[string]string{"full": key}}
+	out.Badges = []*pluginv1.WorkBadge{{Text: "New", Color: "#00FF00", Outline: "#FFFFFF", Corner: pluginv1.WorkBadgeCorner_WORK_BADGE_CORNER_BOTTOM_LEFT},
+		{Corner: pluginv1.WorkBadgeCorner_WORK_BADGE_CORNER_BOTTOM_RIGHT, Rating: &pluginv1.Rating{Source: "full", Value: 8.1, Max: 10}}}
+	out.ProductCode = "FULL-1"
+	if w.broken == "discover" {
+		out.ProductCode = strings.Repeat("9", pluginapi.MaxWorkProductCode+1) + "\n1"
+		out.Caption = strings.Repeat("c", pluginapi.MaxWorkCaption+1)
+		out.Badges = []*pluginv1.WorkBadge{{Text: " "}, {Text: "Far too long", Color: "red"}, {Text: "O", Outline: "#12"}, {Text: "C", Corner: pluginv1.WorkBadgeCorner(99)},
+			{Text: "R", Rating: &pluginv1.Rating{Source: "Bad Source", Value: 11, Max: 10}}, {Text: "T1"}, {Text: "T2"}}
+	}
+	return out
+}
+
+func (w *works) DescribeDiscoverSource(context.Context, *pluginv1.DescribeDiscoverSourceRequest) (*pluginv1.DiscoverSourceInfo, error) {
+	info := &pluginv1.DiscoverSourceInfo{Name: "Full", Tabs: []*pluginv1.DiscoverTab{{Title: "Home", Ref: "home"}, {Title: "Genres", Ref: "genres"}, {Title: "For you", Ref: "foryou", Seeded: true}},
+		SearchTypes: []pluginv1.ItemType{pluginv1.ItemType_ITEM_TYPE_MOVIE, pluginv1.ItemType_ITEM_TYPE_SERIES}}
+	if w.broken == "seededfirst" {
+		info.Tabs[0].Seeded = true
+	}
+	if w.broken == "noseededtab" {
+		info.Tabs = info.Tabs[:2]
+	}
+	if w.broken == "discover" {
+		info.Tabs = append(info.Tabs, &pluginv1.DiscoverTab{Ref: "untitled"}, &pluginv1.DiscoverTab{Title: "Bad", Ref: "a\nb"})
+		info.SearchTypes = append(info.SearchTypes, pluginv1.ItemType_ITEM_TYPE_SEASON)
+	}
+	return info, nil
+}
+
+func (w *works) GetDiscoverPage(_ context.Context, req *pluginv1.GetDiscoverPageRequest) (*pluginv1.DiscoverPage, error) {
+	movie, series := pluginv1.ItemType_ITEM_TYPE_MOVIE, pluginv1.ItemType_ITEM_TYPE_SERIES
+	broken := w.broken == "discover"
+	if w.broken == "seeds" && len(req.GetSeeds()) > 0 {
+		return &pluginv1.DiscoverPage{Filters: genreFilter(), Rows: []*pluginv1.DiscoverRow{{Id: "because", Title: "Because you have it", Works: []*pluginv1.Work{w.work("m1", movie)}}}}, nil
+	}
+	switch {
+	case req.GetRef() == "home":
+		popular := &pluginv1.DiscoverRow{Id: "popular", Title: "Popular", MoreRef: "genre:drama", Works: []*pluginv1.Work{w.work("m1", movie), w.work("s1", series)}}
+		if req.GetPageToken() == "" {
+			popular.NextPageToken = "2"
+		}
+		hero := &pluginv1.DiscoverRow{Id: "top", Style: pluginv1.DiscoverRowStyle_DISCOVER_ROW_STYLE_HERO, Works: []*pluginv1.Work{w.work("m1", movie)}}
+		bare := w.work("s1", series)
+		bare.BackdropUrl = ""
+		wide := &pluginv1.DiscoverRow{Id: "wide", Title: "Wide", Style: pluginv1.DiscoverRowStyle_DISCOVER_ROW_STYLE_LANDSCAPE, Works: []*pluginv1.Work{w.work("m1", movie), bare}}
+		popular.Refreshable = true
+		if req.GetRowId() == "popular" {
+			if w.broken == "refresh" && req.GetBatch() > 1 {
+				return nil, status.Error(codes.InvalidArgument, "no such batch")
+			}
+			return &pluginv1.DiscoverPage{Rows: []*pluginv1.DiscoverRow{popular}, Filters: genreFilter(), Sort: newestSort()}, nil
+		}
+		if broken {
+			popular.Id = "Bad Row"
+			popular.NextPageToken = ""
+			popular.Works[0].Key = "a\nb"
+			popular.Works[1].PosterUrl = "/relative.jpg"
+			popular.Works = append(popular.Works, w.work("other", pluginv1.ItemType_ITEM_TYPE_SEASON))
+			hero.Works[0].BackdropUrl = ""
+			hero.NextPageToken = "2"
+			wide.Works = []*pluginv1.Work{bare}
+			return &pluginv1.DiscoverPage{Rows: []*pluginv1.DiscoverRow{hero, popular, wide, {Id: "late", Title: "Late", Style: pluginv1.DiscoverRowStyle_DISCOVER_ROW_STYLE_HERO}},
+				Header: &pluginv1.DiscoverPageHeader{Subtitle: "No title", ImageUrl: "/header.jpg", Facts: []*pluginv1.DiscoverFact{{Label: "No value"}}},
+				Filters: append(genreFilter(), &pluginv1.WorkOption{Key: "Bad Key", Label: "Bad", Choices: []*pluginv1.WorkChoice{{Value: "x", Label: "x"}}},
+					&pluginv1.WorkOption{Key: "genre", Label: "Again", Required: true, Choices: []*pluginv1.WorkChoice{{Value: "x", Label: "x", Disabled: true}}}),
+				Sort: &pluginv1.WorkOption{Key: "sort", Label: "Sort", Multiple: true, Choices: []*pluginv1.WorkChoice{{Value: "new", Label: "Newest first"}}}}, nil
+		}
+		return &pluginv1.DiscoverPage{Rows: []*pluginv1.DiscoverRow{hero, popular, wide}}, nil
+	case req.GetRef() == "foryou":
+		// Recommendations from the seeds, a new random pick for each batch; without seeds the page is empty.
+		if len(req.GetSeeds()) == 0 {
+			return &pluginv1.DiscoverPage{}, nil
+		}
+		row := &pluginv1.DiscoverRow{Id: "picked", Title: "Picked for you", Refreshable: true, Works: []*pluginv1.Work{w.work("m1", movie)}}
+		if req.GetBatch()%2 == 1 {
+			row.Works = []*pluginv1.Work{w.work("s1", series)}
+		}
+		if w.broken == "refresh" && req.GetBatch() > 1 {
+			return nil, status.Error(codes.InvalidArgument, "no such batch")
+		}
+		return &pluginv1.DiscoverPage{Rows: []*pluginv1.DiscoverRow{row}}, nil
+	case req.GetRef() == "genres":
+		cards := &pluginv1.DiscoverRow{Id: "all", Title: "All genres", Style: pluginv1.DiscoverRowStyle_DISCOVER_ROW_STYLE_CARDS, Cards: []*pluginv1.DiscoverCard{{Title: "Drama", ImageUrl: "https://img.example.com/drama.jpg", Ref: "genre:drama"},
+			{Title: "A Studio", ImageUrl: "https://img.example.com/studio.png", ImageKind: pluginv1.DiscoverCardImageKind_DISCOVER_CARD_IMAGE_KIND_LOGO, Ref: "genre:drama"},
+			{Title: "A Person", ImageUrl: "https://img.example.com/person.jpg", ImageKind: pluginv1.DiscoverCardImageKind_DISCOVER_CARD_IMAGE_KIND_PORTRAIT, Ref: "genre:drama"}}}
+		if broken {
+			cards.Cards = append(cards.Cards, &pluginv1.DiscoverCard{Title: "No ref"}, &pluginv1.DiscoverCard{Ref: "untitled"},
+				&pluginv1.DiscoverCard{Title: "Future", Ref: "genre:drama", ImageKind: pluginv1.DiscoverCardImageKind(99)})
+			cards.Works = []*pluginv1.Work{w.work("m1", movie)}
+		}
+		return &pluginv1.DiscoverPage{Rows: []*pluginv1.DiscoverRow{cards}}, nil
+	case req.GetRef() == "genre:drama":
+		return &pluginv1.DiscoverPage{Header: &pluginv1.DiscoverPageHeader{Title: "Drama"}, Filters: genreFilter(), Sort: newestSort(),
+			Rows: []*pluginv1.DiscoverRow{{Id: "works", Title: "Works", Works: []*pluginv1.Work{w.work("m1", movie)}}}}, nil
+	case req.GetRef() == "person:1":
+		acted := w.work("m1", movie)
+		acted.Caption = "A Character"
+		return &pluginv1.DiscoverPage{Header: &pluginv1.DiscoverPageHeader{Title: "A Person", Subtitle: "Acting", Overview: "A life", ImageUrl: "https://img.example.com/person.jpg",
+			Facts: []*pluginv1.DiscoverFact{{Label: "Born", Value: "1964"}}}, Rows: []*pluginv1.DiscoverRow{{Id: "works", Title: "Works", Works: []*pluginv1.Work{acted}}}}, nil
+	case strings.HasPrefix(req.GetRef(), "related:"):
+		return &pluginv1.DiscoverPage{Rows: []*pluginv1.DiscoverRow{{Id: "more", Title: "More like this", Works: []*pluginv1.Work{w.work("s1", series)}}}}, nil
+	case broken:
+		return &pluginv1.DiscoverPage{}, nil // accepts any ref
+	}
+	return nil, status.Error(codes.NotFound, "no such page")
+}
+
+func genreFilter() []*pluginv1.WorkOption {
+	return []*pluginv1.WorkOption{{Key: "genre", Label: "Genre", Multiple: true, Choices: []*pluginv1.WorkChoice{{Value: "drama", Label: "Drama"}}}}
+}
+
+func newestSort() *pluginv1.WorkOption {
+	return &pluginv1.WorkOption{Key: "sort", Label: "Sort", Choices: []*pluginv1.WorkChoice{{Value: "new", Label: "Newest first", Selected: true}}}
+}
+
+func (w *works) SearchWorks(context.Context, *pluginv1.SearchWorksRequest) (*pluginv1.SearchWorksResponse, error) {
+	return &pluginv1.SearchWorksResponse{Works: []*pluginv1.Work{w.work("m1", pluginv1.ItemType_ITEM_TYPE_MOVIE)}}, nil
+}
+
+func (w *works) GetWork(_ context.Context, req *pluginv1.GetWorkRequest) (*pluginv1.Work, error) {
+	t := pluginv1.ItemType_ITEM_TYPE_MOVIE
+	if strings.HasPrefix(req.GetKey(), "s") {
+		t = pluginv1.ItemType_ITEM_TYPE_SERIES
+	}
+	out := w.work(req.GetKey(), t)
+	if t == pluginv1.ItemType_ITEM_TYPE_SERIES {
+		out.Seasons = []*pluginv1.WorkSeason{{Number: 1, EpisodeCount: 8}}
+	}
+	out.Tagline = "A line"
+	out.Genres = []*pluginv1.WorkRefLink{{Text: "Drama", Ref: "genre:drama"}}
+	out.Companies = []*pluginv1.WorkRefLink{{Text: "A Network"}, {Text: "A Studio"}}
+	out.Credits = []*pluginv1.WorkCredit{
+		{Name: "A Director", Kind: pluginv1.WorkCreditKind_WORK_CREDIT_KIND_DIRECTOR, ImageUrl: "https://img.example.com/director.jpg", Ref: "person:1"},
+		{Name: "An Actor", Kind: pluginv1.WorkCreditKind_WORK_CREDIT_KIND_ACTOR, Role: "A Character"},
+	}
+	out.RelatedRef = "related:" + req.GetKey()
+	out.ExternalLinks = []*pluginv1.ExternalLink{{Url: "https://video.example.com/trailer", Label: "Trailer"}, {Url: "http://192.168.1.20:5055/work/1", Label: "Open"}}
+	if w.broken == "discover" {
+		out.Genres = append(out.Genres, &pluginv1.WorkRefLink{Text: " "}, &pluginv1.WorkRefLink{Text: "Bad", Ref: "a\nb"})
+		out.Companies = make([]*pluginv1.WorkRefLink, pluginapi.MaxWorkCompanies+1)
+		out.Credits = append(out.Credits, &pluginv1.WorkCredit{Name: "No kind"}, &pluginv1.WorkCredit{Kind: pluginv1.WorkCreditKind_WORK_CREDIT_KIND_ACTOR},
+			&pluginv1.WorkCredit{Name: "Bad image", Kind: pluginv1.WorkCreditKind_WORK_CREDIT_KIND_ACTOR, ImageUrl: "/relative.jpg"})
+		out.ExternalLinks = append(out.ExternalLinks, &pluginv1.ExternalLink{Url: "ftp://video.example.com/plain", Label: "Plain"}, &pluginv1.ExternalLink{Url: "https://video.example.com/nolabel"})
+	}
+	return out, nil
+}
+
+// workActions is the plugin's work.action. FULL_BREAK=actions answers with an undeclared action, actions nobody asked
+// for, a status outside the set, a long status text, a link that is not http, and member works without a title, with a
+// progress outside the range, a time that cannot be read and the wrong order.
+type workActions struct {
+	pluginv1.UnimplementedWorkActionProviderServer
+	broken string
+}
+
+func (a *workActions) GetWorkStates(_ context.Context, req *pluginv1.GetWorkStatesRequest) (*pluginv1.GetWorkStatesResponse, error) {
+	resp := &pluginv1.GetWorkStatesResponse{}
+	for _, w := range req.GetWorks() {
+		st := &pluginv1.WorkState{Ref: w.GetRef(), Status: pluginv1.WorkStatus_WORK_STATUS_NONE}
+		if req.GetIncludeActions() {
+			st.Actions = []*pluginv1.WorkActionOffer{{Action: "ask", Options: []*pluginv1.WorkOption{
+				{Key: "seasons", Label: "Which seasons", Multiple: true, Required: true, Choices: []*pluginv1.WorkChoice{{Value: "1", Label: "Season 1", Selected: true}}},
+			}}}
+		}
+		if a.broken == "actions" {
+			st.Status = pluginv1.WorkStatus(99)
+			st.StatusText = "A status text that is much too long for a badge"
+			st.Actions = []*pluginv1.WorkActionOffer{{Action: "ghost"}}
+		}
+		resp.States = append(resp.States, st)
+	}
+	return resp, nil
+}
+
+func (a *workActions) RunWorkAction(context.Context, *pluginv1.RunWorkActionRequest) (*pluginv1.RunWorkActionResponse, error) {
+	resp := &pluginv1.RunWorkActionResponse{Message: "Done", State: &pluginv1.WorkState{Status: pluginv1.WorkStatus_WORK_STATUS_PENDING, StatusText: "Waiting"}}
+	if a.broken == "actions" {
+		resp.Link = &pluginv1.ExternalLink{Url: "javascript:alert(1)"}
+	}
+	return resp, nil
+}
+
+func (a *workActions) ListMemberWorks(_ context.Context, req *pluginv1.ListMemberWorksRequest) (*pluginv1.ListMemberWorksResponse, error) {
+	movie := pluginv1.ItemType_ITEM_TYPE_MOVIE
+	if req.GetPageToken() != "" {
+		return &pluginv1.ListMemberWorksResponse{}, nil
+	}
+	progress := 40.0
+	resp := &pluginv1.ListMemberWorksResponse{NextPageToken: "2", Works: []*pluginv1.MemberWork{
+		{Work: &pluginv1.Work{Key: "m1", Type: movie, Title: "Work m1"}, Status: pluginv1.WorkStatus_WORK_STATUS_PROCESSING, UpdatedAt: "2026-11-05T10:00:00Z", ProgressPercent: &progress},
+		{Work: &pluginv1.Work{Type: movie, Title: "Without a key"}, Status: pluginv1.WorkStatus_WORK_STATUS_PENDING, UpdatedAt: "2026-11-05T09:00:00Z"},
+	}}
+	if a.broken == "actions" {
+		wrong := 150.0
+		resp.Works = append(resp.Works,
+			&pluginv1.MemberWork{Work: &pluginv1.Work{Type: movie}, UpdatedAt: "2026-11-05T11:00:00Z", ProgressPercent: &wrong},
+			&pluginv1.MemberWork{Work: &pluginv1.Work{Type: movie, Title: "Late"}, UpdatedAt: "yesterday"})
+	}
+	return resp, nil
 }

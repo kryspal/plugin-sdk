@@ -243,6 +243,9 @@ const (
 	// HostFeatureDanmakuMediaPaths: GetDanmakuRequest.media_paths carries the absolute paths of the item's local media
 	// files. Without it the field is empty.
 	HostFeatureDanmakuMediaPaths = "danmaku_media_paths"
+	// HostFeatureDiscover: the host calls DiscoverSource of plugins that declare discover.source and WorkActionProvider
+	// of plugins that declare work.action, and keeps Manifest.work_actions. Without it neither service is ever called.
+	HostFeatureDiscover = "discover"
 )
 
 // HostFeatures returns the features listed in EnvHostFeatures. The result is empty, not nil, when the variable is

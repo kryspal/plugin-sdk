@@ -3,6 +3,18 @@
 All notable changes to the Kryspal Media Plugin SDK. The protocol major version is `v1` (proto package
 `kryspal.plugin.v1`); within v1 only compatible additions are made (new fields, RPCs, services, capabilities).
 
+## v0.11.0 (unreleased)
+
+- Discover and work actions (host feature `discover`, `pluginapi.HostFeatureDiscover`, §7.12): two new independent capabilities, free on every
+  plan. `discover.source` (`pluginv1.CapabilityDiscoverSource`, service `DiscoverSource`: `DescribeDiscoverSource`, `GetDiscoverPage`,
+  `SearchWorks`, `GetWork`) shows works outside the library, on pages the plugin defines: tabs, rows of posters, a hero, entry cards (whose
+  `image_kind` is a cover, a whole logo or a portrait), filters and sort, and a detail page with links, people, related works and external links (`http` or `https`). A plugin with the new permission `discover.seeds`, `Manifest.discover_seed_ids` and a tab with `DiscoverTab.seeded` receives `GetDiscoverPageRequest.seeds` on that tab, when the administrator allows it: works from the library and what the member watched (`DiscoverSeed.origin`), with only their type and allowed IDs. A row with `DiscoverRow.refreshable` can be refreshed; the host sends a new `GetDiscoverPageRequest.batch`. `Work.product_code` is an optional catalog number, and `DISCOVER_ROW_STYLE_LANDSCAPE` is a row of `backdrop_url` images. `Work.badges` puts up to 4 badges on a poster: text, color, outline and corner like the server's own, or a score.
+  `work.action` (`pluginv1.CapabilityWorkAction`, service `WorkActionProvider`: `GetWorkStates`, `RunWorkAction`, `ListMemberWorks`,
+  with the new `Manifest.work_actions`) reports a fixed set of states, runs actions for a member, lists what a member started, and is the only
+  capability that receives member information. Register them with `sdk.Config.DiscoverSource` and `sdk.Config.WorkActionProvider`. `plugintest` checks a plugin that
+  declares them; the new `Options.DiscoverQuery`, `Options.WorkRef` and `Options.RunWorkAction` control the checks. Limits and validators are in
+  `pluginapi` (`MaxWorkStates`, `MaxDiscoverFilters`, `ValidWorkKey`, `ValidDiscoverRef` and others). Plugins that declare neither are unchanged.
+
 ## v0.10.0 (2026-10-29)
 
 - Picking a danmaku match (host feature `danmaku_override`, `pluginapi.HostFeatureDanmakuOverride`): the new capability `danmaku.match`

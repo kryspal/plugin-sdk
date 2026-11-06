@@ -89,6 +89,18 @@ type Options struct {
 	// values above 0 and at most their max). The plugin must declare the matching ratings.* capability. Plugins that are
 	// also metadata providers are checked with the item of Metadata as well.
 	Ratings *RatingsCase
+	// DiscoverQuery is the text the discover.source checks search for; empty uses "a". A plugin that declares
+	// discover.source is always checked: its rows, a search, the next page of each row and GetWork of the first work.
+	DiscoverQuery string
+	// DiscoverSeeds are the seeds for the check of a plugin with the permission discover.seeds. Empty uses one work with the value
+	// 1 for each ID in Manifest.discover_seed_ids, so the plugin must handle IDs its source does not know.
+	DiscoverSeeds []*pluginv1.DiscoverSeed
+	// WorkRef is the work the work.action checks ask about. Empty uses the first work of the plugin's own discover.source
+	// with provider IDs, so a plugin with only work.action must set it. Its ref is not used.
+	WorkRef *pluginv1.WorkRef
+	// RunWorkAction names one action (Manifest.work_actions) to run on WorkRef. Actions are not run unless named, since
+	// they may change something outside the server.
+	RunWorkAction string
 	// RunTasks names tasks (Manifest.tasks) to run once each with RunTask. The plugin must declare plugin.tasks.
 	// Tasks are not run unless listed, since they may reach the network or take long.
 	RunTasks []string
@@ -273,6 +285,28 @@ func Run(t *testing.T, binary string, opts Options) {
 			itemRatings(ctx, t, p.conn, manifest, &pluginv1.ItemMetadata{Type: rc.Type, ProviderIds: rc.ProviderIDs})
 		})
 	}
+	var discovered *pluginv1.Work
+	if declares(manifest, pluginv1.CapabilityDiscoverSource) {
+		t.Run("Discover", func(t *testing.T) {
+			q := opts.DiscoverQuery
+			if q == "" {
+				q = "a"
+			}
+			discovered = checkDiscover(ctx, t, p.conn, q)
+			if slices.Contains(manifest.GetPermissions(), pluginv1.PermissionDiscoverSeeds) {
+				checkDiscoverSeeds(ctx, t, p.conn, manifest, opts.DiscoverSeeds)
+			}
+		})
+	}
+	if declares(manifest, pluginv1.CapabilityWorkAction) {
+		t.Run("WorkActions", func(t *testing.T) {
+			ref := opts.WorkRef
+			if ref == nil && discovered != nil {
+				ref = &pluginv1.WorkRef{Type: discovered.GetType(), ProviderIds: discovered.GetProviderIds()}
+			}
+			checkWorkActions(ctx, t, p.conn, manifest, ref, opts.RunWorkAction)
+		})
+	}
 	if dc := opts.Danmaku; dc != nil {
 		t.Run("Danmaku", func(t *testing.T) { checkDanmaku(ctx, t, p.conn, manifest, dc) })
 	}
@@ -380,7 +414,7 @@ var hostFeatures = []string{
 	pluginapi.HostFeatureConfirmedNumbering, pluginapi.HostFeatureLibraryConfig, pluginapi.HostFeatureRecognitionHint,
 	pluginapi.HostFeatureLookupNames, pluginapi.HostFeatureFilePaths, pluginapi.HostFeatureSubtitleConfirmed, pluginapi.HostFeatureVersionLabels,
 	pluginapi.HostFeaturePluginIcon, pluginapi.HostFeatureRatingProviders, pluginapi.HostFeatureDanmakuOverride,
-	pluginapi.HostFeatureDanmakuMediaPaths,
+	pluginapi.HostFeatureDanmakuMediaPaths, pluginapi.HostFeatureDiscover,
 }
 
 // DefaultHostFeatures returns the features the suite announces to the plugin by default, the list of a current host.

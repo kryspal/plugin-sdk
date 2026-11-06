@@ -6,7 +6,7 @@ Kryspal Media Plugin protocol v1: a plugin is a standalone executable that the s
 | --- | --- |
 | [`PROTOCOL.md`](PROTOCOL.md) | Protocol specification: handshake, call order, health checks, configuration, capabilities, errors, plugin catalog and packages |
 | `handshake.go` (package `pluginapi`) | Handshake environment variables, cookie, handshake line format and parsing, protocol version negotiation; shared by the host and the SDK |
-| `v1/*.proto` | Package `kryspal.plugin.v1`. Plugin side: `Plugin` (Describe, Configure), `MetadataProvider` (Search, GetItem, GetPerson, SearchPerson, GetCollection), `ImageProvider`, `SubtitleProvider`, `UserSync`, `Recognizer`, `SegmentProvider`, `DanmakuProvider`, `PersonAliasProvider`, `CastTarget`. Host side: `Host`, served by the host to plugins |
+| `v1/*.proto` | Package `kryspal.plugin.v1`. Plugin side: `Plugin` (Describe, Configure), `MetadataProvider` (Search, GetItem, GetPerson, SearchPerson, GetCollection), `ImageProvider`, `SubtitleProvider`, `UserSync`, `DiscoverSource`, `WorkActionProvider`, `Recognizer`, `SegmentProvider`, `DanmakuProvider`, `PersonAliasProvider`, `CastTarget`. Host side: `Host`, served by the host to plugins |
 | `v1/*.pb.go` (package `pluginv1`) | Generated with `gen.sh` |
 | `v1/protocol.go` | Protocol constants: capabilities, health check service names, reading and writing the `retry-after-seconds` trailer |
 | `i18n/` | Plugin localization helpers: string tables, language fallback chain (zh-CN → zh-TW → en) |
