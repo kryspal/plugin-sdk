@@ -72,6 +72,14 @@ const (
 	CapabilityDiscoverSource = "discover.source"
 	// Acting on works: GetWorkStates, RunWorkAction for the actions in Manifest.work_actions. Receives member information.
 	CapabilityWorkAction = "work.action"
+	// Acting on the plugin's own discover pages: GetPageState, RunPageAction for the actions in Manifest.page_actions.
+	// Receives member information. Needs discover.source.
+	CapabilityPageAction = "page.action"
+	// A member's subscriptions: ListMemberSubscriptions, RunSubscriptionAction for the actions in
+	// Manifest.subscription_actions. Receives member information.
+	CapabilityDiscoverSubscriptions = "discover.subscriptions"
+	// A member's calendar: ListMemberCalendar. Receives member information.
+	CapabilityDiscoverCalendar = "discover.calendar"
 )
 
 // Permissions (Manifest.permissions). The host ignores permissions it does not recognize.
@@ -86,7 +94,14 @@ const (
 	PermissionDiscoverSeeds = "discover.seeds"
 	// DiscoverSeedIDProductCode is the entry of Manifest.discover_seed_ids that asks for DiscoverSeed.product_code.
 	DiscoverSeedIDProductCode = "product_code"
+	// PermissionDiscoverLibraryFiles: GetWorkStatesRequest carries WorkRef.library_files, a summary of the library's files
+	// of each work in the library that the member can see (size, height, running time, whether it is a link, the version's
+	// name; never a path). The administrator allows it for each plugin; it is off by default.
+	PermissionDiscoverLibraryFiles = "discover.library_files"
 )
+
+// SubscriptionFormNew is the value of SuggestChoicesRequest.form for the new-subscription form (GetSubscriptionForm).
+const SubscriptionFormNew = "subscription.new"
 
 // Fixed codes of the Host service (gRPC status messages; they do not vary by language).
 const (
@@ -115,6 +130,9 @@ const (
 	HealthServiceChecker             = "kryspal.plugin.v1.Checker"
 	HealthServiceDiscoverSource      = "kryspal.plugin.v1.DiscoverSource"
 	HealthServiceWorkActionProvider  = "kryspal.plugin.v1.WorkActionProvider"
+	HealthServicePageActionProvider  = "kryspal.plugin.v1.PageActionProvider"
+	HealthServiceMemberSubscriptions = "kryspal.plugin.v1.MemberSubscriptionProvider"
+	HealthServiceMemberCalendar      = "kryspal.plugin.v1.MemberCalendarProvider"
 )
 
 // TrailerRetryAfter is the trailer key attached to a RESOURCE_EXHAUSTED error; its value is a positive decimal number of

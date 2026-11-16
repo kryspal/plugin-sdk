@@ -114,13 +114,29 @@ func TestTheSuiteCatchesBrokenAnswers(t *testing.T) {
 			`action "ghost" is not in work_actions`, "actions without include_actions", `status 99 is not in the fixed set`,
 			`link "javascript:alert(1)" is not an absolute`, "status_text is longer than 32",
 			`member work "" has no title`, `progress 150 is outside`, `updated_at "yesterday" is not RFC 3339`, `is newer than the one before it`,
+			`choice "a" has 5 tags`, "choice tag is longer than 16", "RunWorkActions returned 0 results for one work",
 		},
 		"declaration": {`work action "bad" lists no required_provider_ids`, `provider ID key "TMDB" must be lowercase`},
+		"members": {
+			`page_actions id "Follow Me" is not valid`, `page_actions "nolabel" needs a label`, `action "ghost" is not in page_actions`,
+			"GetPageState(unknown ref)", "GetPageState status_text is longer than 32",
+			`id "s1" is not valid or is repeated`, `subscription "No kind" needs a title and a kind_text`, `image_url "ftp://x" is not an absolute`,
+			`action "ghost" is not in subscription_actions`, "is newer than the one before it; list newest first within a page",
+			"RunSubscriptionAction on an ID that is not the member's succeeded",
+			`date "next week" is not YYYY-MM-DD`, `is outside the window`, `time "soon" is not RFC 3339`,
+		},
 		"manifest": {
 			`visible_when refers to "names" of type`, `default contains "c", which is not an option`,
 			`host "10.0.0.1" is a private network address, so the manifest must declare the permission network.lan`,
 			`host "127.0.0.1" is not an acceptable IP address`, "interval_minutes 1 is outside", `attribute label for "Shoe-Size"`,
 			`field "src_b_proxy": item "c" is not an item of its group`, `item "b" has no fields`,
+			"max_concurrent 9 is outside 0 to 4", "sets subscription_form without discover.subscriptions",
+			"discover.library_files without work.action",
+		},
+		"form": {
+			"form title is longer than 64", `form option "quality": the key is repeated`, `option "empty" has 0 choices`,
+			`form option "nolabel" has no label`, "option hint is longer than 64", "SuggestChoices returned 23 choices; the host keeps 20",
+			`suggested value "a\nb" is not valid`, `"genre" is searchable, which does not apply to filters`,
 		},
 	}
 	for mode, wants := range cases {

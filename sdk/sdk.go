@@ -75,6 +75,14 @@ type Config struct {
 	// work.action; when nil, the service is not registered.
 	DiscoverSource     pluginv1.DiscoverSourceServer
 	WorkActionProvider pluginv1.WorkActionProviderServer
+	// PageActionProvider is required when the plugin declares page.action, MemberSubscriptionProvider when it declares
+	// discover.subscriptions, and MemberCalendarProvider when it declares discover.calendar; when nil, the service is not
+	// registered. A MemberSubscriptionProvider that sets Manifest.subscription_form implements GetSubscriptionForm and
+	// CreateSubscription, and SuggestChoices when its options are searchable; embed
+	// pluginv1.UnimplementedMemberSubscriptionProviderServer for the methods it does not offer.
+	PageActionProvider         pluginv1.PageActionProviderServer
+	MemberSubscriptionProvider pluginv1.MemberSubscriptionProviderServer
+	MemberCalendarProvider     pluginv1.MemberCalendarProviderServer
 	// Recognizer is required when the plugin declares media.recognize; when nil, the service is not registered.
 	Recognizer pluginv1.RecognizerServer
 	// SegmentProvider and DanmakuProvider are required when the plugin declares segments.* and danmaku.provider; when nil,
@@ -204,6 +212,18 @@ func Serve(ctx context.Context, cfg Config) error {
 	if cfg.WorkActionProvider != nil {
 		pluginv1.RegisterWorkActionProviderServer(srv, cfg.WorkActionProvider)
 		hs.SetServingStatus(pluginv1.HealthServiceWorkActionProvider, healthpb.HealthCheckResponse_SERVING)
+	}
+	if cfg.PageActionProvider != nil {
+		pluginv1.RegisterPageActionProviderServer(srv, cfg.PageActionProvider)
+		hs.SetServingStatus(pluginv1.HealthServicePageActionProvider, healthpb.HealthCheckResponse_SERVING)
+	}
+	if cfg.MemberSubscriptionProvider != nil {
+		pluginv1.RegisterMemberSubscriptionProviderServer(srv, cfg.MemberSubscriptionProvider)
+		hs.SetServingStatus(pluginv1.HealthServiceMemberSubscriptions, healthpb.HealthCheckResponse_SERVING)
+	}
+	if cfg.MemberCalendarProvider != nil {
+		pluginv1.RegisterMemberCalendarProviderServer(srv, cfg.MemberCalendarProvider)
+		hs.SetServingStatus(pluginv1.HealthServiceMemberCalendar, healthpb.HealthCheckResponse_SERVING)
 	}
 	if cfg.SubtitleProvider != nil {
 		pluginv1.RegisterSubtitleProviderServer(srv, cfg.SubtitleProvider)

@@ -105,6 +105,27 @@ message Manifest {
   // ID keys such as tmdb, or product_code. The administrator allows them one by one, so an ID added in a later version is not
   // sent until the administrator confirms it.
   repeated string discover_seed_ids = 24;
+  // The actions the plugin offers on its own discover pages when it declares page.action (host feature page_actions), at
+  // most 8. In DescribeRequest.language. PageState says which of them apply to a page and a member at a given moment.
+  repeated ActionDeclaration page_actions = 25;
+  // The actions the plugin offers on a member's subscriptions when it declares discover.subscriptions (host feature
+  // discover_subscriptions), at most 8, for example "unsubscribe". In DescribeRequest.language. MemberSubscription.actions
+  // says which of them apply to one subscription.
+  repeated ActionDeclaration subscription_actions = 26;
+  // The plugin offers a form for new subscriptions (host feature subscription_form): the host calls GetSubscriptionForm,
+  // CreateSubscription and SuggestChoices only when this is true, and shows a "new subscription" entry for the plugin. Valid
+  // only with discover.subscriptions; ignored otherwise.
+  bool subscription_form = 27;
+}
+
+// ActionDeclaration is one action a plugin can run on a discover page (page_actions) or on a subscription
+// (subscription_actions).
+message ActionDeclaration {
+  // Unique within its list: a lowercase letter, then lowercase letters, digits and underscores, at most 48 characters.
+  // Do not rename it after release.
+  string id = 1;
+  // Button text, in DescribeRequest.language, plain text, at most 48 characters. Required.
+  string label = 2;
 }
 
 // WorkActionDeclaration is one action a work.action plugin can run on works.
@@ -154,6 +175,12 @@ message ImageFetchRule {
   // The host downloads images from matching hosts through that proxy. Empty: no plugin proxy; the host's
   // own image download proxy, if the administrator set one, still applies. The host never logs or echoes the value.
   string proxy_from = 3;
+  // How many background downloads the host runs against one matching host at a time, 1 to 4; 0 keeps the default of 2.
+  // Background downloads are those nobody is waiting for, such as filling caches ahead of time; downloads a viewer is
+  // waiting for have their own, larger limit, which this does not change. For hosts that serve many small images quickly,
+  // such as a catalog's image server. The host caps it at 4. A rule may carry only hosts and this field. When two plugins'
+  // rules match a host, the first plugin ID in sort order wins, as for the Referer.
+  int32 max_concurrent = 4;
 }
 
 // TaskDeclaration is a task the plugin can run through TaskRunner.RunTask.

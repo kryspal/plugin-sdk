@@ -307,6 +307,19 @@ func Run(t *testing.T, binary string, opts Options) {
 			checkWorkActions(ctx, t, p.conn, manifest, ref, opts.RunWorkAction)
 		})
 	}
+	if declares(manifest, pluginv1.CapabilityPageAction) && declares(manifest, pluginv1.CapabilityDiscoverSource) {
+		t.Run("PageActions", func(t *testing.T) { checkPageActions(ctx, t, p.conn, manifest) })
+	}
+	if declares(manifest, pluginv1.CapabilityDiscoverSubscriptions) {
+		t.Run("Subscriptions", func(t *testing.T) { checkSubscriptions(ctx, t, p.conn, manifest) })
+		// The host calls the form only when the manifest sets subscription_form, so the suite does too.
+		if manifest.GetSubscriptionForm() {
+			t.Run("SubscriptionForm", func(t *testing.T) { checkSubscriptionForm(ctx, t, p.conn) })
+		}
+	}
+	if declares(manifest, pluginv1.CapabilityDiscoverCalendar) {
+		t.Run("Calendar", func(t *testing.T) { checkCalendar(ctx, t, p.conn) })
+	}
 	if dc := opts.Danmaku; dc != nil {
 		t.Run("Danmaku", func(t *testing.T) { checkDanmaku(ctx, t, p.conn, manifest, dc) })
 	}
@@ -414,7 +427,10 @@ var hostFeatures = []string{
 	pluginapi.HostFeatureConfirmedNumbering, pluginapi.HostFeatureLibraryConfig, pluginapi.HostFeatureRecognitionHint,
 	pluginapi.HostFeatureLookupNames, pluginapi.HostFeatureFilePaths, pluginapi.HostFeatureSubtitleConfirmed, pluginapi.HostFeatureVersionLabels,
 	pluginapi.HostFeaturePluginIcon, pluginapi.HostFeatureRatingProviders, pluginapi.HostFeatureDanmakuOverride,
-	pluginapi.HostFeatureDanmakuMediaPaths, pluginapi.HostFeatureDiscover,
+	pluginapi.HostFeatureDanmakuMediaPaths, pluginapi.HostFeatureDiscover, pluginapi.HostFeaturePageActions,
+	pluginapi.HostFeatureDiscoverSubscriptions, pluginapi.HostFeatureDiscoverCalendar, pluginapi.HostFeatureSubscriptionForm,
+	pluginapi.HostFeatureWorkPosterCrop, pluginapi.HostFeatureImageHostConcurrency, pluginapi.HostFeatureLibraryFiles,
+	pluginapi.HostFeatureWorkOptionHint,
 }
 
 // DefaultHostFeatures returns the features the suite announces to the plugin by default, the list of a current host.

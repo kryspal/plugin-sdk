@@ -3,16 +3,25 @@
 // Capabilities and the methods they map to:
 //   discover.source  DiscoverSource: DescribeDiscoverSource, GetDiscoverPage, SearchWorks, GetWork
 //   work.action      WorkActionProvider: GetWorkStates, RunWorkAction, ListMemberWorks
+//   page.action             PageActionProvider: GetPageState, RunPageAction
+//   discover.subscriptions  MemberSubscriptionProvider: ListMemberSubscriptions, RunSubscriptionAction
+//   discover.calendar       MemberCalendarProvider: ListMemberCalendar
 // For capabilities the plugin does not declare, the corresponding calls return UNIMPLEMENTED. Host feature discover;
 // older hosts never call these services.
 //
 // The two capabilities are independent: a plugin may implement one or both, and the host may show one plugin's actions
 // on another plugin's works. They meet only through a work's type and provider IDs.
 //
+// page.action works on the plugin's own pages only: a ref means something only to the plugin that gave it, so the host never
+// sends one plugin's ref to another. A plugin that declares page.action also declares discover.source. discover.subscriptions
+// and discover.calendar stand on their own: each may be declared with or without the others, and the host shows "my
+// subscriptions" and the calendar only for plugins that declare them.
+//
 // Works are the plugin's data. The host does not store them as library items, and it does not store actions or states:
 // it asks again, and caches answers for seconds only. The host finds a work in the library by its provider IDs.
 //
-// Only WorkActionProvider receives member information; DiscoverSource never does. Settings arrive through Configure, as
+// Only WorkActionProvider, PageActionProvider, MemberSubscriptionProvider and MemberCalendarProvider receive member
+// information; DiscoverSource never does. Settings arrive through Configure, as
 // for every other capability, not with each call.
 //
 // All text in these messages is plain text. The host removes control characters and cuts it to the stated length, and it
@@ -49,10 +58,62 @@ service WorkActionProvider {
   // RunWorkAction runs one action on one work for one member. The host never retries it on its own: it may change
   // something outside the server. The member may send any selection, so check it against what you offered.
   rpc RunWorkAction(RunWorkActionRequest) returns (RunWorkActionResponse);
+  // RunWorkActions runs one action on up to 50 works for one member at once, for example when a member requests several
+  // works together. Optional: UNIMPLEMENTED makes the host call RunWorkAction once per work, at most 2 at a time. The host
+  // never retries it. Answer every item, in order, as RunWorkAction would: a refusal of one item does not stop the others.
+  rpc RunWorkActions(RunWorkActionsRequest) returns (RunWorkActionsResponse);
   // ListMemberWorks lists the works this member started through this plugin, newest first. It must not change anything,
   // and it lists only this member's works whatever page_token says. A member the tool does not know gets an empty list.
   // A plugin that cannot list them returns UNIMPLEMENTED: the host then shows nothing for it and reports no failure.
   rpc ListMemberWorks(ListMemberWorksRequest) returns (ListMemberWorksResponse);
+}
+
+// PageActionProvider is implemented by plugins that declare page.action. The actions are in Manifest.page_actions, and they
+// apply to the plugin's own pages (refs from its DiscoverSource), for example "Subscribe" on a person's or a list's page.
+service PageActionProvider {
+  // GetPageState reports what one member can do on one page now. It must not change anything. NOT_FOUND when the ref does not
+  // resolve. The host asks once when the page opens and caches the answer for seconds.
+  rpc GetPageState(GetPageStateRequest) returns (PageState);
+  // RunPageAction runs one action on one page for one member. The host never retries it on its own: it may change something
+  // outside the server. The member may send any selection, so check it against what you offered.
+  rpc RunPageAction(RunPageActionRequest) returns (RunPageActionResponse);
+}
+
+// MemberSubscriptionProvider is implemented by plugins that declare discover.subscriptions: what a member follows through
+// this plugin, of any kind the plugin defines (a series, a person, a list, a keyword). The host stores no subscriptions: it
+// asks each time the member opens the list. Subscribing itself is a work action or a page action.
+service MemberSubscriptionProvider {
+  // ListMemberSubscriptions lists this member's subscriptions, newest first. It must not change anything, and it lists only
+  // this member's subscriptions whatever page_token says. A member the tool does not know gets an empty list.
+  rpc ListMemberSubscriptions(ListMemberSubscriptionsRequest) returns (ListMemberSubscriptionsResponse);
+  // RunSubscriptionAction runs one action (Manifest.subscription_actions) on one of this member's subscriptions, for example
+  // "unsubscribe". The host never retries it on its own. Check that the subscription belongs to the member: any member can
+  // send any ID.
+  rpc RunSubscriptionAction(RunSubscriptionActionRequest) returns (RunSubscriptionActionResponse);
+  // GetSubscriptionForm returns the form for a new subscription: the conditions the member fills in, for example people,
+  // studios and a quality, combined as the plugin decides. Called only when Manifest.subscription_form is true. It must not
+  // change anything. The host asks each time the member opens the form.
+  rpc GetSubscriptionForm(GetSubscriptionFormRequest) returns (SubscriptionForm);
+  // CreateSubscription creates one subscription from the member's answers to the form. The host never retries it on its
+  // own. The member may send any selection: check every value, above all those of searchable options (WorkOption.searchable),
+  // which the host cannot check against a list.
+  rpc CreateSubscription(CreateSubscriptionRequest) returns (CreateSubscriptionResponse);
+  // SuggestChoices returns choices for a searchable option (WorkOption.searchable) of the new-subscription form or of a
+  // subscription action, as the member types. Needed by a plugin that sends searchable options; others may leave it
+  // UNIMPLEMENTED. It must not change anything. The host asks only after the member stops
+  // typing for 300 ms and caches the answer per text, but a member can still type a lot: answer from a local index or a
+  // cache where you can, and bound your upstream calls.
+  rpc SuggestChoices(SuggestChoicesRequest) returns (SuggestChoicesResponse);
+}
+
+// MemberCalendarProvider is implemented by plugins that declare discover.calendar: dates in a time window that matter to one
+// member, for example releases and new episodes of what the member subscribed to or requested. The host asks only when the
+// viewer opens the calendar, caches the answer for minutes and never polls in the background. Bound your upstream calls:
+// answer from a cache where you can, and do not look up more than the window needs.
+service MemberCalendarProvider {
+  // ListMemberCalendar lists the entries between from and to. It must not change anything. A member the tool does not know
+  // gets an empty list.
+  rpc ListMemberCalendar(ListMemberCalendarRequest) returns (ListMemberCalendarResponse);
 }
 
 message DescribeDiscoverSourceRequest {
@@ -329,6 +390,13 @@ message Work {
   // Buttons that leave the server, for example a trailer, at most 4. They open in a new tab: the viewer's browser connects to
   // these sites directly, and the plugin's page tells the administrator so. Only http and https URLs with a host are kept.
   repeated ExternalLink external_links = 20;
+  // Optional: the poster as a part of backdrop_url, for a source that only has a wide cover with the front on one side. Used
+  // only when poster_url is empty: the host crops the backdrop the same way it crops a metadata plugin's images
+  // (Image.crop) and caches the result. Lists and GetWork each use what they send.
+  ImageCrop poster_crop = 23;
+  // Optional: the same as an aspect ratio and a position (Image.crop_hint), for when the plugin does not know the image's
+  // size. Ignored when poster_crop is set.
+  ImageCropHint poster_crop_hint = 24;
 }
 
 // WorkBadgeCorner is where a badge sits on the poster. The top right corner belongs to the host. Unspecified values and values
@@ -430,6 +498,10 @@ message WorkRef {
   ItemType type = 2;
   // All the IDs the host knows for the work. It contains at least one of the action's required_provider_ids.
   map<string, string> provider_ids = 3;
+  // What the library already has of this work, at most 8 versions, for example to offer a better one. Only in
+  // GetWorkStates, only for works in the library that this member can see, and only to a plugin the administrator allowed
+  // the permission discover.library_files (host feature library_files); empty otherwise.
+  repeated LibraryFile library_files = 4;
 }
 
 // WorkMember is the member an action or state is for. Disclosed to administrators on the plugin's page. Use it only for
@@ -468,6 +540,22 @@ message WorkState {
   string status_text = 3;
   // What the member can do now. An action left out shows no button for this member on this work.
   repeated WorkActionOffer actions = 4;
+  reserved 5;
+  reserved "library_files";
+}
+
+// LibraryFile describes one version of a work in the library, without its location.
+message LibraryFile {
+  // Size in bytes; for a link to a remote file (strm), the remote file's size when the host knows it, else 0.
+  int64 size_bytes = 1;
+  // Height of the video in pixels; 0 when unknown.
+  int32 height = 2;
+  // Running time in whole seconds; 0 when unknown.
+  int32 duration_seconds = 3;
+  // The file is a link to a remote file (strm), not the media itself.
+  bool strm = 4;
+  // The version's name as the server shows it, for example "4K HDR"; may be empty. Never a path or a file name.
+  string version_label = 5;
 }
 
 // WorkActionOffer is one action the member can run on a work right now.
@@ -476,7 +564,8 @@ message WorkActionOffer {
   string action = 1;
   // Button text for this state, for example "Ask again", at most 48 characters; empty uses the declared label.
   string label = 2;
-  // What the member chooses before the action runs, in display order, at most 4. Empty runs it on one press.
+  // What the member chooses before the action runs, in display order, at most 4 (at most 12 on a subscription's actions, as
+  // many as SubscriptionForm.options, so that an edit can show the whole form). Empty runs it on one press.
   repeated WorkOption options = 3;
 }
 
@@ -491,8 +580,18 @@ message WorkOption {
   bool multiple = 3;
   // At least one choice must be made before the action can run.
   bool required = 4;
-  // In display order, at most 100.
+  // In display order, at most 100. For a searchable option, the choices already chosen when the control appears (each with
+  // selected set), or nothing.
   repeated WorkChoice choices = 5;
+  // The choices are too many to list, for example people or studios: the host shows a text field and asks SuggestChoices as
+  // the member types; the chosen ones become chips. Honoured on the new-subscription form (GetSubscriptionForm) and on the
+  // options of subscription actions only: elsewhere the option is shown with its listed choices and the flag is ignored,
+  // because those requests carry no member or form to ask suggestions for. The host does not check the values the member
+  // sends for such an option against any list (it keeps no memory of suggestions): only their number (multiple and
+  // required), their length (at most 64 characters) and control characters. The plugin checks the rest.
+  bool searchable = 6;
+  // One short line of help shown under the option, in the request's language, plain text, at most 64 characters. Optional.
+  string hint = 7;
 }
 
 // WorkChoice is one answer to a WorkOption.
@@ -507,6 +606,12 @@ message WorkChoice {
   bool disabled = 4;
   // Short text next to the choice, for example why it is disabled; at most 32 characters.
   string note = 5;
+  // Optional short labels shared across works, at most 4, each at most 16 characters of plain text, for example "4K" or
+  // "Subtitled", when the choice labels are specific to each work. When a member requests several works at once, the host
+  // groups the preferences by WorkOption.label and the member ranks tags (and the labels of choices without tags). For each
+  // work the host picks the first choice that carries the highest-ranked tag or label, and otherwise your default
+  // (WorkChoice.selected). Not used for discover filters.
+  repeated string tags = 6;
 }
 
 message RunWorkActionRequest {
@@ -539,6 +644,27 @@ message RunWorkActionResponse {
   ExternalLink link = 3;
   // The work's state after the action, with its actions as for include_actions. Unset: the host asks GetWorkStates.
   WorkState state = 4;
+}
+
+message RunWorkActionsRequest {
+  // WorkActionDeclaration.id; the same action for every item.
+  string action = 1;
+  WorkMember member = 2;
+  Languages languages = 3;
+  // At most 50, each a work with the member's answers to that work's offer.
+  repeated RunWorkActionsItem items = 4;
+}
+
+// RunWorkActionsItem is one work of a RunWorkActionsRequest.
+message RunWorkActionsItem {
+  WorkRef work = 1;
+  repeated WorkSelection selections = 2;
+}
+
+message RunWorkActionsResponse {
+  // One per item, in the same order, each with the meaning of RunWorkActionResponse. The host treats a missing result as a
+  // failure of that item.
+  repeated RunWorkActionResponse results = 1;
 }
 
 message ListMemberWorksRequest {
@@ -599,4 +725,231 @@ message ExternalLink {
   // Link text, in the request's language, at most 48 characters. In RunWorkActionResponse.link, empty shows the URL; in
   // Work.external_links it is required.
   string label = 2;
+}
+
+message GetPageStateRequest {
+  // A ref this plugin gave: DiscoverTab.ref, DiscoverCard.ref or any other ref from its answers.
+  string ref = 1;
+  WorkMember member = 2;
+  // Language of status_text, labels and notes.
+  Languages languages = 3;
+}
+
+// PageState is what one member can do on one page now.
+message PageState {
+  // Short text for the page's state, in the request's language, at most 32 characters, for example "Subscribed". Empty shows
+  // nothing.
+  string status_text = 1;
+  // What the member can do now, at most 4. WorkActionOffer.action must be an id of Manifest.page_actions; others are dropped.
+  // Empty shows no button.
+  repeated WorkActionOffer actions = 2;
+}
+
+message RunPageActionRequest {
+  // ActionDeclaration.id from Manifest.page_actions.
+  string action = 1;
+  // The page, as in GetPageStateRequest.ref.
+  string ref = 2;
+  WorkMember member = 3;
+  Languages languages = 4;
+  // The member's answers to the offer's options.
+  repeated WorkSelection selections = 5;
+}
+
+message RunPageActionResponse {
+  // The same meaning as RunWorkActionResponse.refused: the answer is no, for a reason the member can read.
+  bool refused = 1;
+  // One sentence for the member, in the request's language, plain text, at most 200 characters.
+  string message = 2;
+  // Optional link that helps the member act on the message.
+  ExternalLink link = 3;
+  // The page's state after the action. When set, the host shows it and does not ask again; unset, the host asks
+  // GetPageState.
+  PageState state = 4;
+}
+
+message ListMemberSubscriptionsRequest {
+  WorkMember member = 1;
+  // Language of the text.
+  Languages languages = 2;
+  // ListMemberSubscriptionsResponse.next_page_token from the previous answer; empty for the first page. It comes through the
+  // client: it must not be able to select another member's subscriptions.
+  string page_token = 3;
+}
+
+message ListMemberSubscriptionsResponse {
+  // Newest first by updated_at, at most 50. The order is only required within this plugin's own pages: the host merges
+  // several plugins page by page, each with its own token, and does not need one stable order across them.
+  repeated MemberSubscription subscriptions = 1;
+  // Opaque token for the next page, at most 1024 characters; empty when there are no more.
+  string next_page_token = 2;
+}
+
+// MemberSubscription is one thing a member follows through this plugin.
+message MemberSubscription {
+  // The plugin's ID of the subscription: 1 to 256 characters of valid UTF-8 with no control characters, unique within this
+  // member's subscriptions on this plugin. RunSubscriptionAction sends it back. It goes through the client, so it must not
+  // contain secrets.
+  string id = 1;
+  // What kind of subscription it is, in the request's language, at most 24 characters, for example "Series", "Person" or
+  // "Keyword". Required.
+  string kind_text = 2;
+  // At most 128 characters. Required.
+  string title = 3;
+  // Absolute http or https URL, with the same rules as Work.poster_url.
+  string image_url = 4;
+  // What image_url shows, with the same values as DiscoverCard.image_kind.
+  DiscoverCardImageKind image_kind = 5;
+  // What opening the subscription shows. Unset: the entry does not open, for example a keyword.
+  oneof target {
+    // A work, with the same rules as MemberWork.work: it needs a type and a title, and a key when this plugin's GetWork can
+    // open it. Provider IDs let the host find it in the library.
+    Work work = 6;
+    // A page of this plugin; needs discover.source.
+    string page_ref = 7;
+  }
+  // When this entry last changed (UTC, RFC 3339). Entries without a valid time sort last and show no time.
+  string updated_at = 8;
+  // Short text for the subscription's state, at most 32 characters, for example "Next episode on 20 Nov".
+  string status_text = 9;
+  // What the member can do on it now, at most 4. WorkActionOffer.action must be an id of Manifest.subscription_actions;
+  // others are dropped. An offer may carry options, as for works. They run through RunSubscriptionAction.
+  repeated WorkActionOffer actions = 10;
+}
+
+message RunSubscriptionActionRequest {
+  // ActionDeclaration.id from Manifest.subscription_actions.
+  string action = 1;
+  // MemberSubscription.id.
+  string subscription_id = 2;
+  WorkMember member = 3;
+  Languages languages = 4;
+  // The member's answers to the options of the subscription's offer (MemberSubscription.actions are WorkActionOffers and
+  // may carry options).
+  repeated WorkSelection selections = 5;
+}
+
+message RunSubscriptionActionResponse {
+  // The same meaning as RunWorkActionResponse.refused.
+  bool refused = 1;
+  // One sentence for the member, in the request's language, plain text, at most 200 characters.
+  string message = 2;
+  // Optional link that helps the member act on the message.
+  ExternalLink link = 3;
+  // The subscription after the action. When set, the host shows it and does not ask again; unset with removed false, the
+  // host lists the subscriptions again.
+  MemberSubscription subscription = 4;
+  // The subscription no longer exists, for example after "unsubscribe".
+  bool removed = 5;
+}
+
+message GetSubscriptionFormRequest {
+  WorkMember member = 1;
+  // Language of the text.
+  Languages languages = 2;
+}
+
+// SubscriptionForm is the form for a new subscription. How its conditions combine (all of them, any of them, or otherwise)
+// is the plugin's decision: the host does not interpret them; say it in description when it matters.
+message SubscriptionForm {
+  // Title of the form, in the request's language, at most 64 characters; empty uses the plugin's name.
+  string title = 1;
+  // One or two sentences under the title, plain text, at most 120 characters, for example how the conditions combine.
+  // Optional.
+  string description = 2;
+  // The conditions, in display order, at most 12. Each is a WorkOption with the same rules as an action's options; keys are
+  // unique within the form. A form without any valid option is not shown.
+  repeated WorkOption options = 3;
+}
+
+message CreateSubscriptionRequest {
+  WorkMember member = 1;
+  Languages languages = 2;
+  // The member's answers to the form's options.
+  repeated WorkSelection selections = 3;
+}
+
+message CreateSubscriptionResponse {
+  // The same meaning as RunWorkActionResponse.refused, for example a condition the plugin does not accept.
+  bool refused = 1;
+  // One sentence for the member, in the request's language, plain text, at most 200 characters.
+  string message = 2;
+  // Optional link that helps the member act on the message.
+  ExternalLink link = 3;
+  // The new subscription. The host shows it first in the member's list; unset, the host lists the subscriptions again.
+  MemberSubscription subscription = 4;
+}
+
+message SuggestChoicesRequest {
+  // Which form the option belongs to: "subscription.new" for GetSubscriptionForm, or the id of a subscription action
+  // (ActionDeclaration.id in Manifest.subscription_actions) whose options are being filled in, for example "edit_rules".
+  string form = 1;
+  // WorkOption.key of the searchable option.
+  string key = 2;
+  // What the member typed, trimmed of spaces at both ends, otherwise as typed; never empty, at most 200 characters. A choice
+  // may echo it, for example free text such as a series prefix: the host treats it like any other choice.
+  string query = 3;
+  WorkMember member = 4;
+  Languages languages = 5;
+  // For a subscription action's options, the subscription being edited (MemberSubscription.id); empty for the new form.
+  string subscription_id = 6;
+}
+
+message SuggestChoicesResponse {
+  // Best first, at most 20. Of WorkChoice, value, label, note and tags apply; selected and disabled are ignored. An empty
+  // list shows "no matches".
+  repeated WorkChoice choices = 1;
+}
+
+message ListMemberCalendarRequest {
+  WorkMember member = 1;
+  // Language of the text.
+  Languages languages = 2;
+  // The window, as dates (YYYY-MM-DD), both included. At most 62 days: to is never more than 61 days after from.
+  string from = 3;
+  string to = 4;
+}
+
+message ListMemberCalendarResponse {
+  // In any order, at most 500: when there are more, send the first 500 by date; that is not an error. The host drops
+  // entries outside the window.
+  repeated CalendarEntry entries = 1;
+}
+
+// CalendarEntry is one date of one work.
+message CalendarEntry {
+  // Needs a type and a title, with the same rules as MemberWork.work.
+  Work work = 1;
+  // The date (YYYY-MM-DD) as the upstream gives it. When the upstream has only a date, send only the date: do not guess a
+  // time zone.
+  string date = 2;
+  // Optional exact time (UTC, RFC 3339), shown in the viewer's time zone. Its date may differ from date there.
+  string time = 3;
+  // What happens on that date.
+  CalendarEntryKind kind = 4;
+  // For an episode or a season premiere: the season number; 0 when not known.
+  int32 season = 5;
+  // For an episode: the episode number; 0 when not known.
+  int32 episode = 6;
+  // For an episode, at most 128 characters.
+  string episode_title = 7;
+  // Short text, at most 32 characters, for example "Requested" or "Subscribed".
+  string note = 8;
+}
+
+// CalendarEntryKind is what happens on a calendar date. The host treats values it does not know as unspecified.
+enum CalendarEntryKind {
+  CALENDAR_ENTRY_KIND_UNSPECIFIED = 0;
+  // Released in cinemas.
+  CALENDAR_ENTRY_KIND_THEATRICAL = 1;
+  // Released for streaming or digital purchase.
+  CALENDAR_ENTRY_KIND_DIGITAL = 2;
+  // Released on disc.
+  CALENDAR_ENTRY_KIND_PHYSICAL = 3;
+  // A series' first episode.
+  CALENDAR_ENTRY_KIND_PREMIERE = 4;
+  // A new episode.
+  CALENDAR_ENTRY_KIND_EPISODE = 5;
+  // The first episode of a later season.
+  CALENDAR_ENTRY_KIND_SEASON_PREMIERE = 6;
 }

@@ -6,9 +6,12 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"os"
+	"slices"
 	"strings"
 	"sync/atomic"
+	"time"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -57,7 +60,8 @@ func main() {
 	p := &provider{upstream: os.Getenv("FULL_UPSTREAM"), broken: os.Getenv("FULL_BREAK"), features: pluginapi.HostFeatures(os.Getenv),
 		settings: sdk.NewSettings(configFields())}
 	sdk.Main(sdk.Config{Plugin: p, MetadataProvider: p, ImageProvider: p, Recognizer: p, TaskRunner: p, SubtitleProvider: &subtitles{broken: p.broken}, DanmakuProvider: &danmaku{broken: p.broken},
-		RatingProvider: &ratings{broken: p.broken}, DiscoverSource: &works{broken: p.broken}, WorkActionProvider: &workActions{broken: p.broken}})
+		RatingProvider: &ratings{broken: p.broken}, DiscoverSource: &works{broken: p.broken}, WorkActionProvider: &workActions{broken: p.broken},
+		PageActionProvider: &pageActions{broken: p.broken}, MemberSubscriptionProvider: &subscriptions{broken: p.broken}, MemberCalendarProvider: &calendar{broken: p.broken}})
 }
 
 func (p *provider) Describe(context.Context, *pluginv1.DescribeRequest) (*pluginv1.Manifest, error) {
@@ -68,11 +72,15 @@ func (p *provider) Describe(context.Context, *pluginv1.DescribeRequest) (*plugin
 			pluginv1.CapabilityImagesMovie, pluginv1.CapabilityImagesPerson, pluginv1.CapabilityMediaRecognize,
 			pluginv1.CapabilityPluginTasks, pluginv1.CapabilityMetadataPersonSearch, pluginv1.CapabilitySubtitlesSearch, pluginv1.CapabilityDanmakuProvider, pluginv1.CapabilityDanmakuMatch,
 			pluginv1.CapabilityRatingsMovie, pluginv1.CapabilityDiscoverSource, pluginv1.CapabilityWorkAction,
+			pluginv1.CapabilityPageAction, pluginv1.CapabilityDiscoverSubscriptions, pluginv1.CapabilityDiscoverCalendar,
 		},
-		WorkActions:     []*pluginv1.WorkActionDeclaration{{Id: "ask", Label: "Ask", RequiredProviderIds: []string{"full"}}},
-		Permissions:     []string{pluginv1.PermissionDiscoverSeeds},
-		DiscoverSeedIds: []string{"full", pluginv1.DiscoverSeedIDProductCode},
-		RatingSources:   []string{"fullrate"},
+		WorkActions:         []*pluginv1.WorkActionDeclaration{{Id: "ask", Label: "Ask", RequiredProviderIds: []string{"full"}}},
+		PageActions:         []*pluginv1.ActionDeclaration{{Id: "follow", Label: "Follow"}},
+		SubscriptionActions: []*pluginv1.ActionDeclaration{{Id: "unfollow", Label: "Unfollow"}, {Id: "edit_rules", Label: "Edit rules"}},
+		SubscriptionForm:    true,
+		Permissions:         []string{pluginv1.PermissionDiscoverSeeds},
+		DiscoverSeedIds:     []string{"full", pluginv1.DiscoverSeedIDProductCode},
+		RatingSources:       []string{"fullrate"},
 		ConfigFields: append(configFields(), []*pluginv1.ConfigField{
 			{Key: "use_db", Label: "Use a database", Type: pluginv1.ConfigFieldType_CONFIG_FIELD_TYPE_BOOL, DefaultValue: "false"},
 			{Key: "dsn", Label: "Database address", Type: pluginv1.ConfigFieldType_CONFIG_FIELD_TYPE_STRING,
@@ -89,7 +97,8 @@ func (p *provider) Describe(context.Context, *pluginv1.DescribeRequest) (*plugin
 		ConfigGroups: []*pluginv1.ConfigGroup{{Key: "per_source", Title: "Each source", Items: []*pluginv1.ConfigItem{
 			{Id: "a", Label: "Source A"}, {Id: "b", Label: "Source B"},
 		}}},
-		ImageFetchRules: []*pluginv1.ImageFetchRule{{Hosts: []string{"images.example.com"}, Referer: "https://www.example.com/"}},
+		ImageFetchRules: []*pluginv1.ImageFetchRule{{Hosts: []string{"images.example.com"}, Referer: "https://www.example.com/"},
+			{Hosts: []string{"pics.example.com"}, MaxConcurrent: 4}},
 		Tasks: []*pluginv1.TaskDeclaration{
 			{Name: "refresh", Title: "Refresh the index", DefaultSchedule: &pluginv1.TaskSchedule{IntervalMinutes: 720}},
 			{Name: "clear_cache", Title: "Clear the cache"},
@@ -109,10 +118,17 @@ func (p *provider) Describe(context.Context, *pluginv1.DescribeRequest) (*plugin
 		m.Tasks[0].DefaultSchedule = &pluginv1.TaskSchedule{IntervalMinutes: 1}
 		m.AttributeLabels[0].Key = "Shoe-Size"
 		m.ConfigFields[7].Item = "c"
+		m.ImageFetchRules[1].MaxConcurrent = 9
+		m.SubscriptionForm, m.Capabilities = true, slices.DeleteFunc(m.Capabilities, func(c string) bool { return c == pluginv1.CapabilityDiscoverSubscriptions })
+		m.Permissions = append(m.Permissions, pluginv1.PermissionDiscoverLibraryFiles)
+		m.Capabilities = slices.DeleteFunc(m.Capabilities, func(c string) bool { return c == pluginv1.CapabilityWorkAction })
 	}
 	if p.broken == "declaration" {
 		m.WorkActions = append(m.WorkActions, &pluginv1.WorkActionDeclaration{Id: "bad", Label: "Bad"},
 			&pluginv1.WorkActionDeclaration{Id: "upper", Label: "Upper", RequiredProviderIds: []string{"TMDB"}})
+	}
+	if p.broken == "members" {
+		m.PageActions = append(m.PageActions, &pluginv1.ActionDeclaration{Id: "Follow Me", Label: "x"}, &pluginv1.ActionDeclaration{Id: "nolabel"})
 	}
 	if p.broken == "autofill" {
 		m.ConfigFields[8].DefaultValue = "5000"
@@ -441,7 +457,9 @@ func (w *works) GetDiscoverPage(_ context.Context, req *pluginv1.GetDiscoverPage
 }
 
 func genreFilter() []*pluginv1.WorkOption {
-	return []*pluginv1.WorkOption{{Key: "genre", Label: "Genre", Multiple: true, Choices: []*pluginv1.WorkChoice{{Value: "drama", Label: "Drama"}}}}
+	// FULL_BREAK=form marks the filter searchable, which does not apply to filters.
+	return []*pluginv1.WorkOption{{Key: "genre", Label: "Genre", Multiple: true, Searchable: os.Getenv("FULL_BREAK") == "form",
+		Choices: []*pluginv1.WorkChoice{{Value: "drama", Label: "Drama"}}}}
 }
 
 func newestSort() *pluginv1.WorkOption {
@@ -494,13 +512,15 @@ func (a *workActions) GetWorkStates(_ context.Context, req *pluginv1.GetWorkStat
 		st := &pluginv1.WorkState{Ref: w.GetRef(), Status: pluginv1.WorkStatus_WORK_STATUS_NONE}
 		if req.GetIncludeActions() {
 			st.Actions = []*pluginv1.WorkActionOffer{{Action: "ask", Options: []*pluginv1.WorkOption{
-				{Key: "seasons", Label: "Which seasons", Multiple: true, Required: true, Choices: []*pluginv1.WorkChoice{{Value: "1", Label: "Season 1", Selected: true}}},
+				{Key: "seasons", Label: "Which seasons", Multiple: true, Required: true, Choices: []*pluginv1.WorkChoice{{Value: "1", Label: "Season 1", Selected: true, Tags: []string{"First"}}}},
 			}}}
 		}
 		if a.broken == "actions" {
 			st.Status = pluginv1.WorkStatus(99)
 			st.StatusText = "A status text that is much too long for a badge"
-			st.Actions = []*pluginv1.WorkActionOffer{{Action: "ghost"}}
+			st.Actions = []*pluginv1.WorkActionOffer{{Action: "ghost", Options: []*pluginv1.WorkOption{
+				{Key: "cut", Label: "Cut", Choices: []*pluginv1.WorkChoice{{Value: "a", Label: "A", Tags: []string{"T1", "T2", "T3", "T4", "A tag that is far too long"}}}},
+			}}}
 		}
 		resp.States = append(resp.States, st)
 	}
@@ -511,6 +531,21 @@ func (a *workActions) RunWorkAction(context.Context, *pluginv1.RunWorkActionRequ
 	resp := &pluginv1.RunWorkActionResponse{Message: "Done", State: &pluginv1.WorkState{Status: pluginv1.WorkStatus_WORK_STATUS_PENDING, StatusText: "Waiting"}}
 	if a.broken == "actions" {
 		resp.Link = &pluginv1.ExternalLink{Url: "javascript:alert(1)"}
+	}
+	return resp, nil
+}
+
+func (a *workActions) RunWorkActions(ctx context.Context, req *pluginv1.RunWorkActionsRequest) (*pluginv1.RunWorkActionsResponse, error) {
+	resp := &pluginv1.RunWorkActionsResponse{}
+	if a.broken == "actions" {
+		return resp, nil
+	}
+	for range req.GetItems() {
+		r, err := a.RunWorkAction(ctx, nil)
+		if err != nil {
+			return nil, err
+		}
+		resp.Results = append(resp.Results, r)
 	}
 	return resp, nil
 }
@@ -530,6 +565,120 @@ func (a *workActions) ListMemberWorks(_ context.Context, req *pluginv1.ListMembe
 		resp.Works = append(resp.Works,
 			&pluginv1.MemberWork{Work: &pluginv1.Work{Type: movie}, UpdatedAt: "2026-11-05T11:00:00Z", ProgressPercent: &wrong},
 			&pluginv1.MemberWork{Work: &pluginv1.Work{Type: movie, Title: "Late"}, UpdatedAt: "yesterday"})
+	}
+	return resp, nil
+}
+
+// pageActions follows the plugin's own pages: any page it knows can be followed.
+type pageActions struct {
+	pluginv1.UnimplementedPageActionProviderServer
+	broken string
+}
+
+func (a *pageActions) GetPageState(_ context.Context, req *pluginv1.GetPageStateRequest) (*pluginv1.PageState, error) {
+	ref := req.GetRef()
+	if a.broken != "members" && ref != "home" && ref != "genres" && ref != "foryou" && !strings.HasPrefix(ref, "genre:") && !strings.HasPrefix(ref, "person:") {
+		return nil, status.Errorf(codes.NotFound, "no page %q", ref)
+	}
+	st := &pluginv1.PageState{Actions: []*pluginv1.WorkActionOffer{{Action: "follow"}}}
+	if a.broken == "members" {
+		st.StatusText = "A status text that is much too long for a page"
+		st.Actions = append(st.Actions, &pluginv1.WorkActionOffer{Action: "ghost"})
+	}
+	return st, nil
+}
+
+func (a *pageActions) RunPageAction(context.Context, *pluginv1.RunPageActionRequest) (*pluginv1.RunPageActionResponse, error) {
+	return &pluginv1.RunPageActionResponse{Message: "Following", State: &pluginv1.PageState{StatusText: "Following"}}, nil
+}
+
+// subscriptions lists two subscriptions for any member and refuses actions on IDs it does not know.
+type subscriptions struct {
+	pluginv1.UnimplementedMemberSubscriptionProviderServer
+	broken string
+}
+
+func (s *subscriptions) ListMemberSubscriptions(_ context.Context, req *pluginv1.ListMemberSubscriptionsRequest) (*pluginv1.ListMemberSubscriptionsResponse, error) {
+	if req.GetPageToken() != "" {
+		return &pluginv1.ListMemberSubscriptionsResponse{}, nil
+	}
+	resp := &pluginv1.ListMemberSubscriptionsResponse{NextPageToken: "2", Subscriptions: []*pluginv1.MemberSubscription{
+		{Id: "s1", KindText: "Series", Title: "Work s1", UpdatedAt: "2026-11-05T10:00:00Z",
+			Target: &pluginv1.MemberSubscription_Work{Work: &pluginv1.Work{Key: "s1", Type: pluginv1.ItemType_ITEM_TYPE_SERIES, Title: "Work s1"}},
+			Actions: []*pluginv1.WorkActionOffer{{Action: "unfollow"}, {Action: "edit_rules", Options: []*pluginv1.WorkOption{
+				{Key: "people", Label: "People", Multiple: true, Searchable: true, Hint: "Type a name",
+					Choices: []*pluginv1.WorkChoice{{Value: "p1", Label: "Person 1", Selected: true}}}}}}},
+		{Id: "s2", KindText: "Person", Title: "Person 1", UpdatedAt: "2026-11-05T09:00:00Z", Target: &pluginv1.MemberSubscription_PageRef{PageRef: "person:1"}},
+		{Id: "s3", KindText: "Keyword", Title: "space", UpdatedAt: "2026-11-05T08:00:00Z"},
+	}}
+	if s.broken == "members" {
+		resp.Subscriptions = append(resp.Subscriptions,
+			&pluginv1.MemberSubscription{Id: "s1", KindText: "Series", Title: "Again", UpdatedAt: "2026-11-05T11:00:00Z"},
+			&pluginv1.MemberSubscription{Id: "s4", Title: "No kind", ImageUrl: "ftp://x", Actions: []*pluginv1.WorkActionOffer{{Action: "ghost"}}})
+	}
+	return resp, nil
+}
+
+func (s *subscriptions) GetSubscriptionForm(context.Context, *pluginv1.GetSubscriptionFormRequest) (*pluginv1.SubscriptionForm, error) {
+	form := &pluginv1.SubscriptionForm{Title: "New subscription", Description: "New works that match every condition.", Options: []*pluginv1.WorkOption{
+		{Key: "people", Label: "People", Multiple: true, Searchable: true, Hint: "Type a name"},
+		{Key: "quality", Label: "Quality", Choices: []*pluginv1.WorkChoice{{Value: "any", Label: "Any", Selected: true}, {Value: "uhd", Label: "4K"}}},
+	}}
+	if s.broken == "form" {
+		form.Title = strings.Repeat("t", 65)
+		form.Options = append(form.Options,
+			&pluginv1.WorkOption{Key: "quality", Label: "Again", Choices: []*pluginv1.WorkChoice{{Value: "a", Label: "A"}}},
+			&pluginv1.WorkOption{Key: "empty", Label: "Empty"},
+			&pluginv1.WorkOption{Key: "nolabel", Choices: []*pluginv1.WorkChoice{{Value: "a", Label: "A"}}, Hint: strings.Repeat("h", 65)})
+	}
+	return form, nil
+}
+
+func (s *subscriptions) CreateSubscription(context.Context, *pluginv1.CreateSubscriptionRequest) (*pluginv1.CreateSubscriptionResponse, error) {
+	return &pluginv1.CreateSubscriptionResponse{Refused: true, Message: "The test plugin creates nothing"}, nil
+}
+
+func (s *subscriptions) SuggestChoices(_ context.Context, req *pluginv1.SuggestChoicesRequest) (*pluginv1.SuggestChoicesResponse, error) {
+	if req.GetKey() != "people" || (req.GetForm() != pluginv1.SubscriptionFormNew && req.GetForm() != "edit_rules") {
+		return nil, status.Errorf(codes.InvalidArgument, "no searchable option %q in form %q", req.GetKey(), req.GetForm())
+	}
+	resp := &pluginv1.SuggestChoicesResponse{Choices: []*pluginv1.WorkChoice{{Value: "p1", Label: "Person 1"}, {Value: req.GetQuery(), Label: req.GetQuery()}}}
+	if s.broken == "form" {
+		for i := range 20 {
+			resp.Choices = append(resp.Choices, &pluginv1.WorkChoice{Value: fmt.Sprintf("x%d", i), Label: "X"})
+		}
+		resp.Choices = append(resp.Choices, &pluginv1.WorkChoice{Value: "a\nb", Label: "Bad"})
+	}
+	return resp, nil
+}
+
+func (s *subscriptions) RunSubscriptionAction(_ context.Context, req *pluginv1.RunSubscriptionActionRequest) (*pluginv1.RunSubscriptionActionResponse, error) {
+	if s.broken != "members" && req.GetSubscriptionId() != "s1" && req.GetSubscriptionId() != "s2" && req.GetSubscriptionId() != "s3" {
+		return nil, status.Errorf(codes.NotFound, "no subscription %q", req.GetSubscriptionId())
+	}
+	return &pluginv1.RunSubscriptionActionResponse{Message: "Unfollowed", Removed: true}, nil
+}
+
+// calendar lists one episode tomorrow.
+type calendar struct {
+	pluginv1.UnimplementedMemberCalendarProviderServer
+	broken string
+}
+
+func (c *calendar) ListMemberCalendar(_ context.Context, req *pluginv1.ListMemberCalendarRequest) (*pluginv1.ListMemberCalendarResponse, error) {
+	from, err := time.Parse("2006-01-02", req.GetFrom())
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "from: %v", err)
+	}
+	series := pluginv1.ItemType_ITEM_TYPE_SERIES
+	resp := &pluginv1.ListMemberCalendarResponse{Entries: []*pluginv1.CalendarEntry{
+		{Work: &pluginv1.Work{Key: "s1", Type: series, Title: "Work s1"}, Date: from.AddDate(0, 0, 1).Format("2006-01-02"),
+			Kind: pluginv1.CalendarEntryKind_CALENDAR_ENTRY_KIND_EPISODE, Season: 2, Episode: 3, EpisodeTitle: "Three", Note: "Subscribed"},
+	}}
+	if c.broken == "members" {
+		resp.Entries = append(resp.Entries,
+			&pluginv1.CalendarEntry{Work: &pluginv1.Work{Type: series, Title: "Far"}, Date: from.AddDate(1, 0, 0).Format("2006-01-02")},
+			&pluginv1.CalendarEntry{Work: &pluginv1.Work{Type: series, Title: "Bad date"}, Date: "next week", Time: "soon"})
 	}
 	return resp, nil
 }

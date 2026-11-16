@@ -246,6 +246,31 @@ const (
 	// HostFeatureDiscover: the host calls DiscoverSource of plugins that declare discover.source and WorkActionProvider
 	// of plugins that declare work.action, and keeps Manifest.work_actions. Without it neither service is ever called.
 	HostFeatureDiscover = "discover"
+	// HostFeaturePageActions: the host calls PageActionProvider of plugins that declare page.action and discover.source,
+	// and keeps Manifest.page_actions. Without it the service is never called, so offer the same thing as a work action
+	// where you can.
+	HostFeaturePageActions = "page_actions"
+	// HostFeatureDiscoverSubscriptions: the host calls MemberSubscriptionProvider of plugins that declare
+	// discover.subscriptions, and keeps Manifest.subscription_actions. Without it the service is never called.
+	HostFeatureDiscoverSubscriptions = "discover_subscriptions"
+	// HostFeatureDiscoverCalendar: the host calls MemberCalendarProvider of plugins that declare discover.calendar. Without
+	// it the service is never called.
+	HostFeatureDiscoverCalendar = "discover_calendar"
+	// HostFeatureSubscriptionForm: the host calls GetSubscriptionForm, CreateSubscription and SuggestChoices of plugins
+	// that declare discover.subscriptions and Manifest.subscription_form, and honours WorkOption.searchable on the form and
+	// on subscription actions. Without it none of these is called and searchable options show their listed choices only.
+	HostFeatureSubscriptionForm = "subscription_form"
+	// HostFeatureWorkPosterCrop: Work.poster_crop and Work.poster_crop_hint. Without it a work without poster_url shows
+	// no poster, so send a cropped poster_url to an older host.
+	HostFeatureWorkPosterCrop = "work_poster_crop"
+	// HostFeatureImageHostConcurrency: ImageFetchRule.max_concurrent. Without it the host runs at most 2 background
+	// downloads against one host at a time; downloads a viewer is waiting for keep their own limit either way.
+	HostFeatureImageHostConcurrency = "image_host_concurrency"
+	// HostFeatureLibraryFiles: GetWorkStatesRequest carries WorkRef.library_files for plugins the administrator allowed
+	// discover.library_files. Without it the field is always empty.
+	HostFeatureLibraryFiles = "library_files"
+	// HostFeatureWorkOptionHint: WorkOption.hint. Without it the hint is not shown.
+	HostFeatureWorkOptionHint = "work_option_hint"
 )
 
 // HostFeatures returns the features listed in EnvHostFeatures. The result is empty, not nil, when the variable is

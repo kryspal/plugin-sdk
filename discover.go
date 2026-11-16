@@ -64,10 +64,40 @@ const (
 	MaxWorkMessage      = 200
 	MaxWorkLinkLabel    = 48
 	maxWorkIdentifier   = 48
+
+	// page.action, discover.subscriptions and discover.calendar.
+	MaxPageActions          = 8   // Manifest.page_actions
+	MaxSubscriptionActions  = 8   // Manifest.subscription_actions
+	MaxPageOffers           = 4   // PageState.actions
+	MaxSubscriptionOffers   = 4   // MemberSubscription.actions
+	MaxMemberSubscriptions  = 50  // subscriptions per ListMemberSubscriptions answer
+	MaxSubscriptionID       = 256 // MemberSubscription.id
+	MaxSubscriptionKind     = 24  // MemberSubscription.kind_text
+	MaxSubscriptionTitle    = 128 // MemberSubscription.title
+	MaxCalendarDays         = 62  // days in a ListMemberCalendar window, both ends included
+	MaxCalendarEntries      = 500 // entries per ListMemberCalendar answer
+	MaxCalendarEpisodeTitle = 128 // CalendarEntry.episode_title
+	MaxCalendarNote         = 32  // CalendarEntry.note
+	MaxChoiceTags           = 4   // WorkChoice.tags
+	MaxChoiceTag            = 16  // one WorkChoice.tags entry
+	MaxWorkActionsBatch     = 50  // RunWorkActionsRequest.items
+
+	// The new-subscription form, searchable options, poster crops and library files.
+	MaxSubscriptionFormOptions   = 12  // SubscriptionForm.options
+	MaxSubscriptionActionOptions = 12  // WorkActionOffer.options on a subscription's actions
+	MaxSubscriptionFormTitle     = 64  // SubscriptionForm.title
+	MaxSubscriptionFormText      = 120 // SubscriptionForm.description
+	MaxSuggestedChoices          = 20  // SuggestChoicesResponse.choices
+	MaxSuggestQuery              = 200 // SuggestChoicesRequest.query
+	MaxWorkOptionHint            = 64  // WorkOption.hint
+	MaxLibraryFiles              = 8   // WorkRef.library_files
+	MaxLibraryVersionLabel       = 64  // LibraryFile.version_label
+	MaxImageHostConcurrency      = 4   // ImageFetchRule.max_concurrent, as the host caps it
+	DefaultImageHostConcurrency  = 2   // background downloads from one host at a time without max_concurrent
 )
 
-// ValidWorkIdentifier reports whether s is a valid DiscoverRow.id, WorkActionDeclaration.id or WorkOption.key: a lowercase
-// letter, then lowercase letters, digits and underscores, at most 48 characters.
+// ValidWorkIdentifier reports whether s is a valid DiscoverRow.id, WorkActionDeclaration.id, ActionDeclaration.id or
+// WorkOption.key: a lowercase letter, then lowercase letters, digits and underscores, at most 48 characters.
 func ValidWorkIdentifier(s string) bool {
 	if len(s) == 0 || len(s) > maxWorkIdentifier {
 		return false
@@ -93,6 +123,10 @@ func ValidWorkChoiceValue(s string) bool { return validWorkToken(s, MaxWorkChoic
 
 // ValidDiscoverRef reports whether s is a valid ref: 1 to 256 characters of valid UTF-8 with no control characters.
 func ValidDiscoverRef(s string) bool { return validWorkToken(s, MaxDiscoverRef) }
+
+// ValidSubscriptionID reports whether s is a valid MemberSubscription.id: 1 to 256 characters of valid UTF-8 with no
+// control characters.
+func ValidSubscriptionID(s string) bool { return validWorkToken(s, MaxSubscriptionID) }
 
 func validWorkToken(s string, limit int) bool {
 	if s == "" || !utf8.ValidString(s) || utf8.RuneCountInString(s) > limit {

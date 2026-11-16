@@ -3,16 +3,25 @@
 // Capabilities and the methods they map to:
 //   discover.source  DiscoverSource: DescribeDiscoverSource, GetDiscoverPage, SearchWorks, GetWork
 //   work.action      WorkActionProvider: GetWorkStates, RunWorkAction, ListMemberWorks
+//   page.action             PageActionProvider: GetPageState, RunPageAction
+//   discover.subscriptions  MemberSubscriptionProvider: ListMemberSubscriptions, RunSubscriptionAction
+//   discover.calendar       MemberCalendarProvider: ListMemberCalendar
 // For capabilities the plugin does not declare, the corresponding calls return UNIMPLEMENTED. Host feature discover;
 // older hosts never call these services.
 //
 // The two capabilities are independent: a plugin may implement one or both, and the host may show one plugin's actions
 // on another plugin's works. They meet only through a work's type and provider IDs.
 //
+// page.action works on the plugin's own pages only: a ref means something only to the plugin that gave it, so the host never
+// sends one plugin's ref to another. A plugin that declares page.action also declares discover.source. discover.subscriptions
+// and discover.calendar stand on their own: each may be declared with or without the others, and the host shows "my
+// subscriptions" and the calendar only for plugins that declare them.
+//
 // Works are the plugin's data. The host does not store them as library items, and it does not store actions or states:
 // it asks again, and caches answers for seconds only. The host finds a work in the library by its provider IDs.
 //
-// Only WorkActionProvider receives member information; DiscoverSource never does. Settings arrive through Configure, as
+// Only WorkActionProvider, PageActionProvider, MemberSubscriptionProvider and MemberCalendarProvider receive member
+// information; DiscoverSource never does. Settings arrive through Configure, as
 // for every other capability, not with each call.
 //
 // All text in these messages is plain text. The host removes control characters and cuts it to the stated length, and it
@@ -279,6 +288,7 @@ var DiscoverSource_ServiceDesc = grpc.ServiceDesc{
 const (
 	WorkActionProvider_GetWorkStates_FullMethodName   = "/kryspal.plugin.v1.WorkActionProvider/GetWorkStates"
 	WorkActionProvider_RunWorkAction_FullMethodName   = "/kryspal.plugin.v1.WorkActionProvider/RunWorkAction"
+	WorkActionProvider_RunWorkActions_FullMethodName  = "/kryspal.plugin.v1.WorkActionProvider/RunWorkActions"
 	WorkActionProvider_ListMemberWorks_FullMethodName = "/kryspal.plugin.v1.WorkActionProvider/ListMemberWorks"
 )
 
@@ -293,6 +303,10 @@ type WorkActionProviderClient interface {
 	// RunWorkAction runs one action on one work for one member. The host never retries it on its own: it may change
 	// something outside the server. The member may send any selection, so check it against what you offered.
 	RunWorkAction(ctx context.Context, in *RunWorkActionRequest, opts ...grpc.CallOption) (*RunWorkActionResponse, error)
+	// RunWorkActions runs one action on up to 50 works for one member at once, for example when a member requests several
+	// works together. Optional: UNIMPLEMENTED makes the host call RunWorkAction once per work, at most 2 at a time. The host
+	// never retries it. Answer every item, in order, as RunWorkAction would: a refusal of one item does not stop the others.
+	RunWorkActions(ctx context.Context, in *RunWorkActionsRequest, opts ...grpc.CallOption) (*RunWorkActionsResponse, error)
 	// ListMemberWorks lists the works this member started through this plugin, newest first. It must not change anything,
 	// and it lists only this member's works whatever page_token says. A member the tool does not know gets an empty list.
 	// A plugin that cannot list them returns UNIMPLEMENTED: the host then shows nothing for it and reports no failure.
@@ -327,6 +341,16 @@ func (c *workActionProviderClient) RunWorkAction(ctx context.Context, in *RunWor
 	return out, nil
 }
 
+func (c *workActionProviderClient) RunWorkActions(ctx context.Context, in *RunWorkActionsRequest, opts ...grpc.CallOption) (*RunWorkActionsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(RunWorkActionsResponse)
+	err := c.cc.Invoke(ctx, WorkActionProvider_RunWorkActions_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *workActionProviderClient) ListMemberWorks(ctx context.Context, in *ListMemberWorksRequest, opts ...grpc.CallOption) (*ListMemberWorksResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(ListMemberWorksResponse)
@@ -348,6 +372,10 @@ type WorkActionProviderServer interface {
 	// RunWorkAction runs one action on one work for one member. The host never retries it on its own: it may change
 	// something outside the server. The member may send any selection, so check it against what you offered.
 	RunWorkAction(context.Context, *RunWorkActionRequest) (*RunWorkActionResponse, error)
+	// RunWorkActions runs one action on up to 50 works for one member at once, for example when a member requests several
+	// works together. Optional: UNIMPLEMENTED makes the host call RunWorkAction once per work, at most 2 at a time. The host
+	// never retries it. Answer every item, in order, as RunWorkAction would: a refusal of one item does not stop the others.
+	RunWorkActions(context.Context, *RunWorkActionsRequest) (*RunWorkActionsResponse, error)
 	// ListMemberWorks lists the works this member started through this plugin, newest first. It must not change anything,
 	// and it lists only this member's works whatever page_token says. A member the tool does not know gets an empty list.
 	// A plugin that cannot list them returns UNIMPLEMENTED: the host then shows nothing for it and reports no failure.
@@ -367,6 +395,9 @@ func (UnimplementedWorkActionProviderServer) GetWorkStates(context.Context, *Get
 }
 func (UnimplementedWorkActionProviderServer) RunWorkAction(context.Context, *RunWorkActionRequest) (*RunWorkActionResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method RunWorkAction not implemented")
+}
+func (UnimplementedWorkActionProviderServer) RunWorkActions(context.Context, *RunWorkActionsRequest) (*RunWorkActionsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method RunWorkActions not implemented")
 }
 func (UnimplementedWorkActionProviderServer) ListMemberWorks(context.Context, *ListMemberWorksRequest) (*ListMemberWorksResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ListMemberWorks not implemented")
@@ -428,6 +459,24 @@ func _WorkActionProvider_RunWorkAction_Handler(srv interface{}, ctx context.Cont
 	return interceptor(ctx, in, info, handler)
 }
 
+func _WorkActionProvider_RunWorkActions_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RunWorkActionsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(WorkActionProviderServer).RunWorkActions(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: WorkActionProvider_RunWorkActions_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(WorkActionProviderServer).RunWorkActions(ctx, req.(*RunWorkActionsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _WorkActionProvider_ListMemberWorks_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(ListMemberWorksRequest)
 	if err := dec(in); err != nil {
@@ -462,8 +511,578 @@ var WorkActionProvider_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _WorkActionProvider_RunWorkAction_Handler,
 		},
 		{
+			MethodName: "RunWorkActions",
+			Handler:    _WorkActionProvider_RunWorkActions_Handler,
+		},
+		{
 			MethodName: "ListMemberWorks",
 			Handler:    _WorkActionProvider_ListMemberWorks_Handler,
+		},
+	},
+	Streams:  []grpc.StreamDesc{},
+	Metadata: "pluginv1/discover.proto",
+}
+
+const (
+	PageActionProvider_GetPageState_FullMethodName  = "/kryspal.plugin.v1.PageActionProvider/GetPageState"
+	PageActionProvider_RunPageAction_FullMethodName = "/kryspal.plugin.v1.PageActionProvider/RunPageAction"
+)
+
+// PageActionProviderClient is the client API for PageActionProvider service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
+//
+// PageActionProvider is implemented by plugins that declare page.action. The actions are in Manifest.page_actions, and they
+// apply to the plugin's own pages (refs from its DiscoverSource), for example "Subscribe" on a person's or a list's page.
+type PageActionProviderClient interface {
+	// GetPageState reports what one member can do on one page now. It must not change anything. NOT_FOUND when the ref does not
+	// resolve. The host asks once when the page opens and caches the answer for seconds.
+	GetPageState(ctx context.Context, in *GetPageStateRequest, opts ...grpc.CallOption) (*PageState, error)
+	// RunPageAction runs one action on one page for one member. The host never retries it on its own: it may change something
+	// outside the server. The member may send any selection, so check it against what you offered.
+	RunPageAction(ctx context.Context, in *RunPageActionRequest, opts ...grpc.CallOption) (*RunPageActionResponse, error)
+}
+
+type pageActionProviderClient struct {
+	cc grpc.ClientConnInterface
+}
+
+func NewPageActionProviderClient(cc grpc.ClientConnInterface) PageActionProviderClient {
+	return &pageActionProviderClient{cc}
+}
+
+func (c *pageActionProviderClient) GetPageState(ctx context.Context, in *GetPageStateRequest, opts ...grpc.CallOption) (*PageState, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(PageState)
+	err := c.cc.Invoke(ctx, PageActionProvider_GetPageState_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *pageActionProviderClient) RunPageAction(ctx context.Context, in *RunPageActionRequest, opts ...grpc.CallOption) (*RunPageActionResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(RunPageActionResponse)
+	err := c.cc.Invoke(ctx, PageActionProvider_RunPageAction_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// PageActionProviderServer is the server API for PageActionProvider service.
+// All implementations must embed UnimplementedPageActionProviderServer
+// for forward compatibility.
+//
+// PageActionProvider is implemented by plugins that declare page.action. The actions are in Manifest.page_actions, and they
+// apply to the plugin's own pages (refs from its DiscoverSource), for example "Subscribe" on a person's or a list's page.
+type PageActionProviderServer interface {
+	// GetPageState reports what one member can do on one page now. It must not change anything. NOT_FOUND when the ref does not
+	// resolve. The host asks once when the page opens and caches the answer for seconds.
+	GetPageState(context.Context, *GetPageStateRequest) (*PageState, error)
+	// RunPageAction runs one action on one page for one member. The host never retries it on its own: it may change something
+	// outside the server. The member may send any selection, so check it against what you offered.
+	RunPageAction(context.Context, *RunPageActionRequest) (*RunPageActionResponse, error)
+	mustEmbedUnimplementedPageActionProviderServer()
+}
+
+// UnimplementedPageActionProviderServer must be embedded to have
+// forward compatible implementations.
+//
+// NOTE: this should be embedded by value instead of pointer to avoid a nil
+// pointer dereference when methods are called.
+type UnimplementedPageActionProviderServer struct{}
+
+func (UnimplementedPageActionProviderServer) GetPageState(context.Context, *GetPageStateRequest) (*PageState, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetPageState not implemented")
+}
+func (UnimplementedPageActionProviderServer) RunPageAction(context.Context, *RunPageActionRequest) (*RunPageActionResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method RunPageAction not implemented")
+}
+func (UnimplementedPageActionProviderServer) mustEmbedUnimplementedPageActionProviderServer() {}
+func (UnimplementedPageActionProviderServer) testEmbeddedByValue()                            {}
+
+// UnsafePageActionProviderServer may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to PageActionProviderServer will
+// result in compilation errors.
+type UnsafePageActionProviderServer interface {
+	mustEmbedUnimplementedPageActionProviderServer()
+}
+
+func RegisterPageActionProviderServer(s grpc.ServiceRegistrar, srv PageActionProviderServer) {
+	// If the following call panics, it indicates UnimplementedPageActionProviderServer was
+	// embedded by pointer and is nil.  This will cause panics if an
+	// unimplemented method is ever invoked, so we test this at initialization
+	// time to prevent it from happening at runtime later due to I/O.
+	if t, ok := srv.(interface{ testEmbeddedByValue() }); ok {
+		t.testEmbeddedByValue()
+	}
+	s.RegisterService(&PageActionProvider_ServiceDesc, srv)
+}
+
+func _PageActionProvider_GetPageState_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetPageStateRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PageActionProviderServer).GetPageState(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PageActionProvider_GetPageState_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PageActionProviderServer).GetPageState(ctx, req.(*GetPageStateRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _PageActionProvider_RunPageAction_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RunPageActionRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PageActionProviderServer).RunPageAction(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PageActionProvider_RunPageAction_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PageActionProviderServer).RunPageAction(ctx, req.(*RunPageActionRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+// PageActionProvider_ServiceDesc is the grpc.ServiceDesc for PageActionProvider service.
+// It's only intended for direct use with grpc.RegisterService,
+// and not to be introspected or modified (even as a copy)
+var PageActionProvider_ServiceDesc = grpc.ServiceDesc{
+	ServiceName: "kryspal.plugin.v1.PageActionProvider",
+	HandlerType: (*PageActionProviderServer)(nil),
+	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "GetPageState",
+			Handler:    _PageActionProvider_GetPageState_Handler,
+		},
+		{
+			MethodName: "RunPageAction",
+			Handler:    _PageActionProvider_RunPageAction_Handler,
+		},
+	},
+	Streams:  []grpc.StreamDesc{},
+	Metadata: "pluginv1/discover.proto",
+}
+
+const (
+	MemberSubscriptionProvider_ListMemberSubscriptions_FullMethodName = "/kryspal.plugin.v1.MemberSubscriptionProvider/ListMemberSubscriptions"
+	MemberSubscriptionProvider_RunSubscriptionAction_FullMethodName   = "/kryspal.plugin.v1.MemberSubscriptionProvider/RunSubscriptionAction"
+	MemberSubscriptionProvider_GetSubscriptionForm_FullMethodName     = "/kryspal.plugin.v1.MemberSubscriptionProvider/GetSubscriptionForm"
+	MemberSubscriptionProvider_CreateSubscription_FullMethodName      = "/kryspal.plugin.v1.MemberSubscriptionProvider/CreateSubscription"
+	MemberSubscriptionProvider_SuggestChoices_FullMethodName          = "/kryspal.plugin.v1.MemberSubscriptionProvider/SuggestChoices"
+)
+
+// MemberSubscriptionProviderClient is the client API for MemberSubscriptionProvider service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
+//
+// MemberSubscriptionProvider is implemented by plugins that declare discover.subscriptions: what a member follows through
+// this plugin, of any kind the plugin defines (a series, a person, a list, a keyword). The host stores no subscriptions: it
+// asks each time the member opens the list. Subscribing itself is a work action or a page action.
+type MemberSubscriptionProviderClient interface {
+	// ListMemberSubscriptions lists this member's subscriptions, newest first. It must not change anything, and it lists only
+	// this member's subscriptions whatever page_token says. A member the tool does not know gets an empty list.
+	ListMemberSubscriptions(ctx context.Context, in *ListMemberSubscriptionsRequest, opts ...grpc.CallOption) (*ListMemberSubscriptionsResponse, error)
+	// RunSubscriptionAction runs one action (Manifest.subscription_actions) on one of this member's subscriptions, for example
+	// "unsubscribe". The host never retries it on its own. Check that the subscription belongs to the member: any member can
+	// send any ID.
+	RunSubscriptionAction(ctx context.Context, in *RunSubscriptionActionRequest, opts ...grpc.CallOption) (*RunSubscriptionActionResponse, error)
+	// GetSubscriptionForm returns the form for a new subscription: the conditions the member fills in, for example people,
+	// studios and a quality, combined as the plugin decides. Called only when Manifest.subscription_form is true. It must not
+	// change anything. The host asks each time the member opens the form.
+	GetSubscriptionForm(ctx context.Context, in *GetSubscriptionFormRequest, opts ...grpc.CallOption) (*SubscriptionForm, error)
+	// CreateSubscription creates one subscription from the member's answers to the form. The host never retries it on its
+	// own. The member may send any selection: check every value, above all those of searchable options (WorkOption.searchable),
+	// which the host cannot check against a list.
+	CreateSubscription(ctx context.Context, in *CreateSubscriptionRequest, opts ...grpc.CallOption) (*CreateSubscriptionResponse, error)
+	// SuggestChoices returns choices for a searchable option (WorkOption.searchable) of the new-subscription form or of a
+	// subscription action, as the member types. Needed by a plugin that sends searchable options; others may leave it
+	// UNIMPLEMENTED. It must not change anything. The host asks only after the member stops
+	// typing for 300 ms and caches the answer per text, but a member can still type a lot: answer from a local index or a
+	// cache where you can, and bound your upstream calls.
+	SuggestChoices(ctx context.Context, in *SuggestChoicesRequest, opts ...grpc.CallOption) (*SuggestChoicesResponse, error)
+}
+
+type memberSubscriptionProviderClient struct {
+	cc grpc.ClientConnInterface
+}
+
+func NewMemberSubscriptionProviderClient(cc grpc.ClientConnInterface) MemberSubscriptionProviderClient {
+	return &memberSubscriptionProviderClient{cc}
+}
+
+func (c *memberSubscriptionProviderClient) ListMemberSubscriptions(ctx context.Context, in *ListMemberSubscriptionsRequest, opts ...grpc.CallOption) (*ListMemberSubscriptionsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListMemberSubscriptionsResponse)
+	err := c.cc.Invoke(ctx, MemberSubscriptionProvider_ListMemberSubscriptions_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *memberSubscriptionProviderClient) RunSubscriptionAction(ctx context.Context, in *RunSubscriptionActionRequest, opts ...grpc.CallOption) (*RunSubscriptionActionResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(RunSubscriptionActionResponse)
+	err := c.cc.Invoke(ctx, MemberSubscriptionProvider_RunSubscriptionAction_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *memberSubscriptionProviderClient) GetSubscriptionForm(ctx context.Context, in *GetSubscriptionFormRequest, opts ...grpc.CallOption) (*SubscriptionForm, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SubscriptionForm)
+	err := c.cc.Invoke(ctx, MemberSubscriptionProvider_GetSubscriptionForm_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *memberSubscriptionProviderClient) CreateSubscription(ctx context.Context, in *CreateSubscriptionRequest, opts ...grpc.CallOption) (*CreateSubscriptionResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CreateSubscriptionResponse)
+	err := c.cc.Invoke(ctx, MemberSubscriptionProvider_CreateSubscription_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *memberSubscriptionProviderClient) SuggestChoices(ctx context.Context, in *SuggestChoicesRequest, opts ...grpc.CallOption) (*SuggestChoicesResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SuggestChoicesResponse)
+	err := c.cc.Invoke(ctx, MemberSubscriptionProvider_SuggestChoices_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// MemberSubscriptionProviderServer is the server API for MemberSubscriptionProvider service.
+// All implementations must embed UnimplementedMemberSubscriptionProviderServer
+// for forward compatibility.
+//
+// MemberSubscriptionProvider is implemented by plugins that declare discover.subscriptions: what a member follows through
+// this plugin, of any kind the plugin defines (a series, a person, a list, a keyword). The host stores no subscriptions: it
+// asks each time the member opens the list. Subscribing itself is a work action or a page action.
+type MemberSubscriptionProviderServer interface {
+	// ListMemberSubscriptions lists this member's subscriptions, newest first. It must not change anything, and it lists only
+	// this member's subscriptions whatever page_token says. A member the tool does not know gets an empty list.
+	ListMemberSubscriptions(context.Context, *ListMemberSubscriptionsRequest) (*ListMemberSubscriptionsResponse, error)
+	// RunSubscriptionAction runs one action (Manifest.subscription_actions) on one of this member's subscriptions, for example
+	// "unsubscribe". The host never retries it on its own. Check that the subscription belongs to the member: any member can
+	// send any ID.
+	RunSubscriptionAction(context.Context, *RunSubscriptionActionRequest) (*RunSubscriptionActionResponse, error)
+	// GetSubscriptionForm returns the form for a new subscription: the conditions the member fills in, for example people,
+	// studios and a quality, combined as the plugin decides. Called only when Manifest.subscription_form is true. It must not
+	// change anything. The host asks each time the member opens the form.
+	GetSubscriptionForm(context.Context, *GetSubscriptionFormRequest) (*SubscriptionForm, error)
+	// CreateSubscription creates one subscription from the member's answers to the form. The host never retries it on its
+	// own. The member may send any selection: check every value, above all those of searchable options (WorkOption.searchable),
+	// which the host cannot check against a list.
+	CreateSubscription(context.Context, *CreateSubscriptionRequest) (*CreateSubscriptionResponse, error)
+	// SuggestChoices returns choices for a searchable option (WorkOption.searchable) of the new-subscription form or of a
+	// subscription action, as the member types. Needed by a plugin that sends searchable options; others may leave it
+	// UNIMPLEMENTED. It must not change anything. The host asks only after the member stops
+	// typing for 300 ms and caches the answer per text, but a member can still type a lot: answer from a local index or a
+	// cache where you can, and bound your upstream calls.
+	SuggestChoices(context.Context, *SuggestChoicesRequest) (*SuggestChoicesResponse, error)
+	mustEmbedUnimplementedMemberSubscriptionProviderServer()
+}
+
+// UnimplementedMemberSubscriptionProviderServer must be embedded to have
+// forward compatible implementations.
+//
+// NOTE: this should be embedded by value instead of pointer to avoid a nil
+// pointer dereference when methods are called.
+type UnimplementedMemberSubscriptionProviderServer struct{}
+
+func (UnimplementedMemberSubscriptionProviderServer) ListMemberSubscriptions(context.Context, *ListMemberSubscriptionsRequest) (*ListMemberSubscriptionsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListMemberSubscriptions not implemented")
+}
+func (UnimplementedMemberSubscriptionProviderServer) RunSubscriptionAction(context.Context, *RunSubscriptionActionRequest) (*RunSubscriptionActionResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method RunSubscriptionAction not implemented")
+}
+func (UnimplementedMemberSubscriptionProviderServer) GetSubscriptionForm(context.Context, *GetSubscriptionFormRequest) (*SubscriptionForm, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetSubscriptionForm not implemented")
+}
+func (UnimplementedMemberSubscriptionProviderServer) CreateSubscription(context.Context, *CreateSubscriptionRequest) (*CreateSubscriptionResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method CreateSubscription not implemented")
+}
+func (UnimplementedMemberSubscriptionProviderServer) SuggestChoices(context.Context, *SuggestChoicesRequest) (*SuggestChoicesResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method SuggestChoices not implemented")
+}
+func (UnimplementedMemberSubscriptionProviderServer) mustEmbedUnimplementedMemberSubscriptionProviderServer() {
+}
+func (UnimplementedMemberSubscriptionProviderServer) testEmbeddedByValue() {}
+
+// UnsafeMemberSubscriptionProviderServer may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to MemberSubscriptionProviderServer will
+// result in compilation errors.
+type UnsafeMemberSubscriptionProviderServer interface {
+	mustEmbedUnimplementedMemberSubscriptionProviderServer()
+}
+
+func RegisterMemberSubscriptionProviderServer(s grpc.ServiceRegistrar, srv MemberSubscriptionProviderServer) {
+	// If the following call panics, it indicates UnimplementedMemberSubscriptionProviderServer was
+	// embedded by pointer and is nil.  This will cause panics if an
+	// unimplemented method is ever invoked, so we test this at initialization
+	// time to prevent it from happening at runtime later due to I/O.
+	if t, ok := srv.(interface{ testEmbeddedByValue() }); ok {
+		t.testEmbeddedByValue()
+	}
+	s.RegisterService(&MemberSubscriptionProvider_ServiceDesc, srv)
+}
+
+func _MemberSubscriptionProvider_ListMemberSubscriptions_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListMemberSubscriptionsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(MemberSubscriptionProviderServer).ListMemberSubscriptions(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: MemberSubscriptionProvider_ListMemberSubscriptions_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MemberSubscriptionProviderServer).ListMemberSubscriptions(ctx, req.(*ListMemberSubscriptionsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _MemberSubscriptionProvider_RunSubscriptionAction_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RunSubscriptionActionRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(MemberSubscriptionProviderServer).RunSubscriptionAction(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: MemberSubscriptionProvider_RunSubscriptionAction_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MemberSubscriptionProviderServer).RunSubscriptionAction(ctx, req.(*RunSubscriptionActionRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _MemberSubscriptionProvider_GetSubscriptionForm_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetSubscriptionFormRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(MemberSubscriptionProviderServer).GetSubscriptionForm(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: MemberSubscriptionProvider_GetSubscriptionForm_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MemberSubscriptionProviderServer).GetSubscriptionForm(ctx, req.(*GetSubscriptionFormRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _MemberSubscriptionProvider_CreateSubscription_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreateSubscriptionRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(MemberSubscriptionProviderServer).CreateSubscription(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: MemberSubscriptionProvider_CreateSubscription_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MemberSubscriptionProviderServer).CreateSubscription(ctx, req.(*CreateSubscriptionRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _MemberSubscriptionProvider_SuggestChoices_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SuggestChoicesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(MemberSubscriptionProviderServer).SuggestChoices(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: MemberSubscriptionProvider_SuggestChoices_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MemberSubscriptionProviderServer).SuggestChoices(ctx, req.(*SuggestChoicesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+// MemberSubscriptionProvider_ServiceDesc is the grpc.ServiceDesc for MemberSubscriptionProvider service.
+// It's only intended for direct use with grpc.RegisterService,
+// and not to be introspected or modified (even as a copy)
+var MemberSubscriptionProvider_ServiceDesc = grpc.ServiceDesc{
+	ServiceName: "kryspal.plugin.v1.MemberSubscriptionProvider",
+	HandlerType: (*MemberSubscriptionProviderServer)(nil),
+	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "ListMemberSubscriptions",
+			Handler:    _MemberSubscriptionProvider_ListMemberSubscriptions_Handler,
+		},
+		{
+			MethodName: "RunSubscriptionAction",
+			Handler:    _MemberSubscriptionProvider_RunSubscriptionAction_Handler,
+		},
+		{
+			MethodName: "GetSubscriptionForm",
+			Handler:    _MemberSubscriptionProvider_GetSubscriptionForm_Handler,
+		},
+		{
+			MethodName: "CreateSubscription",
+			Handler:    _MemberSubscriptionProvider_CreateSubscription_Handler,
+		},
+		{
+			MethodName: "SuggestChoices",
+			Handler:    _MemberSubscriptionProvider_SuggestChoices_Handler,
+		},
+	},
+	Streams:  []grpc.StreamDesc{},
+	Metadata: "pluginv1/discover.proto",
+}
+
+const (
+	MemberCalendarProvider_ListMemberCalendar_FullMethodName = "/kryspal.plugin.v1.MemberCalendarProvider/ListMemberCalendar"
+)
+
+// MemberCalendarProviderClient is the client API for MemberCalendarProvider service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
+//
+// MemberCalendarProvider is implemented by plugins that declare discover.calendar: dates in a time window that matter to one
+// member, for example releases and new episodes of what the member subscribed to or requested. The host asks only when the
+// viewer opens the calendar, caches the answer for minutes and never polls in the background. Bound your upstream calls:
+// answer from a cache where you can, and do not look up more than the window needs.
+type MemberCalendarProviderClient interface {
+	// ListMemberCalendar lists the entries between from and to. It must not change anything. A member the tool does not know
+	// gets an empty list.
+	ListMemberCalendar(ctx context.Context, in *ListMemberCalendarRequest, opts ...grpc.CallOption) (*ListMemberCalendarResponse, error)
+}
+
+type memberCalendarProviderClient struct {
+	cc grpc.ClientConnInterface
+}
+
+func NewMemberCalendarProviderClient(cc grpc.ClientConnInterface) MemberCalendarProviderClient {
+	return &memberCalendarProviderClient{cc}
+}
+
+func (c *memberCalendarProviderClient) ListMemberCalendar(ctx context.Context, in *ListMemberCalendarRequest, opts ...grpc.CallOption) (*ListMemberCalendarResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListMemberCalendarResponse)
+	err := c.cc.Invoke(ctx, MemberCalendarProvider_ListMemberCalendar_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// MemberCalendarProviderServer is the server API for MemberCalendarProvider service.
+// All implementations must embed UnimplementedMemberCalendarProviderServer
+// for forward compatibility.
+//
+// MemberCalendarProvider is implemented by plugins that declare discover.calendar: dates in a time window that matter to one
+// member, for example releases and new episodes of what the member subscribed to or requested. The host asks only when the
+// viewer opens the calendar, caches the answer for minutes and never polls in the background. Bound your upstream calls:
+// answer from a cache where you can, and do not look up more than the window needs.
+type MemberCalendarProviderServer interface {
+	// ListMemberCalendar lists the entries between from and to. It must not change anything. A member the tool does not know
+	// gets an empty list.
+	ListMemberCalendar(context.Context, *ListMemberCalendarRequest) (*ListMemberCalendarResponse, error)
+	mustEmbedUnimplementedMemberCalendarProviderServer()
+}
+
+// UnimplementedMemberCalendarProviderServer must be embedded to have
+// forward compatible implementations.
+//
+// NOTE: this should be embedded by value instead of pointer to avoid a nil
+// pointer dereference when methods are called.
+type UnimplementedMemberCalendarProviderServer struct{}
+
+func (UnimplementedMemberCalendarProviderServer) ListMemberCalendar(context.Context, *ListMemberCalendarRequest) (*ListMemberCalendarResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListMemberCalendar not implemented")
+}
+func (UnimplementedMemberCalendarProviderServer) mustEmbedUnimplementedMemberCalendarProviderServer() {
+}
+func (UnimplementedMemberCalendarProviderServer) testEmbeddedByValue() {}
+
+// UnsafeMemberCalendarProviderServer may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to MemberCalendarProviderServer will
+// result in compilation errors.
+type UnsafeMemberCalendarProviderServer interface {
+	mustEmbedUnimplementedMemberCalendarProviderServer()
+}
+
+func RegisterMemberCalendarProviderServer(s grpc.ServiceRegistrar, srv MemberCalendarProviderServer) {
+	// If the following call panics, it indicates UnimplementedMemberCalendarProviderServer was
+	// embedded by pointer and is nil.  This will cause panics if an
+	// unimplemented method is ever invoked, so we test this at initialization
+	// time to prevent it from happening at runtime later due to I/O.
+	if t, ok := srv.(interface{ testEmbeddedByValue() }); ok {
+		t.testEmbeddedByValue()
+	}
+	s.RegisterService(&MemberCalendarProvider_ServiceDesc, srv)
+}
+
+func _MemberCalendarProvider_ListMemberCalendar_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListMemberCalendarRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(MemberCalendarProviderServer).ListMemberCalendar(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: MemberCalendarProvider_ListMemberCalendar_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MemberCalendarProviderServer).ListMemberCalendar(ctx, req.(*ListMemberCalendarRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+// MemberCalendarProvider_ServiceDesc is the grpc.ServiceDesc for MemberCalendarProvider service.
+// It's only intended for direct use with grpc.RegisterService,
+// and not to be introspected or modified (even as a copy)
+var MemberCalendarProvider_ServiceDesc = grpc.ServiceDesc{
+	ServiceName: "kryspal.plugin.v1.MemberCalendarProvider",
+	HandlerType: (*MemberCalendarProviderServer)(nil),
+	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "ListMemberCalendar",
+			Handler:    _MemberCalendarProvider_ListMemberCalendar_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

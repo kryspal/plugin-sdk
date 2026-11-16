@@ -257,6 +257,10 @@ func checkDiscoverOption(t *testing.T, where string, o *pluginv1.WorkOption, key
 		t.Errorf("%s %q has no label; the host drops it", where, o.GetKey())
 	}
 	tooLong(t, where+" label", o.GetLabel(), pluginapi.MaxWorkOptionLabel)
+	tooLong(t, where+" hint", o.GetHint(), pluginapi.MaxWorkOptionHint)
+	if o.GetSearchable() {
+		t.Errorf("%s %q is searchable, which does not apply to filters and sorts; the host shows its listed choices", where, o.GetKey())
+	}
 	if n := len(o.GetChoices()); n == 0 || n > pluginapi.MaxWorkChoices {
 		t.Errorf("%s %q has %d choices; want 1 to %d", where, o.GetKey(), n, pluginapi.MaxWorkChoices)
 	}
@@ -662,24 +666,56 @@ func checkWorkState(t *testing.T, where string, st *pluginv1.WorkState, declared
 		if !declared[o.GetAction()] {
 			t.Errorf("%s: action %q is not in work_actions; the host drops it", where, o.GetAction())
 		}
-		tooLong(t, where+" action label", o.GetLabel(), pluginapi.MaxWorkActionLabel)
-		if len(o.GetOptions()) > pluginapi.MaxWorkOptions {
-			t.Errorf("%s: action %q has %d options; the host keeps %d", where, o.GetAction(), len(o.GetOptions()), pluginapi.MaxWorkOptions)
+		checkOffer(t, where, o, false)
+	}
+}
+
+// checkOffer checks one offer's label, options and choices; the same rules apply to work, page and subscription offers.
+// searchable says whether WorkOption.searchable is honoured here (subscription actions only).
+func checkOffer(t *testing.T, where string, o *pluginv1.WorkActionOffer, searchable bool) {
+	t.Helper()
+	tooLong(t, where+" action label", o.GetLabel(), pluginapi.MaxWorkActionLabel)
+	limit := pluginapi.MaxWorkOptions
+	if searchable { // a subscription's actions: as many options as the new-subscription form
+		limit = pluginapi.MaxSubscriptionActionOptions
+	}
+	if len(o.GetOptions()) > limit {
+		t.Errorf("%s: action %q has %d options; the host keeps %d", where, o.GetAction(), len(o.GetOptions()), limit)
+	}
+	for _, opt := range o.GetOptions() {
+		checkOptionChoices(t, where, opt, searchable)
+	}
+}
+
+// checkOptionChoices checks an option's key, hint and choices. A searchable option (where it is honoured) may list no
+// choices: they come from SuggestChoices.
+func checkOptionChoices(t *testing.T, where string, opt *pluginv1.WorkOption, searchable bool) {
+	t.Helper()
+	if !pluginapi.ValidWorkIdentifier(opt.GetKey()) {
+		t.Errorf("%s: option key %q is not valid; the host drops the option", where, opt.GetKey())
+	}
+	tooLong(t, where+" option hint", opt.GetHint(), pluginapi.MaxWorkOptionHint)
+	if opt.GetSearchable() && !searchable {
+		t.Errorf("%s: option %q is searchable, which applies only to the new-subscription form and subscription actions; the host shows its listed choices", where, opt.GetKey())
+	}
+	suggested := searchable && opt.GetSearchable() // the choices come from SuggestChoices
+	if n := len(opt.GetChoices()); n > pluginapi.MaxWorkChoices || (n == 0 && !suggested) {
+		t.Errorf("%s: option %q has %d choices; want 1 to %d", where, opt.GetKey(), n, pluginapi.MaxWorkChoices)
+	}
+	for _, c := range opt.GetChoices() {
+		if !pluginapi.ValidWorkChoiceValue(c.GetValue()) {
+			t.Errorf("%s: choice value %q is not valid; the host drops it", where, c.GetValue())
 		}
-		for _, opt := range o.GetOptions() {
-			if !pluginapi.ValidWorkIdentifier(opt.GetKey()) {
-				t.Errorf("%s: option key %q is not valid; the host drops the option", where, opt.GetKey())
+		tooLong(t, where+" choice label", c.GetLabel(), pluginapi.MaxWorkChoiceLabel)
+		tooLong(t, where+" choice note", c.GetNote(), pluginapi.MaxWorkChoiceNote)
+		if len(c.GetTags()) > pluginapi.MaxChoiceTags {
+			t.Errorf("%s: choice %q has %d tags; the host keeps %d", where, c.GetValue(), len(c.GetTags()), pluginapi.MaxChoiceTags)
+		}
+		for _, tag := range c.GetTags() {
+			if strings.TrimSpace(tag) == "" {
+				t.Errorf("%s: choice %q has an empty tag; the host drops it", where, c.GetValue())
 			}
-			if len(opt.GetChoices()) == 0 || len(opt.GetChoices()) > pluginapi.MaxWorkChoices {
-				t.Errorf("%s: option %q has %d choices; want 1 to %d", where, opt.GetKey(), len(opt.GetChoices()), pluginapi.MaxWorkChoices)
-			}
-			for _, c := range opt.GetChoices() {
-				if !pluginapi.ValidWorkChoiceValue(c.GetValue()) {
-					t.Errorf("%s: choice value %q is not valid; the host drops it", where, c.GetValue())
-				}
-				tooLong(t, where+" choice label", c.GetLabel(), pluginapi.MaxWorkChoiceLabel)
-				tooLong(t, where+" choice note", c.GetNote(), pluginapi.MaxWorkChoiceNote)
-			}
+			tooLong(t, where+" choice tag", tag, pluginapi.MaxChoiceTag)
 		}
 	}
 }
@@ -716,6 +752,7 @@ func checkWorkActions(ctx context.Context, t *testing.T, conn *grpc.ClientConn, 
 		}
 	}
 	checkMemberWorks(ctx, t, c, member, langs)
+	batch := checkWorkActionsBatchEmpty(ctx, t, c, m, member, langs)
 	if run == "" {
 		return
 	}
@@ -734,6 +771,59 @@ func checkWorkActions(ctx context.Context, t *testing.T, conn *grpc.ClientConn, 
 	}
 	if st := resp.GetState(); st != nil {
 		checkWorkState(t, "RunWorkAction", st, declared, true)
+	}
+	if !batch {
+		return
+	}
+	// The named action is run a second time, through RunWorkActions with that one work.
+	br, err := call(ctx, lookupTimeout, func(cctx context.Context) (*pluginv1.RunWorkActionsResponse, error) {
+		return c.RunWorkActions(cctx, &pluginv1.RunWorkActionsRequest{Action: run, Member: member, Languages: langs,
+			Items: []*pluginv1.RunWorkActionsItem{{Work: &pluginv1.WorkRef{Type: ref.GetType(), ProviderIds: ref.GetProviderIds()}}}})
+	})
+	if err != nil {
+		t.Fatalf("RunWorkActions(%q, one work): %v", run, err)
+	}
+	if n := len(br.GetResults()); n != 1 {
+		t.Errorf("RunWorkActions returned %d results for one work; answer every item, in order", n)
+	}
+	for _, r := range br.GetResults() {
+		tooLong(t, "RunWorkActions message", r.GetMessage(), pluginapi.MaxWorkMessage)
+		if r.GetRefused() && r.GetMessage() == "" {
+			t.Errorf("RunWorkActions(%q) refused an item without a message for the member", run)
+		}
+		if l := r.GetLink(); l != nil && !absoluteHTTP(l.GetUrl()) {
+			t.Errorf("RunWorkActions link %q is not an absolute http or https URL; the host drops it", l.GetUrl())
+		}
+		if st := r.GetState(); st != nil {
+			checkWorkState(t, "RunWorkActions", st, declared, true)
+		}
+	}
+}
+
+// checkWorkActionsBatchEmpty asks RunWorkActions with no works, which changes nothing, and reports whether the plugin
+// implements it. UNIMPLEMENTED is a valid answer: the host then runs RunWorkAction once per work.
+func checkWorkActionsBatchEmpty(ctx context.Context, t *testing.T, c pluginv1.WorkActionProviderClient, m *pluginv1.Manifest, member *pluginv1.WorkMember, langs *pluginv1.Languages) bool {
+	t.Helper()
+	if len(m.GetWorkActions()) == 0 {
+		return false
+	}
+	resp, err := call(ctx, lookupTimeout, func(cctx context.Context) (*pluginv1.RunWorkActionsResponse, error) {
+		return c.RunWorkActions(cctx, &pluginv1.RunWorkActionsRequest{Action: m.GetWorkActions()[0].GetId(), Member: member, Languages: langs})
+	})
+	switch status.Code(err) {
+	case codes.Unimplemented:
+		t.Log("RunWorkActions is not implemented; the host runs RunWorkAction once per work")
+		return false
+	case codes.InvalidArgument:
+		return true
+	case codes.OK:
+		if n := len(resp.GetResults()); n != 0 {
+			t.Errorf("RunWorkActions with no works returned %d results", n)
+		}
+		return true
+	default:
+		t.Errorf("RunWorkActions with no works: %v; answer an empty list, INVALID_ARGUMENT or UNIMPLEMENTED", err)
+		return false
 	}
 }
 

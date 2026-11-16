@@ -3,16 +3,25 @@
 // Capabilities and the methods they map to:
 //   discover.source  DiscoverSource: DescribeDiscoverSource, GetDiscoverPage, SearchWorks, GetWork
 //   work.action      WorkActionProvider: GetWorkStates, RunWorkAction, ListMemberWorks
+//   page.action             PageActionProvider: GetPageState, RunPageAction
+//   discover.subscriptions  MemberSubscriptionProvider: ListMemberSubscriptions, RunSubscriptionAction
+//   discover.calendar       MemberCalendarProvider: ListMemberCalendar
 // For capabilities the plugin does not declare, the corresponding calls return UNIMPLEMENTED. Host feature discover;
 // older hosts never call these services.
 //
 // The two capabilities are independent: a plugin may implement one or both, and the host may show one plugin's actions
 // on another plugin's works. They meet only through a work's type and provider IDs.
 //
+// page.action works on the plugin's own pages only: a ref means something only to the plugin that gave it, so the host never
+// sends one plugin's ref to another. A plugin that declares page.action also declares discover.source. discover.subscriptions
+// and discover.calendar stand on their own: each may be declared with or without the others, and the host shows "my
+// subscriptions" and the calendar only for plugins that declare them.
+//
 // Works are the plugin's data. The host does not store them as library items, and it does not store actions or states:
 // it asks again, and caches answers for seconds only. The host finds a work in the library by its provider IDs.
 //
-// Only WorkActionProvider receives member information; DiscoverSource never does. Settings arrive through Configure, as
+// Only WorkActionProvider, PageActionProvider, MemberSubscriptionProvider and MemberCalendarProvider receive member
+// information; DiscoverSource never does. Settings arrive through Configure, as
 // for every other capability, not with each call.
 //
 // All text in these messages is plain text. The host removes control characters and cuts it to the stated length, and it
@@ -474,6 +483,74 @@ func (x MemberWorkStage) Number() protoreflect.EnumNumber {
 // Deprecated: Use MemberWorkStage.Descriptor instead.
 func (MemberWorkStage) EnumDescriptor() ([]byte, []int) {
 	return file_pluginv1_discover_proto_rawDescGZIP(), []int{6}
+}
+
+// CalendarEntryKind is what happens on a calendar date. The host treats values it does not know as unspecified.
+type CalendarEntryKind int32
+
+const (
+	CalendarEntryKind_CALENDAR_ENTRY_KIND_UNSPECIFIED CalendarEntryKind = 0
+	// Released in cinemas.
+	CalendarEntryKind_CALENDAR_ENTRY_KIND_THEATRICAL CalendarEntryKind = 1
+	// Released for streaming or digital purchase.
+	CalendarEntryKind_CALENDAR_ENTRY_KIND_DIGITAL CalendarEntryKind = 2
+	// Released on disc.
+	CalendarEntryKind_CALENDAR_ENTRY_KIND_PHYSICAL CalendarEntryKind = 3
+	// A series' first episode.
+	CalendarEntryKind_CALENDAR_ENTRY_KIND_PREMIERE CalendarEntryKind = 4
+	// A new episode.
+	CalendarEntryKind_CALENDAR_ENTRY_KIND_EPISODE CalendarEntryKind = 5
+	// The first episode of a later season.
+	CalendarEntryKind_CALENDAR_ENTRY_KIND_SEASON_PREMIERE CalendarEntryKind = 6
+)
+
+// Enum value maps for CalendarEntryKind.
+var (
+	CalendarEntryKind_name = map[int32]string{
+		0: "CALENDAR_ENTRY_KIND_UNSPECIFIED",
+		1: "CALENDAR_ENTRY_KIND_THEATRICAL",
+		2: "CALENDAR_ENTRY_KIND_DIGITAL",
+		3: "CALENDAR_ENTRY_KIND_PHYSICAL",
+		4: "CALENDAR_ENTRY_KIND_PREMIERE",
+		5: "CALENDAR_ENTRY_KIND_EPISODE",
+		6: "CALENDAR_ENTRY_KIND_SEASON_PREMIERE",
+	}
+	CalendarEntryKind_value = map[string]int32{
+		"CALENDAR_ENTRY_KIND_UNSPECIFIED":     0,
+		"CALENDAR_ENTRY_KIND_THEATRICAL":      1,
+		"CALENDAR_ENTRY_KIND_DIGITAL":         2,
+		"CALENDAR_ENTRY_KIND_PHYSICAL":        3,
+		"CALENDAR_ENTRY_KIND_PREMIERE":        4,
+		"CALENDAR_ENTRY_KIND_EPISODE":         5,
+		"CALENDAR_ENTRY_KIND_SEASON_PREMIERE": 6,
+	}
+)
+
+func (x CalendarEntryKind) Enum() *CalendarEntryKind {
+	p := new(CalendarEntryKind)
+	*p = x
+	return p
+}
+
+func (x CalendarEntryKind) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (CalendarEntryKind) Descriptor() protoreflect.EnumDescriptor {
+	return file_pluginv1_discover_proto_enumTypes[7].Descriptor()
+}
+
+func (CalendarEntryKind) Type() protoreflect.EnumType {
+	return &file_pluginv1_discover_proto_enumTypes[7]
+}
+
+func (x CalendarEntryKind) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use CalendarEntryKind.Descriptor instead.
+func (CalendarEntryKind) EnumDescriptor() ([]byte, []int) {
+	return file_pluginv1_discover_proto_rawDescGZIP(), []int{7}
 }
 
 type DescribeDiscoverSourceRequest struct {
@@ -1497,8 +1574,15 @@ type Work struct {
 	// Buttons that leave the server, for example a trailer, at most 4. They open in a new tab: the viewer's browser connects to
 	// these sites directly, and the plugin's page tells the administrator so. Only http and https URLs with a host are kept.
 	ExternalLinks []*ExternalLink `protobuf:"bytes,20,rep,name=external_links,json=externalLinks,proto3" json:"external_links,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	// Optional: the poster as a part of backdrop_url, for a source that only has a wide cover with the front on one side. Used
+	// only when poster_url is empty: the host crops the backdrop the same way it crops a metadata plugin's images
+	// (Image.crop) and caches the result. Lists and GetWork each use what they send.
+	PosterCrop *ImageCrop `protobuf:"bytes,23,opt,name=poster_crop,json=posterCrop,proto3" json:"poster_crop,omitempty"`
+	// Optional: the same as an aspect ratio and a position (Image.crop_hint), for when the plugin does not know the image's
+	// size. Ignored when poster_crop is set.
+	PosterCropHint *ImageCropHint `protobuf:"bytes,24,opt,name=poster_crop_hint,json=posterCropHint,proto3" json:"poster_crop_hint,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *Work) Reset() {
@@ -1681,6 +1765,20 @@ func (x *Work) GetRelatedRef() string {
 func (x *Work) GetExternalLinks() []*ExternalLink {
 	if x != nil {
 		return x.ExternalLinks
+	}
+	return nil
+}
+
+func (x *Work) GetPosterCrop() *ImageCrop {
+	if x != nil {
+		return x.PosterCrop
+	}
+	return nil
+}
+
+func (x *Work) GetPosterCropHint() *ImageCropHint {
+	if x != nil {
+		return x.PosterCropHint
 	}
 	return nil
 }
@@ -1983,7 +2081,11 @@ type WorkRef struct {
 	// ITEM_TYPE_MOVIE or ITEM_TYPE_SERIES.
 	Type ItemType `protobuf:"varint,2,opt,name=type,proto3,enum=kryspal.plugin.v1.ItemType" json:"type,omitempty"`
 	// All the IDs the host knows for the work. It contains at least one of the action's required_provider_ids.
-	ProviderIds   map[string]string `protobuf:"bytes,3,rep,name=provider_ids,json=providerIds,proto3" json:"provider_ids,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	ProviderIds map[string]string `protobuf:"bytes,3,rep,name=provider_ids,json=providerIds,proto3" json:"provider_ids,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// What the library already has of this work, at most 8 versions, for example to offer a better one. Only in
+	// GetWorkStates, only for works in the library that this member can see, and only to a plugin the administrator allowed
+	// the permission discover.library_files (host feature library_files); empty otherwise.
+	LibraryFiles  []*LibraryFile `protobuf:"bytes,4,rep,name=library_files,json=libraryFiles,proto3" json:"library_files,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2035,6 +2137,13 @@ func (x *WorkRef) GetType() ItemType {
 func (x *WorkRef) GetProviderIds() map[string]string {
 	if x != nil {
 		return x.ProviderIds
+	}
+	return nil
+}
+
+func (x *WorkRef) GetLibraryFiles() []*LibraryFile {
+	if x != nil {
+		return x.LibraryFiles
 	}
 	return nil
 }
@@ -2286,6 +2395,88 @@ func (x *WorkState) GetActions() []*WorkActionOffer {
 	return nil
 }
 
+// LibraryFile describes one version of a work in the library, without its location.
+type LibraryFile struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Size in bytes; for a link to a remote file (strm), the remote file's size when the host knows it, else 0.
+	SizeBytes int64 `protobuf:"varint,1,opt,name=size_bytes,json=sizeBytes,proto3" json:"size_bytes,omitempty"`
+	// Height of the video in pixels; 0 when unknown.
+	Height int32 `protobuf:"varint,2,opt,name=height,proto3" json:"height,omitempty"`
+	// Running time in whole seconds; 0 when unknown.
+	DurationSeconds int32 `protobuf:"varint,3,opt,name=duration_seconds,json=durationSeconds,proto3" json:"duration_seconds,omitempty"`
+	// The file is a link to a remote file (strm), not the media itself.
+	Strm bool `protobuf:"varint,4,opt,name=strm,proto3" json:"strm,omitempty"`
+	// The version's name as the server shows it, for example "4K HDR"; may be empty. Never a path or a file name.
+	VersionLabel  string `protobuf:"bytes,5,opt,name=version_label,json=versionLabel,proto3" json:"version_label,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *LibraryFile) Reset() {
+	*x = LibraryFile{}
+	mi := &file_pluginv1_discover_proto_msgTypes[23]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LibraryFile) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LibraryFile) ProtoMessage() {}
+
+func (x *LibraryFile) ProtoReflect() protoreflect.Message {
+	mi := &file_pluginv1_discover_proto_msgTypes[23]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LibraryFile.ProtoReflect.Descriptor instead.
+func (*LibraryFile) Descriptor() ([]byte, []int) {
+	return file_pluginv1_discover_proto_rawDescGZIP(), []int{23}
+}
+
+func (x *LibraryFile) GetSizeBytes() int64 {
+	if x != nil {
+		return x.SizeBytes
+	}
+	return 0
+}
+
+func (x *LibraryFile) GetHeight() int32 {
+	if x != nil {
+		return x.Height
+	}
+	return 0
+}
+
+func (x *LibraryFile) GetDurationSeconds() int32 {
+	if x != nil {
+		return x.DurationSeconds
+	}
+	return 0
+}
+
+func (x *LibraryFile) GetStrm() bool {
+	if x != nil {
+		return x.Strm
+	}
+	return false
+}
+
+func (x *LibraryFile) GetVersionLabel() string {
+	if x != nil {
+		return x.VersionLabel
+	}
+	return ""
+}
+
 // WorkActionOffer is one action the member can run on a work right now.
 type WorkActionOffer struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -2293,7 +2484,8 @@ type WorkActionOffer struct {
 	Action string `protobuf:"bytes,1,opt,name=action,proto3" json:"action,omitempty"`
 	// Button text for this state, for example "Ask again", at most 48 characters; empty uses the declared label.
 	Label string `protobuf:"bytes,2,opt,name=label,proto3" json:"label,omitempty"`
-	// What the member chooses before the action runs, in display order, at most 4. Empty runs it on one press.
+	// What the member chooses before the action runs, in display order, at most 4 (at most 12 on a subscription's actions, as
+	// many as SubscriptionForm.options, so that an edit can show the whole form). Empty runs it on one press.
 	Options       []*WorkOption `protobuf:"bytes,3,rep,name=options,proto3" json:"options,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -2301,7 +2493,7 @@ type WorkActionOffer struct {
 
 func (x *WorkActionOffer) Reset() {
 	*x = WorkActionOffer{}
-	mi := &file_pluginv1_discover_proto_msgTypes[23]
+	mi := &file_pluginv1_discover_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2313,7 +2505,7 @@ func (x *WorkActionOffer) String() string {
 func (*WorkActionOffer) ProtoMessage() {}
 
 func (x *WorkActionOffer) ProtoReflect() protoreflect.Message {
-	mi := &file_pluginv1_discover_proto_msgTypes[23]
+	mi := &file_pluginv1_discover_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2326,7 +2518,7 @@ func (x *WorkActionOffer) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WorkActionOffer.ProtoReflect.Descriptor instead.
 func (*WorkActionOffer) Descriptor() ([]byte, []int) {
-	return file_pluginv1_discover_proto_rawDescGZIP(), []int{23}
+	return file_pluginv1_discover_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *WorkActionOffer) GetAction() string {
@@ -2362,15 +2554,25 @@ type WorkOption struct {
 	Multiple bool `protobuf:"varint,3,opt,name=multiple,proto3" json:"multiple,omitempty"`
 	// At least one choice must be made before the action can run.
 	Required bool `protobuf:"varint,4,opt,name=required,proto3" json:"required,omitempty"`
-	// In display order, at most 100.
-	Choices       []*WorkChoice `protobuf:"bytes,5,rep,name=choices,proto3" json:"choices,omitempty"`
+	// In display order, at most 100. For a searchable option, the choices already chosen when the control appears (each with
+	// selected set), or nothing.
+	Choices []*WorkChoice `protobuf:"bytes,5,rep,name=choices,proto3" json:"choices,omitempty"`
+	// The choices are too many to list, for example people or studios: the host shows a text field and asks SuggestChoices as
+	// the member types; the chosen ones become chips. Honoured on the new-subscription form (GetSubscriptionForm) and on the
+	// options of subscription actions only: elsewhere the option is shown with its listed choices and the flag is ignored,
+	// because those requests carry no member or form to ask suggestions for. The host does not check the values the member
+	// sends for such an option against any list (it keeps no memory of suggestions): only their number (multiple and
+	// required), their length (at most 64 characters) and control characters. The plugin checks the rest.
+	Searchable bool `protobuf:"varint,6,opt,name=searchable,proto3" json:"searchable,omitempty"`
+	// One short line of help shown under the option, in the request's language, plain text, at most 64 characters. Optional.
+	Hint          string `protobuf:"bytes,7,opt,name=hint,proto3" json:"hint,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *WorkOption) Reset() {
 	*x = WorkOption{}
-	mi := &file_pluginv1_discover_proto_msgTypes[24]
+	mi := &file_pluginv1_discover_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2382,7 +2584,7 @@ func (x *WorkOption) String() string {
 func (*WorkOption) ProtoMessage() {}
 
 func (x *WorkOption) ProtoReflect() protoreflect.Message {
-	mi := &file_pluginv1_discover_proto_msgTypes[24]
+	mi := &file_pluginv1_discover_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2395,7 +2597,7 @@ func (x *WorkOption) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WorkOption.ProtoReflect.Descriptor instead.
 func (*WorkOption) Descriptor() ([]byte, []int) {
-	return file_pluginv1_discover_proto_rawDescGZIP(), []int{24}
+	return file_pluginv1_discover_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *WorkOption) GetKey() string {
@@ -2433,6 +2635,20 @@ func (x *WorkOption) GetChoices() []*WorkChoice {
 	return nil
 }
 
+func (x *WorkOption) GetSearchable() bool {
+	if x != nil {
+		return x.Searchable
+	}
+	return false
+}
+
+func (x *WorkOption) GetHint() string {
+	if x != nil {
+		return x.Hint
+	}
+	return ""
+}
+
 // WorkChoice is one answer to a WorkOption.
 type WorkChoice struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -2445,14 +2661,20 @@ type WorkChoice struct {
 	// Shown but cannot be chosen.
 	Disabled bool `protobuf:"varint,4,opt,name=disabled,proto3" json:"disabled,omitempty"`
 	// Short text next to the choice, for example why it is disabled; at most 32 characters.
-	Note          string `protobuf:"bytes,5,opt,name=note,proto3" json:"note,omitempty"`
+	Note string `protobuf:"bytes,5,opt,name=note,proto3" json:"note,omitempty"`
+	// Optional short labels shared across works, at most 4, each at most 16 characters of plain text, for example "4K" or
+	// "Subtitled", when the choice labels are specific to each work. When a member requests several works at once, the host
+	// groups the preferences by WorkOption.label and the member ranks tags (and the labels of choices without tags). For each
+	// work the host picks the first choice that carries the highest-ranked tag or label, and otherwise your default
+	// (WorkChoice.selected). Not used for discover filters.
+	Tags          []string `protobuf:"bytes,6,rep,name=tags,proto3" json:"tags,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *WorkChoice) Reset() {
 	*x = WorkChoice{}
-	mi := &file_pluginv1_discover_proto_msgTypes[25]
+	mi := &file_pluginv1_discover_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2464,7 +2686,7 @@ func (x *WorkChoice) String() string {
 func (*WorkChoice) ProtoMessage() {}
 
 func (x *WorkChoice) ProtoReflect() protoreflect.Message {
-	mi := &file_pluginv1_discover_proto_msgTypes[25]
+	mi := &file_pluginv1_discover_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2477,7 +2699,7 @@ func (x *WorkChoice) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WorkChoice.ProtoReflect.Descriptor instead.
 func (*WorkChoice) Descriptor() ([]byte, []int) {
-	return file_pluginv1_discover_proto_rawDescGZIP(), []int{25}
+	return file_pluginv1_discover_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *WorkChoice) GetValue() string {
@@ -2515,6 +2737,13 @@ func (x *WorkChoice) GetNote() string {
 	return ""
 }
 
+func (x *WorkChoice) GetTags() []string {
+	if x != nil {
+		return x.Tags
+	}
+	return nil
+}
+
 type RunWorkActionRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// WorkActionDeclaration.id.
@@ -2530,7 +2759,7 @@ type RunWorkActionRequest struct {
 
 func (x *RunWorkActionRequest) Reset() {
 	*x = RunWorkActionRequest{}
-	mi := &file_pluginv1_discover_proto_msgTypes[26]
+	mi := &file_pluginv1_discover_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2542,7 +2771,7 @@ func (x *RunWorkActionRequest) String() string {
 func (*RunWorkActionRequest) ProtoMessage() {}
 
 func (x *RunWorkActionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_pluginv1_discover_proto_msgTypes[26]
+	mi := &file_pluginv1_discover_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2555,7 +2784,7 @@ func (x *RunWorkActionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RunWorkActionRequest.ProtoReflect.Descriptor instead.
 func (*RunWorkActionRequest) Descriptor() ([]byte, []int) {
-	return file_pluginv1_discover_proto_rawDescGZIP(), []int{26}
+	return file_pluginv1_discover_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *RunWorkActionRequest) GetAction() string {
@@ -2606,7 +2835,7 @@ type WorkSelection struct {
 
 func (x *WorkSelection) Reset() {
 	*x = WorkSelection{}
-	mi := &file_pluginv1_discover_proto_msgTypes[27]
+	mi := &file_pluginv1_discover_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2618,7 +2847,7 @@ func (x *WorkSelection) String() string {
 func (*WorkSelection) ProtoMessage() {}
 
 func (x *WorkSelection) ProtoReflect() protoreflect.Message {
-	mi := &file_pluginv1_discover_proto_msgTypes[27]
+	mi := &file_pluginv1_discover_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2631,7 +2860,7 @@ func (x *WorkSelection) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WorkSelection.ProtoReflect.Descriptor instead.
 func (*WorkSelection) Descriptor() ([]byte, []int) {
-	return file_pluginv1_discover_proto_rawDescGZIP(), []int{27}
+	return file_pluginv1_discover_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *WorkSelection) GetKey() string {
@@ -2667,7 +2896,7 @@ type RunWorkActionResponse struct {
 
 func (x *RunWorkActionResponse) Reset() {
 	*x = RunWorkActionResponse{}
-	mi := &file_pluginv1_discover_proto_msgTypes[28]
+	mi := &file_pluginv1_discover_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2679,7 +2908,7 @@ func (x *RunWorkActionResponse) String() string {
 func (*RunWorkActionResponse) ProtoMessage() {}
 
 func (x *RunWorkActionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_pluginv1_discover_proto_msgTypes[28]
+	mi := &file_pluginv1_discover_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2692,7 +2921,7 @@ func (x *RunWorkActionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RunWorkActionResponse.ProtoReflect.Descriptor instead.
 func (*RunWorkActionResponse) Descriptor() ([]byte, []int) {
-	return file_pluginv1_discover_proto_rawDescGZIP(), []int{28}
+	return file_pluginv1_discover_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *RunWorkActionResponse) GetRefused() bool {
@@ -2723,6 +2952,175 @@ func (x *RunWorkActionResponse) GetState() *WorkState {
 	return nil
 }
 
+type RunWorkActionsRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// WorkActionDeclaration.id; the same action for every item.
+	Action    string      `protobuf:"bytes,1,opt,name=action,proto3" json:"action,omitempty"`
+	Member    *WorkMember `protobuf:"bytes,2,opt,name=member,proto3" json:"member,omitempty"`
+	Languages *Languages  `protobuf:"bytes,3,opt,name=languages,proto3" json:"languages,omitempty"`
+	// At most 50, each a work with the member's answers to that work's offer.
+	Items         []*RunWorkActionsItem `protobuf:"bytes,4,rep,name=items,proto3" json:"items,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RunWorkActionsRequest) Reset() {
+	*x = RunWorkActionsRequest{}
+	mi := &file_pluginv1_discover_proto_msgTypes[30]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RunWorkActionsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RunWorkActionsRequest) ProtoMessage() {}
+
+func (x *RunWorkActionsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_pluginv1_discover_proto_msgTypes[30]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RunWorkActionsRequest.ProtoReflect.Descriptor instead.
+func (*RunWorkActionsRequest) Descriptor() ([]byte, []int) {
+	return file_pluginv1_discover_proto_rawDescGZIP(), []int{30}
+}
+
+func (x *RunWorkActionsRequest) GetAction() string {
+	if x != nil {
+		return x.Action
+	}
+	return ""
+}
+
+func (x *RunWorkActionsRequest) GetMember() *WorkMember {
+	if x != nil {
+		return x.Member
+	}
+	return nil
+}
+
+func (x *RunWorkActionsRequest) GetLanguages() *Languages {
+	if x != nil {
+		return x.Languages
+	}
+	return nil
+}
+
+func (x *RunWorkActionsRequest) GetItems() []*RunWorkActionsItem {
+	if x != nil {
+		return x.Items
+	}
+	return nil
+}
+
+// RunWorkActionsItem is one work of a RunWorkActionsRequest.
+type RunWorkActionsItem struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Work          *WorkRef               `protobuf:"bytes,1,opt,name=work,proto3" json:"work,omitempty"`
+	Selections    []*WorkSelection       `protobuf:"bytes,2,rep,name=selections,proto3" json:"selections,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RunWorkActionsItem) Reset() {
+	*x = RunWorkActionsItem{}
+	mi := &file_pluginv1_discover_proto_msgTypes[31]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RunWorkActionsItem) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RunWorkActionsItem) ProtoMessage() {}
+
+func (x *RunWorkActionsItem) ProtoReflect() protoreflect.Message {
+	mi := &file_pluginv1_discover_proto_msgTypes[31]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RunWorkActionsItem.ProtoReflect.Descriptor instead.
+func (*RunWorkActionsItem) Descriptor() ([]byte, []int) {
+	return file_pluginv1_discover_proto_rawDescGZIP(), []int{31}
+}
+
+func (x *RunWorkActionsItem) GetWork() *WorkRef {
+	if x != nil {
+		return x.Work
+	}
+	return nil
+}
+
+func (x *RunWorkActionsItem) GetSelections() []*WorkSelection {
+	if x != nil {
+		return x.Selections
+	}
+	return nil
+}
+
+type RunWorkActionsResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// One per item, in the same order, each with the meaning of RunWorkActionResponse. The host treats a missing result as a
+	// failure of that item.
+	Results       []*RunWorkActionResponse `protobuf:"bytes,1,rep,name=results,proto3" json:"results,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RunWorkActionsResponse) Reset() {
+	*x = RunWorkActionsResponse{}
+	mi := &file_pluginv1_discover_proto_msgTypes[32]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RunWorkActionsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RunWorkActionsResponse) ProtoMessage() {}
+
+func (x *RunWorkActionsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_pluginv1_discover_proto_msgTypes[32]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RunWorkActionsResponse.ProtoReflect.Descriptor instead.
+func (*RunWorkActionsResponse) Descriptor() ([]byte, []int) {
+	return file_pluginv1_discover_proto_rawDescGZIP(), []int{32}
+}
+
+func (x *RunWorkActionsResponse) GetResults() []*RunWorkActionResponse {
+	if x != nil {
+		return x.Results
+	}
+	return nil
+}
+
 type ListMemberWorksRequest struct {
 	state  protoimpl.MessageState `protogen:"open.v1"`
 	Member *WorkMember            `protobuf:"bytes,1,opt,name=member,proto3" json:"member,omitempty"`
@@ -2737,7 +3135,7 @@ type ListMemberWorksRequest struct {
 
 func (x *ListMemberWorksRequest) Reset() {
 	*x = ListMemberWorksRequest{}
-	mi := &file_pluginv1_discover_proto_msgTypes[29]
+	mi := &file_pluginv1_discover_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2749,7 +3147,7 @@ func (x *ListMemberWorksRequest) String() string {
 func (*ListMemberWorksRequest) ProtoMessage() {}
 
 func (x *ListMemberWorksRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_pluginv1_discover_proto_msgTypes[29]
+	mi := &file_pluginv1_discover_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2762,7 +3160,7 @@ func (x *ListMemberWorksRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListMemberWorksRequest.ProtoReflect.Descriptor instead.
 func (*ListMemberWorksRequest) Descriptor() ([]byte, []int) {
-	return file_pluginv1_discover_proto_rawDescGZIP(), []int{29}
+	return file_pluginv1_discover_proto_rawDescGZIP(), []int{33}
 }
 
 func (x *ListMemberWorksRequest) GetMember() *WorkMember {
@@ -2798,7 +3196,7 @@ type ListMemberWorksResponse struct {
 
 func (x *ListMemberWorksResponse) Reset() {
 	*x = ListMemberWorksResponse{}
-	mi := &file_pluginv1_discover_proto_msgTypes[30]
+	mi := &file_pluginv1_discover_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2810,7 +3208,7 @@ func (x *ListMemberWorksResponse) String() string {
 func (*ListMemberWorksResponse) ProtoMessage() {}
 
 func (x *ListMemberWorksResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_pluginv1_discover_proto_msgTypes[30]
+	mi := &file_pluginv1_discover_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2823,7 +3221,7 @@ func (x *ListMemberWorksResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListMemberWorksResponse.ProtoReflect.Descriptor instead.
 func (*ListMemberWorksResponse) Descriptor() ([]byte, []int) {
-	return file_pluginv1_discover_proto_rawDescGZIP(), []int{30}
+	return file_pluginv1_discover_proto_rawDescGZIP(), []int{34}
 }
 
 func (x *ListMemberWorksResponse) GetWorks() []*MemberWork {
@@ -2865,7 +3263,7 @@ type MemberWork struct {
 
 func (x *MemberWork) Reset() {
 	*x = MemberWork{}
-	mi := &file_pluginv1_discover_proto_msgTypes[31]
+	mi := &file_pluginv1_discover_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2877,7 +3275,7 @@ func (x *MemberWork) String() string {
 func (*MemberWork) ProtoMessage() {}
 
 func (x *MemberWork) ProtoReflect() protoreflect.Message {
-	mi := &file_pluginv1_discover_proto_msgTypes[31]
+	mi := &file_pluginv1_discover_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2890,7 +3288,7 @@ func (x *MemberWork) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MemberWork.ProtoReflect.Descriptor instead.
 func (*MemberWork) Descriptor() ([]byte, []int) {
-	return file_pluginv1_discover_proto_rawDescGZIP(), []int{31}
+	return file_pluginv1_discover_proto_rawDescGZIP(), []int{35}
 }
 
 func (x *MemberWork) GetWork() *Work {
@@ -2956,7 +3354,7 @@ type ExternalLink struct {
 
 func (x *ExternalLink) Reset() {
 	*x = ExternalLink{}
-	mi := &file_pluginv1_discover_proto_msgTypes[32]
+	mi := &file_pluginv1_discover_proto_msgTypes[36]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2968,7 +3366,7 @@ func (x *ExternalLink) String() string {
 func (*ExternalLink) ProtoMessage() {}
 
 func (x *ExternalLink) ProtoReflect() protoreflect.Message {
-	mi := &file_pluginv1_discover_proto_msgTypes[32]
+	mi := &file_pluginv1_discover_proto_msgTypes[36]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2981,7 +3379,7 @@ func (x *ExternalLink) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExternalLink.ProtoReflect.Descriptor instead.
 func (*ExternalLink) Descriptor() ([]byte, []int) {
-	return file_pluginv1_discover_proto_rawDescGZIP(), []int{32}
+	return file_pluginv1_discover_proto_rawDescGZIP(), []int{36}
 }
 
 func (x *ExternalLink) GetUrl() string {
@@ -2994,6 +3392,1336 @@ func (x *ExternalLink) GetUrl() string {
 func (x *ExternalLink) GetLabel() string {
 	if x != nil {
 		return x.Label
+	}
+	return ""
+}
+
+type GetPageStateRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// A ref this plugin gave: DiscoverTab.ref, DiscoverCard.ref or any other ref from its answers.
+	Ref    string      `protobuf:"bytes,1,opt,name=ref,proto3" json:"ref,omitempty"`
+	Member *WorkMember `protobuf:"bytes,2,opt,name=member,proto3" json:"member,omitempty"`
+	// Language of status_text, labels and notes.
+	Languages     *Languages `protobuf:"bytes,3,opt,name=languages,proto3" json:"languages,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetPageStateRequest) Reset() {
+	*x = GetPageStateRequest{}
+	mi := &file_pluginv1_discover_proto_msgTypes[37]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetPageStateRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetPageStateRequest) ProtoMessage() {}
+
+func (x *GetPageStateRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_pluginv1_discover_proto_msgTypes[37]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetPageStateRequest.ProtoReflect.Descriptor instead.
+func (*GetPageStateRequest) Descriptor() ([]byte, []int) {
+	return file_pluginv1_discover_proto_rawDescGZIP(), []int{37}
+}
+
+func (x *GetPageStateRequest) GetRef() string {
+	if x != nil {
+		return x.Ref
+	}
+	return ""
+}
+
+func (x *GetPageStateRequest) GetMember() *WorkMember {
+	if x != nil {
+		return x.Member
+	}
+	return nil
+}
+
+func (x *GetPageStateRequest) GetLanguages() *Languages {
+	if x != nil {
+		return x.Languages
+	}
+	return nil
+}
+
+// PageState is what one member can do on one page now.
+type PageState struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Short text for the page's state, in the request's language, at most 32 characters, for example "Subscribed". Empty shows
+	// nothing.
+	StatusText string `protobuf:"bytes,1,opt,name=status_text,json=statusText,proto3" json:"status_text,omitempty"`
+	// What the member can do now, at most 4. WorkActionOffer.action must be an id of Manifest.page_actions; others are dropped.
+	// Empty shows no button.
+	Actions       []*WorkActionOffer `protobuf:"bytes,2,rep,name=actions,proto3" json:"actions,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PageState) Reset() {
+	*x = PageState{}
+	mi := &file_pluginv1_discover_proto_msgTypes[38]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PageState) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PageState) ProtoMessage() {}
+
+func (x *PageState) ProtoReflect() protoreflect.Message {
+	mi := &file_pluginv1_discover_proto_msgTypes[38]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PageState.ProtoReflect.Descriptor instead.
+func (*PageState) Descriptor() ([]byte, []int) {
+	return file_pluginv1_discover_proto_rawDescGZIP(), []int{38}
+}
+
+func (x *PageState) GetStatusText() string {
+	if x != nil {
+		return x.StatusText
+	}
+	return ""
+}
+
+func (x *PageState) GetActions() []*WorkActionOffer {
+	if x != nil {
+		return x.Actions
+	}
+	return nil
+}
+
+type RunPageActionRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// ActionDeclaration.id from Manifest.page_actions.
+	Action string `protobuf:"bytes,1,opt,name=action,proto3" json:"action,omitempty"`
+	// The page, as in GetPageStateRequest.ref.
+	Ref       string      `protobuf:"bytes,2,opt,name=ref,proto3" json:"ref,omitempty"`
+	Member    *WorkMember `protobuf:"bytes,3,opt,name=member,proto3" json:"member,omitempty"`
+	Languages *Languages  `protobuf:"bytes,4,opt,name=languages,proto3" json:"languages,omitempty"`
+	// The member's answers to the offer's options.
+	Selections    []*WorkSelection `protobuf:"bytes,5,rep,name=selections,proto3" json:"selections,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RunPageActionRequest) Reset() {
+	*x = RunPageActionRequest{}
+	mi := &file_pluginv1_discover_proto_msgTypes[39]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RunPageActionRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RunPageActionRequest) ProtoMessage() {}
+
+func (x *RunPageActionRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_pluginv1_discover_proto_msgTypes[39]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RunPageActionRequest.ProtoReflect.Descriptor instead.
+func (*RunPageActionRequest) Descriptor() ([]byte, []int) {
+	return file_pluginv1_discover_proto_rawDescGZIP(), []int{39}
+}
+
+func (x *RunPageActionRequest) GetAction() string {
+	if x != nil {
+		return x.Action
+	}
+	return ""
+}
+
+func (x *RunPageActionRequest) GetRef() string {
+	if x != nil {
+		return x.Ref
+	}
+	return ""
+}
+
+func (x *RunPageActionRequest) GetMember() *WorkMember {
+	if x != nil {
+		return x.Member
+	}
+	return nil
+}
+
+func (x *RunPageActionRequest) GetLanguages() *Languages {
+	if x != nil {
+		return x.Languages
+	}
+	return nil
+}
+
+func (x *RunPageActionRequest) GetSelections() []*WorkSelection {
+	if x != nil {
+		return x.Selections
+	}
+	return nil
+}
+
+type RunPageActionResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The same meaning as RunWorkActionResponse.refused: the answer is no, for a reason the member can read.
+	Refused bool `protobuf:"varint,1,opt,name=refused,proto3" json:"refused,omitempty"`
+	// One sentence for the member, in the request's language, plain text, at most 200 characters.
+	Message string `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
+	// Optional link that helps the member act on the message.
+	Link *ExternalLink `protobuf:"bytes,3,opt,name=link,proto3" json:"link,omitempty"`
+	// The page's state after the action. When set, the host shows it and does not ask again; unset, the host asks
+	// GetPageState.
+	State         *PageState `protobuf:"bytes,4,opt,name=state,proto3" json:"state,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RunPageActionResponse) Reset() {
+	*x = RunPageActionResponse{}
+	mi := &file_pluginv1_discover_proto_msgTypes[40]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RunPageActionResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RunPageActionResponse) ProtoMessage() {}
+
+func (x *RunPageActionResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_pluginv1_discover_proto_msgTypes[40]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RunPageActionResponse.ProtoReflect.Descriptor instead.
+func (*RunPageActionResponse) Descriptor() ([]byte, []int) {
+	return file_pluginv1_discover_proto_rawDescGZIP(), []int{40}
+}
+
+func (x *RunPageActionResponse) GetRefused() bool {
+	if x != nil {
+		return x.Refused
+	}
+	return false
+}
+
+func (x *RunPageActionResponse) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
+func (x *RunPageActionResponse) GetLink() *ExternalLink {
+	if x != nil {
+		return x.Link
+	}
+	return nil
+}
+
+func (x *RunPageActionResponse) GetState() *PageState {
+	if x != nil {
+		return x.State
+	}
+	return nil
+}
+
+type ListMemberSubscriptionsRequest struct {
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	Member *WorkMember            `protobuf:"bytes,1,opt,name=member,proto3" json:"member,omitempty"`
+	// Language of the text.
+	Languages *Languages `protobuf:"bytes,2,opt,name=languages,proto3" json:"languages,omitempty"`
+	// ListMemberSubscriptionsResponse.next_page_token from the previous answer; empty for the first page. It comes through the
+	// client: it must not be able to select another member's subscriptions.
+	PageToken     string `protobuf:"bytes,3,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListMemberSubscriptionsRequest) Reset() {
+	*x = ListMemberSubscriptionsRequest{}
+	mi := &file_pluginv1_discover_proto_msgTypes[41]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListMemberSubscriptionsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListMemberSubscriptionsRequest) ProtoMessage() {}
+
+func (x *ListMemberSubscriptionsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_pluginv1_discover_proto_msgTypes[41]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListMemberSubscriptionsRequest.ProtoReflect.Descriptor instead.
+func (*ListMemberSubscriptionsRequest) Descriptor() ([]byte, []int) {
+	return file_pluginv1_discover_proto_rawDescGZIP(), []int{41}
+}
+
+func (x *ListMemberSubscriptionsRequest) GetMember() *WorkMember {
+	if x != nil {
+		return x.Member
+	}
+	return nil
+}
+
+func (x *ListMemberSubscriptionsRequest) GetLanguages() *Languages {
+	if x != nil {
+		return x.Languages
+	}
+	return nil
+}
+
+func (x *ListMemberSubscriptionsRequest) GetPageToken() string {
+	if x != nil {
+		return x.PageToken
+	}
+	return ""
+}
+
+type ListMemberSubscriptionsResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Newest first by updated_at, at most 50. The order is only required within this plugin's own pages: the host merges
+	// several plugins page by page, each with its own token, and does not need one stable order across them.
+	Subscriptions []*MemberSubscription `protobuf:"bytes,1,rep,name=subscriptions,proto3" json:"subscriptions,omitempty"`
+	// Opaque token for the next page, at most 1024 characters; empty when there are no more.
+	NextPageToken string `protobuf:"bytes,2,opt,name=next_page_token,json=nextPageToken,proto3" json:"next_page_token,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListMemberSubscriptionsResponse) Reset() {
+	*x = ListMemberSubscriptionsResponse{}
+	mi := &file_pluginv1_discover_proto_msgTypes[42]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListMemberSubscriptionsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListMemberSubscriptionsResponse) ProtoMessage() {}
+
+func (x *ListMemberSubscriptionsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_pluginv1_discover_proto_msgTypes[42]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListMemberSubscriptionsResponse.ProtoReflect.Descriptor instead.
+func (*ListMemberSubscriptionsResponse) Descriptor() ([]byte, []int) {
+	return file_pluginv1_discover_proto_rawDescGZIP(), []int{42}
+}
+
+func (x *ListMemberSubscriptionsResponse) GetSubscriptions() []*MemberSubscription {
+	if x != nil {
+		return x.Subscriptions
+	}
+	return nil
+}
+
+func (x *ListMemberSubscriptionsResponse) GetNextPageToken() string {
+	if x != nil {
+		return x.NextPageToken
+	}
+	return ""
+}
+
+// MemberSubscription is one thing a member follows through this plugin.
+type MemberSubscription struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The plugin's ID of the subscription: 1 to 256 characters of valid UTF-8 with no control characters, unique within this
+	// member's subscriptions on this plugin. RunSubscriptionAction sends it back. It goes through the client, so it must not
+	// contain secrets.
+	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	// What kind of subscription it is, in the request's language, at most 24 characters, for example "Series", "Person" or
+	// "Keyword". Required.
+	KindText string `protobuf:"bytes,2,opt,name=kind_text,json=kindText,proto3" json:"kind_text,omitempty"`
+	// At most 128 characters. Required.
+	Title string `protobuf:"bytes,3,opt,name=title,proto3" json:"title,omitempty"`
+	// Absolute http or https URL, with the same rules as Work.poster_url.
+	ImageUrl string `protobuf:"bytes,4,opt,name=image_url,json=imageUrl,proto3" json:"image_url,omitempty"`
+	// What image_url shows, with the same values as DiscoverCard.image_kind.
+	ImageKind DiscoverCardImageKind `protobuf:"varint,5,opt,name=image_kind,json=imageKind,proto3,enum=kryspal.plugin.v1.DiscoverCardImageKind" json:"image_kind,omitempty"`
+	// What opening the subscription shows. Unset: the entry does not open, for example a keyword.
+	//
+	// Types that are valid to be assigned to Target:
+	//
+	//	*MemberSubscription_Work
+	//	*MemberSubscription_PageRef
+	Target isMemberSubscription_Target `protobuf_oneof:"target"`
+	// When this entry last changed (UTC, RFC 3339). Entries without a valid time sort last and show no time.
+	UpdatedAt string `protobuf:"bytes,8,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	// Short text for the subscription's state, at most 32 characters, for example "Next episode on 20 Nov".
+	StatusText string `protobuf:"bytes,9,opt,name=status_text,json=statusText,proto3" json:"status_text,omitempty"`
+	// What the member can do on it now, at most 4. WorkActionOffer.action must be an id of Manifest.subscription_actions;
+	// others are dropped. An offer may carry options, as for works. They run through RunSubscriptionAction.
+	Actions       []*WorkActionOffer `protobuf:"bytes,10,rep,name=actions,proto3" json:"actions,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *MemberSubscription) Reset() {
+	*x = MemberSubscription{}
+	mi := &file_pluginv1_discover_proto_msgTypes[43]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MemberSubscription) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MemberSubscription) ProtoMessage() {}
+
+func (x *MemberSubscription) ProtoReflect() protoreflect.Message {
+	mi := &file_pluginv1_discover_proto_msgTypes[43]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MemberSubscription.ProtoReflect.Descriptor instead.
+func (*MemberSubscription) Descriptor() ([]byte, []int) {
+	return file_pluginv1_discover_proto_rawDescGZIP(), []int{43}
+}
+
+func (x *MemberSubscription) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *MemberSubscription) GetKindText() string {
+	if x != nil {
+		return x.KindText
+	}
+	return ""
+}
+
+func (x *MemberSubscription) GetTitle() string {
+	if x != nil {
+		return x.Title
+	}
+	return ""
+}
+
+func (x *MemberSubscription) GetImageUrl() string {
+	if x != nil {
+		return x.ImageUrl
+	}
+	return ""
+}
+
+func (x *MemberSubscription) GetImageKind() DiscoverCardImageKind {
+	if x != nil {
+		return x.ImageKind
+	}
+	return DiscoverCardImageKind_DISCOVER_CARD_IMAGE_KIND_UNSPECIFIED
+}
+
+func (x *MemberSubscription) GetTarget() isMemberSubscription_Target {
+	if x != nil {
+		return x.Target
+	}
+	return nil
+}
+
+func (x *MemberSubscription) GetWork() *Work {
+	if x != nil {
+		if x, ok := x.Target.(*MemberSubscription_Work); ok {
+			return x.Work
+		}
+	}
+	return nil
+}
+
+func (x *MemberSubscription) GetPageRef() string {
+	if x != nil {
+		if x, ok := x.Target.(*MemberSubscription_PageRef); ok {
+			return x.PageRef
+		}
+	}
+	return ""
+}
+
+func (x *MemberSubscription) GetUpdatedAt() string {
+	if x != nil {
+		return x.UpdatedAt
+	}
+	return ""
+}
+
+func (x *MemberSubscription) GetStatusText() string {
+	if x != nil {
+		return x.StatusText
+	}
+	return ""
+}
+
+func (x *MemberSubscription) GetActions() []*WorkActionOffer {
+	if x != nil {
+		return x.Actions
+	}
+	return nil
+}
+
+type isMemberSubscription_Target interface {
+	isMemberSubscription_Target()
+}
+
+type MemberSubscription_Work struct {
+	// A work, with the same rules as MemberWork.work: it needs a type and a title, and a key when this plugin's GetWork can
+	// open it. Provider IDs let the host find it in the library.
+	Work *Work `protobuf:"bytes,6,opt,name=work,proto3,oneof"`
+}
+
+type MemberSubscription_PageRef struct {
+	// A page of this plugin; needs discover.source.
+	PageRef string `protobuf:"bytes,7,opt,name=page_ref,json=pageRef,proto3,oneof"`
+}
+
+func (*MemberSubscription_Work) isMemberSubscription_Target() {}
+
+func (*MemberSubscription_PageRef) isMemberSubscription_Target() {}
+
+type RunSubscriptionActionRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// ActionDeclaration.id from Manifest.subscription_actions.
+	Action string `protobuf:"bytes,1,opt,name=action,proto3" json:"action,omitempty"`
+	// MemberSubscription.id.
+	SubscriptionId string      `protobuf:"bytes,2,opt,name=subscription_id,json=subscriptionId,proto3" json:"subscription_id,omitempty"`
+	Member         *WorkMember `protobuf:"bytes,3,opt,name=member,proto3" json:"member,omitempty"`
+	Languages      *Languages  `protobuf:"bytes,4,opt,name=languages,proto3" json:"languages,omitempty"`
+	// The member's answers to the options of the subscription's offer (MemberSubscription.actions are WorkActionOffers and
+	// may carry options).
+	Selections    []*WorkSelection `protobuf:"bytes,5,rep,name=selections,proto3" json:"selections,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RunSubscriptionActionRequest) Reset() {
+	*x = RunSubscriptionActionRequest{}
+	mi := &file_pluginv1_discover_proto_msgTypes[44]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RunSubscriptionActionRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RunSubscriptionActionRequest) ProtoMessage() {}
+
+func (x *RunSubscriptionActionRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_pluginv1_discover_proto_msgTypes[44]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RunSubscriptionActionRequest.ProtoReflect.Descriptor instead.
+func (*RunSubscriptionActionRequest) Descriptor() ([]byte, []int) {
+	return file_pluginv1_discover_proto_rawDescGZIP(), []int{44}
+}
+
+func (x *RunSubscriptionActionRequest) GetAction() string {
+	if x != nil {
+		return x.Action
+	}
+	return ""
+}
+
+func (x *RunSubscriptionActionRequest) GetSubscriptionId() string {
+	if x != nil {
+		return x.SubscriptionId
+	}
+	return ""
+}
+
+func (x *RunSubscriptionActionRequest) GetMember() *WorkMember {
+	if x != nil {
+		return x.Member
+	}
+	return nil
+}
+
+func (x *RunSubscriptionActionRequest) GetLanguages() *Languages {
+	if x != nil {
+		return x.Languages
+	}
+	return nil
+}
+
+func (x *RunSubscriptionActionRequest) GetSelections() []*WorkSelection {
+	if x != nil {
+		return x.Selections
+	}
+	return nil
+}
+
+type RunSubscriptionActionResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The same meaning as RunWorkActionResponse.refused.
+	Refused bool `protobuf:"varint,1,opt,name=refused,proto3" json:"refused,omitempty"`
+	// One sentence for the member, in the request's language, plain text, at most 200 characters.
+	Message string `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
+	// Optional link that helps the member act on the message.
+	Link *ExternalLink `protobuf:"bytes,3,opt,name=link,proto3" json:"link,omitempty"`
+	// The subscription after the action. When set, the host shows it and does not ask again; unset with removed false, the
+	// host lists the subscriptions again.
+	Subscription *MemberSubscription `protobuf:"bytes,4,opt,name=subscription,proto3" json:"subscription,omitempty"`
+	// The subscription no longer exists, for example after "unsubscribe".
+	Removed       bool `protobuf:"varint,5,opt,name=removed,proto3" json:"removed,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RunSubscriptionActionResponse) Reset() {
+	*x = RunSubscriptionActionResponse{}
+	mi := &file_pluginv1_discover_proto_msgTypes[45]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RunSubscriptionActionResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RunSubscriptionActionResponse) ProtoMessage() {}
+
+func (x *RunSubscriptionActionResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_pluginv1_discover_proto_msgTypes[45]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RunSubscriptionActionResponse.ProtoReflect.Descriptor instead.
+func (*RunSubscriptionActionResponse) Descriptor() ([]byte, []int) {
+	return file_pluginv1_discover_proto_rawDescGZIP(), []int{45}
+}
+
+func (x *RunSubscriptionActionResponse) GetRefused() bool {
+	if x != nil {
+		return x.Refused
+	}
+	return false
+}
+
+func (x *RunSubscriptionActionResponse) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
+func (x *RunSubscriptionActionResponse) GetLink() *ExternalLink {
+	if x != nil {
+		return x.Link
+	}
+	return nil
+}
+
+func (x *RunSubscriptionActionResponse) GetSubscription() *MemberSubscription {
+	if x != nil {
+		return x.Subscription
+	}
+	return nil
+}
+
+func (x *RunSubscriptionActionResponse) GetRemoved() bool {
+	if x != nil {
+		return x.Removed
+	}
+	return false
+}
+
+type GetSubscriptionFormRequest struct {
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	Member *WorkMember            `protobuf:"bytes,1,opt,name=member,proto3" json:"member,omitempty"`
+	// Language of the text.
+	Languages     *Languages `protobuf:"bytes,2,opt,name=languages,proto3" json:"languages,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetSubscriptionFormRequest) Reset() {
+	*x = GetSubscriptionFormRequest{}
+	mi := &file_pluginv1_discover_proto_msgTypes[46]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetSubscriptionFormRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetSubscriptionFormRequest) ProtoMessage() {}
+
+func (x *GetSubscriptionFormRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_pluginv1_discover_proto_msgTypes[46]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetSubscriptionFormRequest.ProtoReflect.Descriptor instead.
+func (*GetSubscriptionFormRequest) Descriptor() ([]byte, []int) {
+	return file_pluginv1_discover_proto_rawDescGZIP(), []int{46}
+}
+
+func (x *GetSubscriptionFormRequest) GetMember() *WorkMember {
+	if x != nil {
+		return x.Member
+	}
+	return nil
+}
+
+func (x *GetSubscriptionFormRequest) GetLanguages() *Languages {
+	if x != nil {
+		return x.Languages
+	}
+	return nil
+}
+
+// SubscriptionForm is the form for a new subscription. How its conditions combine (all of them, any of them, or otherwise)
+// is the plugin's decision: the host does not interpret them; say it in description when it matters.
+type SubscriptionForm struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Title of the form, in the request's language, at most 64 characters; empty uses the plugin's name.
+	Title string `protobuf:"bytes,1,opt,name=title,proto3" json:"title,omitempty"`
+	// One or two sentences under the title, plain text, at most 120 characters, for example how the conditions combine.
+	// Optional.
+	Description string `protobuf:"bytes,2,opt,name=description,proto3" json:"description,omitempty"`
+	// The conditions, in display order, at most 12. Each is a WorkOption with the same rules as an action's options; keys are
+	// unique within the form. A form without any valid option is not shown.
+	Options       []*WorkOption `protobuf:"bytes,3,rep,name=options,proto3" json:"options,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SubscriptionForm) Reset() {
+	*x = SubscriptionForm{}
+	mi := &file_pluginv1_discover_proto_msgTypes[47]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SubscriptionForm) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SubscriptionForm) ProtoMessage() {}
+
+func (x *SubscriptionForm) ProtoReflect() protoreflect.Message {
+	mi := &file_pluginv1_discover_proto_msgTypes[47]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SubscriptionForm.ProtoReflect.Descriptor instead.
+func (*SubscriptionForm) Descriptor() ([]byte, []int) {
+	return file_pluginv1_discover_proto_rawDescGZIP(), []int{47}
+}
+
+func (x *SubscriptionForm) GetTitle() string {
+	if x != nil {
+		return x.Title
+	}
+	return ""
+}
+
+func (x *SubscriptionForm) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
+func (x *SubscriptionForm) GetOptions() []*WorkOption {
+	if x != nil {
+		return x.Options
+	}
+	return nil
+}
+
+type CreateSubscriptionRequest struct {
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	Member    *WorkMember            `protobuf:"bytes,1,opt,name=member,proto3" json:"member,omitempty"`
+	Languages *Languages             `protobuf:"bytes,2,opt,name=languages,proto3" json:"languages,omitempty"`
+	// The member's answers to the form's options.
+	Selections    []*WorkSelection `protobuf:"bytes,3,rep,name=selections,proto3" json:"selections,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateSubscriptionRequest) Reset() {
+	*x = CreateSubscriptionRequest{}
+	mi := &file_pluginv1_discover_proto_msgTypes[48]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateSubscriptionRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateSubscriptionRequest) ProtoMessage() {}
+
+func (x *CreateSubscriptionRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_pluginv1_discover_proto_msgTypes[48]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateSubscriptionRequest.ProtoReflect.Descriptor instead.
+func (*CreateSubscriptionRequest) Descriptor() ([]byte, []int) {
+	return file_pluginv1_discover_proto_rawDescGZIP(), []int{48}
+}
+
+func (x *CreateSubscriptionRequest) GetMember() *WorkMember {
+	if x != nil {
+		return x.Member
+	}
+	return nil
+}
+
+func (x *CreateSubscriptionRequest) GetLanguages() *Languages {
+	if x != nil {
+		return x.Languages
+	}
+	return nil
+}
+
+func (x *CreateSubscriptionRequest) GetSelections() []*WorkSelection {
+	if x != nil {
+		return x.Selections
+	}
+	return nil
+}
+
+type CreateSubscriptionResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The same meaning as RunWorkActionResponse.refused, for example a condition the plugin does not accept.
+	Refused bool `protobuf:"varint,1,opt,name=refused,proto3" json:"refused,omitempty"`
+	// One sentence for the member, in the request's language, plain text, at most 200 characters.
+	Message string `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
+	// Optional link that helps the member act on the message.
+	Link *ExternalLink `protobuf:"bytes,3,opt,name=link,proto3" json:"link,omitempty"`
+	// The new subscription. The host shows it first in the member's list; unset, the host lists the subscriptions again.
+	Subscription  *MemberSubscription `protobuf:"bytes,4,opt,name=subscription,proto3" json:"subscription,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateSubscriptionResponse) Reset() {
+	*x = CreateSubscriptionResponse{}
+	mi := &file_pluginv1_discover_proto_msgTypes[49]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateSubscriptionResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateSubscriptionResponse) ProtoMessage() {}
+
+func (x *CreateSubscriptionResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_pluginv1_discover_proto_msgTypes[49]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateSubscriptionResponse.ProtoReflect.Descriptor instead.
+func (*CreateSubscriptionResponse) Descriptor() ([]byte, []int) {
+	return file_pluginv1_discover_proto_rawDescGZIP(), []int{49}
+}
+
+func (x *CreateSubscriptionResponse) GetRefused() bool {
+	if x != nil {
+		return x.Refused
+	}
+	return false
+}
+
+func (x *CreateSubscriptionResponse) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
+func (x *CreateSubscriptionResponse) GetLink() *ExternalLink {
+	if x != nil {
+		return x.Link
+	}
+	return nil
+}
+
+func (x *CreateSubscriptionResponse) GetSubscription() *MemberSubscription {
+	if x != nil {
+		return x.Subscription
+	}
+	return nil
+}
+
+type SuggestChoicesRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Which form the option belongs to: "subscription.new" for GetSubscriptionForm, or the id of a subscription action
+	// (ActionDeclaration.id in Manifest.subscription_actions) whose options are being filled in, for example "edit_rules".
+	Form string `protobuf:"bytes,1,opt,name=form,proto3" json:"form,omitempty"`
+	// WorkOption.key of the searchable option.
+	Key string `protobuf:"bytes,2,opt,name=key,proto3" json:"key,omitempty"`
+	// What the member typed, trimmed of spaces at both ends, otherwise as typed; never empty, at most 200 characters. A choice
+	// may echo it, for example free text such as a series prefix: the host treats it like any other choice.
+	Query     string      `protobuf:"bytes,3,opt,name=query,proto3" json:"query,omitempty"`
+	Member    *WorkMember `protobuf:"bytes,4,opt,name=member,proto3" json:"member,omitempty"`
+	Languages *Languages  `protobuf:"bytes,5,opt,name=languages,proto3" json:"languages,omitempty"`
+	// For a subscription action's options, the subscription being edited (MemberSubscription.id); empty for the new form.
+	SubscriptionId string `protobuf:"bytes,6,opt,name=subscription_id,json=subscriptionId,proto3" json:"subscription_id,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *SuggestChoicesRequest) Reset() {
+	*x = SuggestChoicesRequest{}
+	mi := &file_pluginv1_discover_proto_msgTypes[50]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SuggestChoicesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SuggestChoicesRequest) ProtoMessage() {}
+
+func (x *SuggestChoicesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_pluginv1_discover_proto_msgTypes[50]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SuggestChoicesRequest.ProtoReflect.Descriptor instead.
+func (*SuggestChoicesRequest) Descriptor() ([]byte, []int) {
+	return file_pluginv1_discover_proto_rawDescGZIP(), []int{50}
+}
+
+func (x *SuggestChoicesRequest) GetForm() string {
+	if x != nil {
+		return x.Form
+	}
+	return ""
+}
+
+func (x *SuggestChoicesRequest) GetKey() string {
+	if x != nil {
+		return x.Key
+	}
+	return ""
+}
+
+func (x *SuggestChoicesRequest) GetQuery() string {
+	if x != nil {
+		return x.Query
+	}
+	return ""
+}
+
+func (x *SuggestChoicesRequest) GetMember() *WorkMember {
+	if x != nil {
+		return x.Member
+	}
+	return nil
+}
+
+func (x *SuggestChoicesRequest) GetLanguages() *Languages {
+	if x != nil {
+		return x.Languages
+	}
+	return nil
+}
+
+func (x *SuggestChoicesRequest) GetSubscriptionId() string {
+	if x != nil {
+		return x.SubscriptionId
+	}
+	return ""
+}
+
+type SuggestChoicesResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Best first, at most 20. Of WorkChoice, value, label, note and tags apply; selected and disabled are ignored. An empty
+	// list shows "no matches".
+	Choices       []*WorkChoice `protobuf:"bytes,1,rep,name=choices,proto3" json:"choices,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SuggestChoicesResponse) Reset() {
+	*x = SuggestChoicesResponse{}
+	mi := &file_pluginv1_discover_proto_msgTypes[51]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SuggestChoicesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SuggestChoicesResponse) ProtoMessage() {}
+
+func (x *SuggestChoicesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_pluginv1_discover_proto_msgTypes[51]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SuggestChoicesResponse.ProtoReflect.Descriptor instead.
+func (*SuggestChoicesResponse) Descriptor() ([]byte, []int) {
+	return file_pluginv1_discover_proto_rawDescGZIP(), []int{51}
+}
+
+func (x *SuggestChoicesResponse) GetChoices() []*WorkChoice {
+	if x != nil {
+		return x.Choices
+	}
+	return nil
+}
+
+type ListMemberCalendarRequest struct {
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	Member *WorkMember            `protobuf:"bytes,1,opt,name=member,proto3" json:"member,omitempty"`
+	// Language of the text.
+	Languages *Languages `protobuf:"bytes,2,opt,name=languages,proto3" json:"languages,omitempty"`
+	// The window, as dates (YYYY-MM-DD), both included. At most 62 days: to is never more than 61 days after from.
+	From          string `protobuf:"bytes,3,opt,name=from,proto3" json:"from,omitempty"`
+	To            string `protobuf:"bytes,4,opt,name=to,proto3" json:"to,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListMemberCalendarRequest) Reset() {
+	*x = ListMemberCalendarRequest{}
+	mi := &file_pluginv1_discover_proto_msgTypes[52]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListMemberCalendarRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListMemberCalendarRequest) ProtoMessage() {}
+
+func (x *ListMemberCalendarRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_pluginv1_discover_proto_msgTypes[52]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListMemberCalendarRequest.ProtoReflect.Descriptor instead.
+func (*ListMemberCalendarRequest) Descriptor() ([]byte, []int) {
+	return file_pluginv1_discover_proto_rawDescGZIP(), []int{52}
+}
+
+func (x *ListMemberCalendarRequest) GetMember() *WorkMember {
+	if x != nil {
+		return x.Member
+	}
+	return nil
+}
+
+func (x *ListMemberCalendarRequest) GetLanguages() *Languages {
+	if x != nil {
+		return x.Languages
+	}
+	return nil
+}
+
+func (x *ListMemberCalendarRequest) GetFrom() string {
+	if x != nil {
+		return x.From
+	}
+	return ""
+}
+
+func (x *ListMemberCalendarRequest) GetTo() string {
+	if x != nil {
+		return x.To
+	}
+	return ""
+}
+
+type ListMemberCalendarResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// In any order, at most 500: when there are more, send the first 500 by date; that is not an error. The host drops
+	// entries outside the window.
+	Entries       []*CalendarEntry `protobuf:"bytes,1,rep,name=entries,proto3" json:"entries,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListMemberCalendarResponse) Reset() {
+	*x = ListMemberCalendarResponse{}
+	mi := &file_pluginv1_discover_proto_msgTypes[53]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListMemberCalendarResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListMemberCalendarResponse) ProtoMessage() {}
+
+func (x *ListMemberCalendarResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_pluginv1_discover_proto_msgTypes[53]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListMemberCalendarResponse.ProtoReflect.Descriptor instead.
+func (*ListMemberCalendarResponse) Descriptor() ([]byte, []int) {
+	return file_pluginv1_discover_proto_rawDescGZIP(), []int{53}
+}
+
+func (x *ListMemberCalendarResponse) GetEntries() []*CalendarEntry {
+	if x != nil {
+		return x.Entries
+	}
+	return nil
+}
+
+// CalendarEntry is one date of one work.
+type CalendarEntry struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Needs a type and a title, with the same rules as MemberWork.work.
+	Work *Work `protobuf:"bytes,1,opt,name=work,proto3" json:"work,omitempty"`
+	// The date (YYYY-MM-DD) as the upstream gives it. When the upstream has only a date, send only the date: do not guess a
+	// time zone.
+	Date string `protobuf:"bytes,2,opt,name=date,proto3" json:"date,omitempty"`
+	// Optional exact time (UTC, RFC 3339), shown in the viewer's time zone. Its date may differ from date there.
+	Time string `protobuf:"bytes,3,opt,name=time,proto3" json:"time,omitempty"`
+	// What happens on that date.
+	Kind CalendarEntryKind `protobuf:"varint,4,opt,name=kind,proto3,enum=kryspal.plugin.v1.CalendarEntryKind" json:"kind,omitempty"`
+	// For an episode or a season premiere: the season number; 0 when not known.
+	Season int32 `protobuf:"varint,5,opt,name=season,proto3" json:"season,omitempty"`
+	// For an episode: the episode number; 0 when not known.
+	Episode int32 `protobuf:"varint,6,opt,name=episode,proto3" json:"episode,omitempty"`
+	// For an episode, at most 128 characters.
+	EpisodeTitle string `protobuf:"bytes,7,opt,name=episode_title,json=episodeTitle,proto3" json:"episode_title,omitempty"`
+	// Short text, at most 32 characters, for example "Requested" or "Subscribed".
+	Note          string `protobuf:"bytes,8,opt,name=note,proto3" json:"note,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CalendarEntry) Reset() {
+	*x = CalendarEntry{}
+	mi := &file_pluginv1_discover_proto_msgTypes[54]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CalendarEntry) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CalendarEntry) ProtoMessage() {}
+
+func (x *CalendarEntry) ProtoReflect() protoreflect.Message {
+	mi := &file_pluginv1_discover_proto_msgTypes[54]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CalendarEntry.ProtoReflect.Descriptor instead.
+func (*CalendarEntry) Descriptor() ([]byte, []int) {
+	return file_pluginv1_discover_proto_rawDescGZIP(), []int{54}
+}
+
+func (x *CalendarEntry) GetWork() *Work {
+	if x != nil {
+		return x.Work
+	}
+	return nil
+}
+
+func (x *CalendarEntry) GetDate() string {
+	if x != nil {
+		return x.Date
+	}
+	return ""
+}
+
+func (x *CalendarEntry) GetTime() string {
+	if x != nil {
+		return x.Time
+	}
+	return ""
+}
+
+func (x *CalendarEntry) GetKind() CalendarEntryKind {
+	if x != nil {
+		return x.Kind
+	}
+	return CalendarEntryKind_CALENDAR_ENTRY_KIND_UNSPECIFIED
+}
+
+func (x *CalendarEntry) GetSeason() int32 {
+	if x != nil {
+		return x.Season
+	}
+	return 0
+}
+
+func (x *CalendarEntry) GetEpisode() int32 {
+	if x != nil {
+		return x.Episode
+	}
+	return 0
+}
+
+func (x *CalendarEntry) GetEpisodeTitle() string {
+	if x != nil {
+		return x.EpisodeTitle
+	}
+	return ""
+}
+
+func (x *CalendarEntry) GetNote() string {
+	if x != nil {
+		return x.Note
 	}
 	return ""
 }
@@ -3075,7 +4803,7 @@ const file_pluginv1_discover_proto_rawDesc = "" +
 	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"^\n" +
 	"\x0eGetWorkRequest\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12:\n" +
-	"\tlanguages\x18\x02 \x01(\v2\x1c.kryspal.plugin.v1.LanguagesR\tlanguages\"\xe8\a\n" +
+	"\tlanguages\x18\x02 \x01(\v2\x1c.kryspal.plugin.v1.LanguagesR\tlanguages\"\xf3\b\n" +
 	"\x04Work\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12/\n" +
 	"\x04type\x18\x02 \x01(\x0e2\x1b.kryspal.plugin.v1.ItemTypeR\x04type\x12\x14\n" +
@@ -3101,7 +4829,10 @@ const file_pluginv1_discover_proto_rawDesc = "" +
 	"\acredits\x18\x12 \x03(\v2\x1d.kryspal.plugin.v1.WorkCreditR\acredits\x12\x1f\n" +
 	"\vrelated_ref\x18\x13 \x01(\tR\n" +
 	"relatedRef\x12F\n" +
-	"\x0eexternal_links\x18\x14 \x03(\v2\x1f.kryspal.plugin.v1.ExternalLinkR\rexternalLinks\x1a>\n" +
+	"\x0eexternal_links\x18\x14 \x03(\v2\x1f.kryspal.plugin.v1.ExternalLinkR\rexternalLinks\x12=\n" +
+	"\vposter_crop\x18\x17 \x01(\v2\x1c.kryspal.plugin.v1.ImageCropR\n" +
+	"posterCrop\x12J\n" +
+	"\x10poster_crop_hint\x18\x18 \x01(\v2 .kryspal.plugin.v1.ImageCropHintR\x0eposterCropHint\x1a>\n" +
 	"\x10ProviderIdsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xbe\x01\n" +
@@ -3126,11 +4857,12 @@ const file_pluginv1_discover_proto_rawDesc = "" +
 	"\x06number\x18\x01 \x01(\x05R\x06number\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12#\n" +
 	"\repisode_count\x18\x03 \x01(\x05R\fepisodeCount\x12\x12\n" +
-	"\x04year\x18\x04 \x01(\x05R\x04year\"\xdc\x01\n" +
+	"\x04year\x18\x04 \x01(\x05R\x04year\"\xa1\x02\n" +
 	"\aWorkRef\x12\x10\n" +
 	"\x03ref\x18\x01 \x01(\tR\x03ref\x12/\n" +
 	"\x04type\x18\x02 \x01(\x0e2\x1b.kryspal.plugin.v1.ItemTypeR\x04type\x12N\n" +
-	"\fprovider_ids\x18\x03 \x03(\v2+.kryspal.plugin.v1.WorkRef.ProviderIdsEntryR\vproviderIds\x1a>\n" +
+	"\fprovider_ids\x18\x03 \x03(\v2+.kryspal.plugin.v1.WorkRef.ProviderIdsEntryR\vproviderIds\x12C\n" +
+	"\rlibrary_files\x18\x04 \x03(\v2\x1e.kryspal.plugin.v1.LibraryFileR\flibraryFiles\x1a>\n" +
 	"\x10ProviderIdsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"0\n" +
@@ -3144,31 +4876,43 @@ const file_pluginv1_discover_proto_rawDesc = "" +
 	"\tlanguages\x18\x03 \x01(\v2\x1c.kryspal.plugin.v1.LanguagesR\tlanguages\x12'\n" +
 	"\x0finclude_actions\x18\x04 \x01(\bR\x0eincludeActions\"M\n" +
 	"\x15GetWorkStatesResponse\x124\n" +
-	"\x06states\x18\x01 \x03(\v2\x1c.kryspal.plugin.v1.WorkStateR\x06states\"\xb3\x01\n" +
+	"\x06states\x18\x01 \x03(\v2\x1c.kryspal.plugin.v1.WorkStateR\x06states\"\xc8\x01\n" +
 	"\tWorkState\x12\x10\n" +
 	"\x03ref\x18\x01 \x01(\tR\x03ref\x125\n" +
 	"\x06status\x18\x02 \x01(\x0e2\x1d.kryspal.plugin.v1.WorkStatusR\x06status\x12\x1f\n" +
 	"\vstatus_text\x18\x03 \x01(\tR\n" +
 	"statusText\x12<\n" +
-	"\aactions\x18\x04 \x03(\v2\".kryspal.plugin.v1.WorkActionOfferR\aactions\"x\n" +
+	"\aactions\x18\x04 \x03(\v2\".kryspal.plugin.v1.WorkActionOfferR\aactionsJ\x04\b\x05\x10\x06R\rlibrary_files\"\xa8\x01\n" +
+	"\vLibraryFile\x12\x1d\n" +
+	"\n" +
+	"size_bytes\x18\x01 \x01(\x03R\tsizeBytes\x12\x16\n" +
+	"\x06height\x18\x02 \x01(\x05R\x06height\x12)\n" +
+	"\x10duration_seconds\x18\x03 \x01(\x05R\x0fdurationSeconds\x12\x12\n" +
+	"\x04strm\x18\x04 \x01(\bR\x04strm\x12#\n" +
+	"\rversion_label\x18\x05 \x01(\tR\fversionLabel\"x\n" +
 	"\x0fWorkActionOffer\x12\x16\n" +
 	"\x06action\x18\x01 \x01(\tR\x06action\x12\x14\n" +
 	"\x05label\x18\x02 \x01(\tR\x05label\x127\n" +
-	"\aoptions\x18\x03 \x03(\v2\x1d.kryspal.plugin.v1.WorkOptionR\aoptions\"\xa5\x01\n" +
+	"\aoptions\x18\x03 \x03(\v2\x1d.kryspal.plugin.v1.WorkOptionR\aoptions\"\xd9\x01\n" +
 	"\n" +
 	"WorkOption\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05label\x18\x02 \x01(\tR\x05label\x12\x1a\n" +
 	"\bmultiple\x18\x03 \x01(\bR\bmultiple\x12\x1a\n" +
 	"\brequired\x18\x04 \x01(\bR\brequired\x127\n" +
-	"\achoices\x18\x05 \x03(\v2\x1d.kryspal.plugin.v1.WorkChoiceR\achoices\"\x84\x01\n" +
+	"\achoices\x18\x05 \x03(\v2\x1d.kryspal.plugin.v1.WorkChoiceR\achoices\x12\x1e\n" +
+	"\n" +
+	"searchable\x18\x06 \x01(\bR\n" +
+	"searchable\x12\x12\n" +
+	"\x04hint\x18\a \x01(\tR\x04hint\"\x98\x01\n" +
 	"\n" +
 	"WorkChoice\x12\x14\n" +
 	"\x05value\x18\x01 \x01(\tR\x05value\x12\x14\n" +
 	"\x05label\x18\x02 \x01(\tR\x05label\x12\x1a\n" +
 	"\bselected\x18\x03 \x01(\bR\bselected\x12\x1a\n" +
 	"\bdisabled\x18\x04 \x01(\bR\bdisabled\x12\x12\n" +
-	"\x04note\x18\x05 \x01(\tR\x04note\"\x93\x02\n" +
+	"\x04note\x18\x05 \x01(\tR\x04note\x12\x12\n" +
+	"\x04tags\x18\x06 \x03(\tR\x04tags\"\x93\x02\n" +
 	"\x14RunWorkActionRequest\x12\x16\n" +
 	"\x06action\x18\x01 \x01(\tR\x06action\x12.\n" +
 	"\x04work\x18\x02 \x01(\v2\x1a.kryspal.plugin.v1.WorkRefR\x04work\x125\n" +
@@ -3184,7 +4928,19 @@ const file_pluginv1_discover_proto_rawDesc = "" +
 	"\arefused\x18\x01 \x01(\bR\arefused\x12\x18\n" +
 	"\amessage\x18\x02 \x01(\tR\amessage\x123\n" +
 	"\x04link\x18\x03 \x01(\v2\x1f.kryspal.plugin.v1.ExternalLinkR\x04link\x122\n" +
-	"\x05state\x18\x04 \x01(\v2\x1c.kryspal.plugin.v1.WorkStateR\x05state\"\xaa\x01\n" +
+	"\x05state\x18\x04 \x01(\v2\x1c.kryspal.plugin.v1.WorkStateR\x05state\"\xdf\x01\n" +
+	"\x15RunWorkActionsRequest\x12\x16\n" +
+	"\x06action\x18\x01 \x01(\tR\x06action\x125\n" +
+	"\x06member\x18\x02 \x01(\v2\x1d.kryspal.plugin.v1.WorkMemberR\x06member\x12:\n" +
+	"\tlanguages\x18\x03 \x01(\v2\x1c.kryspal.plugin.v1.LanguagesR\tlanguages\x12;\n" +
+	"\x05items\x18\x04 \x03(\v2%.kryspal.plugin.v1.RunWorkActionsItemR\x05items\"\x86\x01\n" +
+	"\x12RunWorkActionsItem\x12.\n" +
+	"\x04work\x18\x01 \x01(\v2\x1a.kryspal.plugin.v1.WorkRefR\x04work\x12@\n" +
+	"\n" +
+	"selections\x18\x02 \x03(\v2 .kryspal.plugin.v1.WorkSelectionR\n" +
+	"selections\"\\\n" +
+	"\x16RunWorkActionsResponse\x12B\n" +
+	"\aresults\x18\x01 \x03(\v2(.kryspal.plugin.v1.RunWorkActionResponseR\aresults\"\xaa\x01\n" +
 	"\x16ListMemberWorksRequest\x125\n" +
 	"\x06member\x18\x01 \x01(\v2\x1d.kryspal.plugin.v1.WorkMemberR\x06member\x12:\n" +
 	"\tlanguages\x18\x02 \x01(\v2\x1c.kryspal.plugin.v1.LanguagesR\tlanguages\x12\x1d\n" +
@@ -3207,7 +4963,109 @@ const file_pluginv1_discover_proto_rawDesc = "" +
 	"\x11_progress_percent\"6\n" +
 	"\fExternalLink\x12\x10\n" +
 	"\x03url\x18\x01 \x01(\tR\x03url\x12\x14\n" +
-	"\x05label\x18\x02 \x01(\tR\x05label*~\n" +
+	"\x05label\x18\x02 \x01(\tR\x05label\"\x9a\x01\n" +
+	"\x13GetPageStateRequest\x12\x10\n" +
+	"\x03ref\x18\x01 \x01(\tR\x03ref\x125\n" +
+	"\x06member\x18\x02 \x01(\v2\x1d.kryspal.plugin.v1.WorkMemberR\x06member\x12:\n" +
+	"\tlanguages\x18\x03 \x01(\v2\x1c.kryspal.plugin.v1.LanguagesR\tlanguages\"j\n" +
+	"\tPageState\x12\x1f\n" +
+	"\vstatus_text\x18\x01 \x01(\tR\n" +
+	"statusText\x12<\n" +
+	"\aactions\x18\x02 \x03(\v2\".kryspal.plugin.v1.WorkActionOfferR\aactions\"\xf5\x01\n" +
+	"\x14RunPageActionRequest\x12\x16\n" +
+	"\x06action\x18\x01 \x01(\tR\x06action\x12\x10\n" +
+	"\x03ref\x18\x02 \x01(\tR\x03ref\x125\n" +
+	"\x06member\x18\x03 \x01(\v2\x1d.kryspal.plugin.v1.WorkMemberR\x06member\x12:\n" +
+	"\tlanguages\x18\x04 \x01(\v2\x1c.kryspal.plugin.v1.LanguagesR\tlanguages\x12@\n" +
+	"\n" +
+	"selections\x18\x05 \x03(\v2 .kryspal.plugin.v1.WorkSelectionR\n" +
+	"selections\"\xb4\x01\n" +
+	"\x15RunPageActionResponse\x12\x18\n" +
+	"\arefused\x18\x01 \x01(\bR\arefused\x12\x18\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage\x123\n" +
+	"\x04link\x18\x03 \x01(\v2\x1f.kryspal.plugin.v1.ExternalLinkR\x04link\x122\n" +
+	"\x05state\x18\x04 \x01(\v2\x1c.kryspal.plugin.v1.PageStateR\x05state\"\xb2\x01\n" +
+	"\x1eListMemberSubscriptionsRequest\x125\n" +
+	"\x06member\x18\x01 \x01(\v2\x1d.kryspal.plugin.v1.WorkMemberR\x06member\x12:\n" +
+	"\tlanguages\x18\x02 \x01(\v2\x1c.kryspal.plugin.v1.LanguagesR\tlanguages\x12\x1d\n" +
+	"\n" +
+	"page_token\x18\x03 \x01(\tR\tpageToken\"\x96\x01\n" +
+	"\x1fListMemberSubscriptionsResponse\x12K\n" +
+	"\rsubscriptions\x18\x01 \x03(\v2%.kryspal.plugin.v1.MemberSubscriptionR\rsubscriptions\x12&\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"\x91\x03\n" +
+	"\x12MemberSubscription\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1b\n" +
+	"\tkind_text\x18\x02 \x01(\tR\bkindText\x12\x14\n" +
+	"\x05title\x18\x03 \x01(\tR\x05title\x12\x1b\n" +
+	"\timage_url\x18\x04 \x01(\tR\bimageUrl\x12G\n" +
+	"\n" +
+	"image_kind\x18\x05 \x01(\x0e2(.kryspal.plugin.v1.DiscoverCardImageKindR\timageKind\x12-\n" +
+	"\x04work\x18\x06 \x01(\v2\x17.kryspal.plugin.v1.WorkH\x00R\x04work\x12\x1b\n" +
+	"\bpage_ref\x18\a \x01(\tH\x00R\apageRef\x12\x1d\n" +
+	"\n" +
+	"updated_at\x18\b \x01(\tR\tupdatedAt\x12\x1f\n" +
+	"\vstatus_text\x18\t \x01(\tR\n" +
+	"statusText\x12<\n" +
+	"\aactions\x18\n" +
+	" \x03(\v2\".kryspal.plugin.v1.WorkActionOfferR\aactionsB\b\n" +
+	"\x06target\"\x94\x02\n" +
+	"\x1cRunSubscriptionActionRequest\x12\x16\n" +
+	"\x06action\x18\x01 \x01(\tR\x06action\x12'\n" +
+	"\x0fsubscription_id\x18\x02 \x01(\tR\x0esubscriptionId\x125\n" +
+	"\x06member\x18\x03 \x01(\v2\x1d.kryspal.plugin.v1.WorkMemberR\x06member\x12:\n" +
+	"\tlanguages\x18\x04 \x01(\v2\x1c.kryspal.plugin.v1.LanguagesR\tlanguages\x12@\n" +
+	"\n" +
+	"selections\x18\x05 \x03(\v2 .kryspal.plugin.v1.WorkSelectionR\n" +
+	"selections\"\xed\x01\n" +
+	"\x1dRunSubscriptionActionResponse\x12\x18\n" +
+	"\arefused\x18\x01 \x01(\bR\arefused\x12\x18\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage\x123\n" +
+	"\x04link\x18\x03 \x01(\v2\x1f.kryspal.plugin.v1.ExternalLinkR\x04link\x12I\n" +
+	"\fsubscription\x18\x04 \x01(\v2%.kryspal.plugin.v1.MemberSubscriptionR\fsubscription\x12\x18\n" +
+	"\aremoved\x18\x05 \x01(\bR\aremoved\"\x8f\x01\n" +
+	"\x1aGetSubscriptionFormRequest\x125\n" +
+	"\x06member\x18\x01 \x01(\v2\x1d.kryspal.plugin.v1.WorkMemberR\x06member\x12:\n" +
+	"\tlanguages\x18\x02 \x01(\v2\x1c.kryspal.plugin.v1.LanguagesR\tlanguages\"\x83\x01\n" +
+	"\x10SubscriptionForm\x12\x14\n" +
+	"\x05title\x18\x01 \x01(\tR\x05title\x12 \n" +
+	"\vdescription\x18\x02 \x01(\tR\vdescription\x127\n" +
+	"\aoptions\x18\x03 \x03(\v2\x1d.kryspal.plugin.v1.WorkOptionR\aoptions\"\xd0\x01\n" +
+	"\x19CreateSubscriptionRequest\x125\n" +
+	"\x06member\x18\x01 \x01(\v2\x1d.kryspal.plugin.v1.WorkMemberR\x06member\x12:\n" +
+	"\tlanguages\x18\x02 \x01(\v2\x1c.kryspal.plugin.v1.LanguagesR\tlanguages\x12@\n" +
+	"\n" +
+	"selections\x18\x03 \x03(\v2 .kryspal.plugin.v1.WorkSelectionR\n" +
+	"selections\"\xd0\x01\n" +
+	"\x1aCreateSubscriptionResponse\x12\x18\n" +
+	"\arefused\x18\x01 \x01(\bR\arefused\x12\x18\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage\x123\n" +
+	"\x04link\x18\x03 \x01(\v2\x1f.kryspal.plugin.v1.ExternalLinkR\x04link\x12I\n" +
+	"\fsubscription\x18\x04 \x01(\v2%.kryspal.plugin.v1.MemberSubscriptionR\fsubscription\"\xef\x01\n" +
+	"\x15SuggestChoicesRequest\x12\x12\n" +
+	"\x04form\x18\x01 \x01(\tR\x04form\x12\x10\n" +
+	"\x03key\x18\x02 \x01(\tR\x03key\x12\x14\n" +
+	"\x05query\x18\x03 \x01(\tR\x05query\x125\n" +
+	"\x06member\x18\x04 \x01(\v2\x1d.kryspal.plugin.v1.WorkMemberR\x06member\x12:\n" +
+	"\tlanguages\x18\x05 \x01(\v2\x1c.kryspal.plugin.v1.LanguagesR\tlanguages\x12'\n" +
+	"\x0fsubscription_id\x18\x06 \x01(\tR\x0esubscriptionId\"Q\n" +
+	"\x16SuggestChoicesResponse\x127\n" +
+	"\achoices\x18\x01 \x03(\v2\x1d.kryspal.plugin.v1.WorkChoiceR\achoices\"\xb2\x01\n" +
+	"\x19ListMemberCalendarRequest\x125\n" +
+	"\x06member\x18\x01 \x01(\v2\x1d.kryspal.plugin.v1.WorkMemberR\x06member\x12:\n" +
+	"\tlanguages\x18\x02 \x01(\v2\x1c.kryspal.plugin.v1.LanguagesR\tlanguages\x12\x12\n" +
+	"\x04from\x18\x03 \x01(\tR\x04from\x12\x0e\n" +
+	"\x02to\x18\x04 \x01(\tR\x02to\"X\n" +
+	"\x1aListMemberCalendarResponse\x12:\n" +
+	"\aentries\x18\x01 \x03(\v2 .kryspal.plugin.v1.CalendarEntryR\aentries\"\x89\x02\n" +
+	"\rCalendarEntry\x12+\n" +
+	"\x04work\x18\x01 \x01(\v2\x17.kryspal.plugin.v1.WorkR\x04work\x12\x12\n" +
+	"\x04date\x18\x02 \x01(\tR\x04date\x12\x12\n" +
+	"\x04time\x18\x03 \x01(\tR\x04time\x128\n" +
+	"\x04kind\x18\x04 \x01(\x0e2$.kryspal.plugin.v1.CalendarEntryKindR\x04kind\x12\x16\n" +
+	"\x06season\x18\x05 \x01(\x05R\x06season\x12\x18\n" +
+	"\aepisode\x18\x06 \x01(\x05R\aepisode\x12#\n" +
+	"\repisode_title\x18\a \x01(\tR\fepisodeTitle\x12\x12\n" +
+	"\x04note\x18\b \x01(\tR\x04note*~\n" +
 	"\x12DiscoverSeedOrigin\x12$\n" +
 	" DISCOVER_SEED_ORIGIN_UNSPECIFIED\x10\x00\x12 \n" +
 	"\x1cDISCOVER_SEED_ORIGIN_LIBRARY\x10\x01\x12 \n" +
@@ -3253,16 +5111,36 @@ const file_pluginv1_discover_proto_rawDesc = "" +
 	"\x1dMEMBER_WORK_STAGE_DOWNLOADING\x10\x02\x12\x1c\n" +
 	"\x18MEMBER_WORK_STAGE_PAUSED\x10\x03\x12\x1d\n" +
 	"\x19MEMBER_WORK_STAGE_STALLED\x10\x04\x12\x1f\n" +
-	"\x1bMEMBER_WORK_STAGE_IMPORTING\x10\x052\x87\x03\n" +
+	"\x1bMEMBER_WORK_STAGE_IMPORTING\x10\x05*\x8b\x02\n" +
+	"\x11CalendarEntryKind\x12#\n" +
+	"\x1fCALENDAR_ENTRY_KIND_UNSPECIFIED\x10\x00\x12\"\n" +
+	"\x1eCALENDAR_ENTRY_KIND_THEATRICAL\x10\x01\x12\x1f\n" +
+	"\x1bCALENDAR_ENTRY_KIND_DIGITAL\x10\x02\x12 \n" +
+	"\x1cCALENDAR_ENTRY_KIND_PHYSICAL\x10\x03\x12 \n" +
+	"\x1cCALENDAR_ENTRY_KIND_PREMIERE\x10\x04\x12\x1f\n" +
+	"\x1bCALENDAR_ENTRY_KIND_EPISODE\x10\x05\x12'\n" +
+	"#CALENDAR_ENTRY_KIND_SEASON_PREMIERE\x10\x062\x87\x03\n" +
 	"\x0eDiscoverSource\x12q\n" +
 	"\x16DescribeDiscoverSource\x120.kryspal.plugin.v1.DescribeDiscoverSourceRequest\x1a%.kryspal.plugin.v1.DiscoverSourceInfo\x12]\n" +
 	"\x0fGetDiscoverPage\x12).kryspal.plugin.v1.GetDiscoverPageRequest\x1a\x1f.kryspal.plugin.v1.DiscoverPage\x12\\\n" +
 	"\vSearchWorks\x12%.kryspal.plugin.v1.SearchWorksRequest\x1a&.kryspal.plugin.v1.SearchWorksResponse\x12E\n" +
-	"\aGetWork\x12!.kryspal.plugin.v1.GetWorkRequest\x1a\x17.kryspal.plugin.v1.Work2\xc6\x02\n" +
+	"\aGetWork\x12!.kryspal.plugin.v1.GetWorkRequest\x1a\x17.kryspal.plugin.v1.Work2\xad\x03\n" +
 	"\x12WorkActionProvider\x12b\n" +
 	"\rGetWorkStates\x12'.kryspal.plugin.v1.GetWorkStatesRequest\x1a(.kryspal.plugin.v1.GetWorkStatesResponse\x12b\n" +
-	"\rRunWorkAction\x12'.kryspal.plugin.v1.RunWorkActionRequest\x1a(.kryspal.plugin.v1.RunWorkActionResponse\x12h\n" +
-	"\x0fListMemberWorks\x12).kryspal.plugin.v1.ListMemberWorksRequest\x1a*.kryspal.plugin.v1.ListMemberWorksResponseB1Z/github.com/kryspal/plugin-sdk/pluginv1;pluginv1b\x06proto3"
+	"\rRunWorkAction\x12'.kryspal.plugin.v1.RunWorkActionRequest\x1a(.kryspal.plugin.v1.RunWorkActionResponse\x12e\n" +
+	"\x0eRunWorkActions\x12(.kryspal.plugin.v1.RunWorkActionsRequest\x1a).kryspal.plugin.v1.RunWorkActionsResponse\x12h\n" +
+	"\x0fListMemberWorks\x12).kryspal.plugin.v1.ListMemberWorksRequest\x1a*.kryspal.plugin.v1.ListMemberWorksResponse2\xce\x01\n" +
+	"\x12PageActionProvider\x12T\n" +
+	"\fGetPageState\x12&.kryspal.plugin.v1.GetPageStateRequest\x1a\x1c.kryspal.plugin.v1.PageState\x12b\n" +
+	"\rRunPageAction\x12'.kryspal.plugin.v1.RunPageActionRequest\x1a(.kryspal.plugin.v1.RunPageActionResponse2\xe0\x04\n" +
+	"\x1aMemberSubscriptionProvider\x12\x80\x01\n" +
+	"\x17ListMemberSubscriptions\x121.kryspal.plugin.v1.ListMemberSubscriptionsRequest\x1a2.kryspal.plugin.v1.ListMemberSubscriptionsResponse\x12z\n" +
+	"\x15RunSubscriptionAction\x12/.kryspal.plugin.v1.RunSubscriptionActionRequest\x1a0.kryspal.plugin.v1.RunSubscriptionActionResponse\x12i\n" +
+	"\x13GetSubscriptionForm\x12-.kryspal.plugin.v1.GetSubscriptionFormRequest\x1a#.kryspal.plugin.v1.SubscriptionForm\x12q\n" +
+	"\x12CreateSubscription\x12,.kryspal.plugin.v1.CreateSubscriptionRequest\x1a-.kryspal.plugin.v1.CreateSubscriptionResponse\x12e\n" +
+	"\x0eSuggestChoices\x12(.kryspal.plugin.v1.SuggestChoicesRequest\x1a).kryspal.plugin.v1.SuggestChoicesResponse2\x8b\x01\n" +
+	"\x16MemberCalendarProvider\x12q\n" +
+	"\x12ListMemberCalendar\x12,.kryspal.plugin.v1.ListMemberCalendarRequest\x1a-.kryspal.plugin.v1.ListMemberCalendarResponseB1Z/github.com/kryspal/plugin-sdk/pluginv1;pluginv1b\x06proto3"
 
 var (
 	file_pluginv1_discover_proto_rawDescOnce sync.Once
@@ -3276,133 +5154,220 @@ func file_pluginv1_discover_proto_rawDescGZIP() []byte {
 	return file_pluginv1_discover_proto_rawDescData
 }
 
-var file_pluginv1_discover_proto_enumTypes = make([]protoimpl.EnumInfo, 7)
-var file_pluginv1_discover_proto_msgTypes = make([]protoimpl.MessageInfo, 36)
+var file_pluginv1_discover_proto_enumTypes = make([]protoimpl.EnumInfo, 8)
+var file_pluginv1_discover_proto_msgTypes = make([]protoimpl.MessageInfo, 58)
 var file_pluginv1_discover_proto_goTypes = []any{
-	(DiscoverSeedOrigin)(0),               // 0: kryspal.plugin.v1.DiscoverSeedOrigin
-	(DiscoverRowStyle)(0),                 // 1: kryspal.plugin.v1.DiscoverRowStyle
-	(DiscoverCardImageKind)(0),            // 2: kryspal.plugin.v1.DiscoverCardImageKind
-	(WorkBadgeCorner)(0),                  // 3: kryspal.plugin.v1.WorkBadgeCorner
-	(WorkCreditKind)(0),                   // 4: kryspal.plugin.v1.WorkCreditKind
-	(WorkStatus)(0),                       // 5: kryspal.plugin.v1.WorkStatus
-	(MemberWorkStage)(0),                  // 6: kryspal.plugin.v1.MemberWorkStage
-	(*DescribeDiscoverSourceRequest)(nil), // 7: kryspal.plugin.v1.DescribeDiscoverSourceRequest
-	(*DiscoverSourceInfo)(nil),            // 8: kryspal.plugin.v1.DiscoverSourceInfo
-	(*DiscoverTab)(nil),                   // 9: kryspal.plugin.v1.DiscoverTab
-	(*GetDiscoverPageRequest)(nil),        // 10: kryspal.plugin.v1.GetDiscoverPageRequest
-	(*DiscoverSeed)(nil),                  // 11: kryspal.plugin.v1.DiscoverSeed
-	(*DiscoverPage)(nil),                  // 12: kryspal.plugin.v1.DiscoverPage
-	(*DiscoverPageHeader)(nil),            // 13: kryspal.plugin.v1.DiscoverPageHeader
-	(*DiscoverFact)(nil),                  // 14: kryspal.plugin.v1.DiscoverFact
-	(*DiscoverRow)(nil),                   // 15: kryspal.plugin.v1.DiscoverRow
-	(*DiscoverCard)(nil),                  // 16: kryspal.plugin.v1.DiscoverCard
-	(*SearchWorksRequest)(nil),            // 17: kryspal.plugin.v1.SearchWorksRequest
-	(*SearchWorksResponse)(nil),           // 18: kryspal.plugin.v1.SearchWorksResponse
-	(*GetWorkRequest)(nil),                // 19: kryspal.plugin.v1.GetWorkRequest
-	(*Work)(nil),                          // 20: kryspal.plugin.v1.Work
-	(*WorkBadge)(nil),                     // 21: kryspal.plugin.v1.WorkBadge
-	(*WorkRefLink)(nil),                   // 22: kryspal.plugin.v1.WorkRefLink
-	(*WorkCredit)(nil),                    // 23: kryspal.plugin.v1.WorkCredit
-	(*WorkSeason)(nil),                    // 24: kryspal.plugin.v1.WorkSeason
-	(*WorkRef)(nil),                       // 25: kryspal.plugin.v1.WorkRef
-	(*WorkMember)(nil),                    // 26: kryspal.plugin.v1.WorkMember
-	(*GetWorkStatesRequest)(nil),          // 27: kryspal.plugin.v1.GetWorkStatesRequest
-	(*GetWorkStatesResponse)(nil),         // 28: kryspal.plugin.v1.GetWorkStatesResponse
-	(*WorkState)(nil),                     // 29: kryspal.plugin.v1.WorkState
-	(*WorkActionOffer)(nil),               // 30: kryspal.plugin.v1.WorkActionOffer
-	(*WorkOption)(nil),                    // 31: kryspal.plugin.v1.WorkOption
-	(*WorkChoice)(nil),                    // 32: kryspal.plugin.v1.WorkChoice
-	(*RunWorkActionRequest)(nil),          // 33: kryspal.plugin.v1.RunWorkActionRequest
-	(*WorkSelection)(nil),                 // 34: kryspal.plugin.v1.WorkSelection
-	(*RunWorkActionResponse)(nil),         // 35: kryspal.plugin.v1.RunWorkActionResponse
-	(*ListMemberWorksRequest)(nil),        // 36: kryspal.plugin.v1.ListMemberWorksRequest
-	(*ListMemberWorksResponse)(nil),       // 37: kryspal.plugin.v1.ListMemberWorksResponse
-	(*MemberWork)(nil),                    // 38: kryspal.plugin.v1.MemberWork
-	(*ExternalLink)(nil),                  // 39: kryspal.plugin.v1.ExternalLink
-	nil,                                   // 40: kryspal.plugin.v1.DiscoverSeed.ProviderIdsEntry
-	nil,                                   // 41: kryspal.plugin.v1.Work.ProviderIdsEntry
-	nil,                                   // 42: kryspal.plugin.v1.WorkRef.ProviderIdsEntry
-	(*Languages)(nil),                     // 43: kryspal.plugin.v1.Languages
-	(ItemType)(0),                         // 44: kryspal.plugin.v1.ItemType
-	(*Rating)(nil),                        // 45: kryspal.plugin.v1.Rating
+	(DiscoverSeedOrigin)(0),                 // 0: kryspal.plugin.v1.DiscoverSeedOrigin
+	(DiscoverRowStyle)(0),                   // 1: kryspal.plugin.v1.DiscoverRowStyle
+	(DiscoverCardImageKind)(0),              // 2: kryspal.plugin.v1.DiscoverCardImageKind
+	(WorkBadgeCorner)(0),                    // 3: kryspal.plugin.v1.WorkBadgeCorner
+	(WorkCreditKind)(0),                     // 4: kryspal.plugin.v1.WorkCreditKind
+	(WorkStatus)(0),                         // 5: kryspal.plugin.v1.WorkStatus
+	(MemberWorkStage)(0),                    // 6: kryspal.plugin.v1.MemberWorkStage
+	(CalendarEntryKind)(0),                  // 7: kryspal.plugin.v1.CalendarEntryKind
+	(*DescribeDiscoverSourceRequest)(nil),   // 8: kryspal.plugin.v1.DescribeDiscoverSourceRequest
+	(*DiscoverSourceInfo)(nil),              // 9: kryspal.plugin.v1.DiscoverSourceInfo
+	(*DiscoverTab)(nil),                     // 10: kryspal.plugin.v1.DiscoverTab
+	(*GetDiscoverPageRequest)(nil),          // 11: kryspal.plugin.v1.GetDiscoverPageRequest
+	(*DiscoverSeed)(nil),                    // 12: kryspal.plugin.v1.DiscoverSeed
+	(*DiscoverPage)(nil),                    // 13: kryspal.plugin.v1.DiscoverPage
+	(*DiscoverPageHeader)(nil),              // 14: kryspal.plugin.v1.DiscoverPageHeader
+	(*DiscoverFact)(nil),                    // 15: kryspal.plugin.v1.DiscoverFact
+	(*DiscoverRow)(nil),                     // 16: kryspal.plugin.v1.DiscoverRow
+	(*DiscoverCard)(nil),                    // 17: kryspal.plugin.v1.DiscoverCard
+	(*SearchWorksRequest)(nil),              // 18: kryspal.plugin.v1.SearchWorksRequest
+	(*SearchWorksResponse)(nil),             // 19: kryspal.plugin.v1.SearchWorksResponse
+	(*GetWorkRequest)(nil),                  // 20: kryspal.plugin.v1.GetWorkRequest
+	(*Work)(nil),                            // 21: kryspal.plugin.v1.Work
+	(*WorkBadge)(nil),                       // 22: kryspal.plugin.v1.WorkBadge
+	(*WorkRefLink)(nil),                     // 23: kryspal.plugin.v1.WorkRefLink
+	(*WorkCredit)(nil),                      // 24: kryspal.plugin.v1.WorkCredit
+	(*WorkSeason)(nil),                      // 25: kryspal.plugin.v1.WorkSeason
+	(*WorkRef)(nil),                         // 26: kryspal.plugin.v1.WorkRef
+	(*WorkMember)(nil),                      // 27: kryspal.plugin.v1.WorkMember
+	(*GetWorkStatesRequest)(nil),            // 28: kryspal.plugin.v1.GetWorkStatesRequest
+	(*GetWorkStatesResponse)(nil),           // 29: kryspal.plugin.v1.GetWorkStatesResponse
+	(*WorkState)(nil),                       // 30: kryspal.plugin.v1.WorkState
+	(*LibraryFile)(nil),                     // 31: kryspal.plugin.v1.LibraryFile
+	(*WorkActionOffer)(nil),                 // 32: kryspal.plugin.v1.WorkActionOffer
+	(*WorkOption)(nil),                      // 33: kryspal.plugin.v1.WorkOption
+	(*WorkChoice)(nil),                      // 34: kryspal.plugin.v1.WorkChoice
+	(*RunWorkActionRequest)(nil),            // 35: kryspal.plugin.v1.RunWorkActionRequest
+	(*WorkSelection)(nil),                   // 36: kryspal.plugin.v1.WorkSelection
+	(*RunWorkActionResponse)(nil),           // 37: kryspal.plugin.v1.RunWorkActionResponse
+	(*RunWorkActionsRequest)(nil),           // 38: kryspal.plugin.v1.RunWorkActionsRequest
+	(*RunWorkActionsItem)(nil),              // 39: kryspal.plugin.v1.RunWorkActionsItem
+	(*RunWorkActionsResponse)(nil),          // 40: kryspal.plugin.v1.RunWorkActionsResponse
+	(*ListMemberWorksRequest)(nil),          // 41: kryspal.plugin.v1.ListMemberWorksRequest
+	(*ListMemberWorksResponse)(nil),         // 42: kryspal.plugin.v1.ListMemberWorksResponse
+	(*MemberWork)(nil),                      // 43: kryspal.plugin.v1.MemberWork
+	(*ExternalLink)(nil),                    // 44: kryspal.plugin.v1.ExternalLink
+	(*GetPageStateRequest)(nil),             // 45: kryspal.plugin.v1.GetPageStateRequest
+	(*PageState)(nil),                       // 46: kryspal.plugin.v1.PageState
+	(*RunPageActionRequest)(nil),            // 47: kryspal.plugin.v1.RunPageActionRequest
+	(*RunPageActionResponse)(nil),           // 48: kryspal.plugin.v1.RunPageActionResponse
+	(*ListMemberSubscriptionsRequest)(nil),  // 49: kryspal.plugin.v1.ListMemberSubscriptionsRequest
+	(*ListMemberSubscriptionsResponse)(nil), // 50: kryspal.plugin.v1.ListMemberSubscriptionsResponse
+	(*MemberSubscription)(nil),              // 51: kryspal.plugin.v1.MemberSubscription
+	(*RunSubscriptionActionRequest)(nil),    // 52: kryspal.plugin.v1.RunSubscriptionActionRequest
+	(*RunSubscriptionActionResponse)(nil),   // 53: kryspal.plugin.v1.RunSubscriptionActionResponse
+	(*GetSubscriptionFormRequest)(nil),      // 54: kryspal.plugin.v1.GetSubscriptionFormRequest
+	(*SubscriptionForm)(nil),                // 55: kryspal.plugin.v1.SubscriptionForm
+	(*CreateSubscriptionRequest)(nil),       // 56: kryspal.plugin.v1.CreateSubscriptionRequest
+	(*CreateSubscriptionResponse)(nil),      // 57: kryspal.plugin.v1.CreateSubscriptionResponse
+	(*SuggestChoicesRequest)(nil),           // 58: kryspal.plugin.v1.SuggestChoicesRequest
+	(*SuggestChoicesResponse)(nil),          // 59: kryspal.plugin.v1.SuggestChoicesResponse
+	(*ListMemberCalendarRequest)(nil),       // 60: kryspal.plugin.v1.ListMemberCalendarRequest
+	(*ListMemberCalendarResponse)(nil),      // 61: kryspal.plugin.v1.ListMemberCalendarResponse
+	(*CalendarEntry)(nil),                   // 62: kryspal.plugin.v1.CalendarEntry
+	nil,                                     // 63: kryspal.plugin.v1.DiscoverSeed.ProviderIdsEntry
+	nil,                                     // 64: kryspal.plugin.v1.Work.ProviderIdsEntry
+	nil,                                     // 65: kryspal.plugin.v1.WorkRef.ProviderIdsEntry
+	(*Languages)(nil),                       // 66: kryspal.plugin.v1.Languages
+	(ItemType)(0),                           // 67: kryspal.plugin.v1.ItemType
+	(*Rating)(nil),                          // 68: kryspal.plugin.v1.Rating
+	(*ImageCrop)(nil),                       // 69: kryspal.plugin.v1.ImageCrop
+	(*ImageCropHint)(nil),                   // 70: kryspal.plugin.v1.ImageCropHint
 }
 var file_pluginv1_discover_proto_depIdxs = []int32{
-	43, // 0: kryspal.plugin.v1.DescribeDiscoverSourceRequest.languages:type_name -> kryspal.plugin.v1.Languages
-	9,  // 1: kryspal.plugin.v1.DiscoverSourceInfo.tabs:type_name -> kryspal.plugin.v1.DiscoverTab
-	44, // 2: kryspal.plugin.v1.DiscoverSourceInfo.search_types:type_name -> kryspal.plugin.v1.ItemType
-	34, // 3: kryspal.plugin.v1.GetDiscoverPageRequest.selections:type_name -> kryspal.plugin.v1.WorkSelection
-	43, // 4: kryspal.plugin.v1.GetDiscoverPageRequest.languages:type_name -> kryspal.plugin.v1.Languages
-	11, // 5: kryspal.plugin.v1.GetDiscoverPageRequest.seeds:type_name -> kryspal.plugin.v1.DiscoverSeed
-	44, // 6: kryspal.plugin.v1.DiscoverSeed.type:type_name -> kryspal.plugin.v1.ItemType
-	40, // 7: kryspal.plugin.v1.DiscoverSeed.provider_ids:type_name -> kryspal.plugin.v1.DiscoverSeed.ProviderIdsEntry
-	0,  // 8: kryspal.plugin.v1.DiscoverSeed.origin:type_name -> kryspal.plugin.v1.DiscoverSeedOrigin
-	13, // 9: kryspal.plugin.v1.DiscoverPage.header:type_name -> kryspal.plugin.v1.DiscoverPageHeader
-	31, // 10: kryspal.plugin.v1.DiscoverPage.filters:type_name -> kryspal.plugin.v1.WorkOption
-	15, // 11: kryspal.plugin.v1.DiscoverPage.rows:type_name -> kryspal.plugin.v1.DiscoverRow
-	31, // 12: kryspal.plugin.v1.DiscoverPage.sort:type_name -> kryspal.plugin.v1.WorkOption
-	14, // 13: kryspal.plugin.v1.DiscoverPageHeader.facts:type_name -> kryspal.plugin.v1.DiscoverFact
-	2,  // 14: kryspal.plugin.v1.DiscoverPageHeader.image_kind:type_name -> kryspal.plugin.v1.DiscoverCardImageKind
-	1,  // 15: kryspal.plugin.v1.DiscoverRow.style:type_name -> kryspal.plugin.v1.DiscoverRowStyle
-	20, // 16: kryspal.plugin.v1.DiscoverRow.works:type_name -> kryspal.plugin.v1.Work
-	16, // 17: kryspal.plugin.v1.DiscoverRow.cards:type_name -> kryspal.plugin.v1.DiscoverCard
-	2,  // 18: kryspal.plugin.v1.DiscoverCard.image_kind:type_name -> kryspal.plugin.v1.DiscoverCardImageKind
-	43, // 19: kryspal.plugin.v1.SearchWorksRequest.languages:type_name -> kryspal.plugin.v1.Languages
-	44, // 20: kryspal.plugin.v1.SearchWorksRequest.type:type_name -> kryspal.plugin.v1.ItemType
-	20, // 21: kryspal.plugin.v1.SearchWorksResponse.works:type_name -> kryspal.plugin.v1.Work
-	43, // 22: kryspal.plugin.v1.GetWorkRequest.languages:type_name -> kryspal.plugin.v1.Languages
-	44, // 23: kryspal.plugin.v1.Work.type:type_name -> kryspal.plugin.v1.ItemType
-	45, // 24: kryspal.plugin.v1.Work.ratings:type_name -> kryspal.plugin.v1.Rating
-	41, // 25: kryspal.plugin.v1.Work.provider_ids:type_name -> kryspal.plugin.v1.Work.ProviderIdsEntry
-	24, // 26: kryspal.plugin.v1.Work.seasons:type_name -> kryspal.plugin.v1.WorkSeason
-	21, // 27: kryspal.plugin.v1.Work.badges:type_name -> kryspal.plugin.v1.WorkBadge
-	22, // 28: kryspal.plugin.v1.Work.genres:type_name -> kryspal.plugin.v1.WorkRefLink
-	22, // 29: kryspal.plugin.v1.Work.companies:type_name -> kryspal.plugin.v1.WorkRefLink
-	23, // 30: kryspal.plugin.v1.Work.credits:type_name -> kryspal.plugin.v1.WorkCredit
-	39, // 31: kryspal.plugin.v1.Work.external_links:type_name -> kryspal.plugin.v1.ExternalLink
-	3,  // 32: kryspal.plugin.v1.WorkBadge.corner:type_name -> kryspal.plugin.v1.WorkBadgeCorner
-	45, // 33: kryspal.plugin.v1.WorkBadge.rating:type_name -> kryspal.plugin.v1.Rating
-	4,  // 34: kryspal.plugin.v1.WorkCredit.kind:type_name -> kryspal.plugin.v1.WorkCreditKind
-	44, // 35: kryspal.plugin.v1.WorkRef.type:type_name -> kryspal.plugin.v1.ItemType
-	42, // 36: kryspal.plugin.v1.WorkRef.provider_ids:type_name -> kryspal.plugin.v1.WorkRef.ProviderIdsEntry
-	25, // 37: kryspal.plugin.v1.GetWorkStatesRequest.works:type_name -> kryspal.plugin.v1.WorkRef
-	26, // 38: kryspal.plugin.v1.GetWorkStatesRequest.member:type_name -> kryspal.plugin.v1.WorkMember
-	43, // 39: kryspal.plugin.v1.GetWorkStatesRequest.languages:type_name -> kryspal.plugin.v1.Languages
-	29, // 40: kryspal.plugin.v1.GetWorkStatesResponse.states:type_name -> kryspal.plugin.v1.WorkState
-	5,  // 41: kryspal.plugin.v1.WorkState.status:type_name -> kryspal.plugin.v1.WorkStatus
-	30, // 42: kryspal.plugin.v1.WorkState.actions:type_name -> kryspal.plugin.v1.WorkActionOffer
-	31, // 43: kryspal.plugin.v1.WorkActionOffer.options:type_name -> kryspal.plugin.v1.WorkOption
-	32, // 44: kryspal.plugin.v1.WorkOption.choices:type_name -> kryspal.plugin.v1.WorkChoice
-	25, // 45: kryspal.plugin.v1.RunWorkActionRequest.work:type_name -> kryspal.plugin.v1.WorkRef
-	26, // 46: kryspal.plugin.v1.RunWorkActionRequest.member:type_name -> kryspal.plugin.v1.WorkMember
-	43, // 47: kryspal.plugin.v1.RunWorkActionRequest.languages:type_name -> kryspal.plugin.v1.Languages
-	34, // 48: kryspal.plugin.v1.RunWorkActionRequest.selections:type_name -> kryspal.plugin.v1.WorkSelection
-	39, // 49: kryspal.plugin.v1.RunWorkActionResponse.link:type_name -> kryspal.plugin.v1.ExternalLink
-	29, // 50: kryspal.plugin.v1.RunWorkActionResponse.state:type_name -> kryspal.plugin.v1.WorkState
-	26, // 51: kryspal.plugin.v1.ListMemberWorksRequest.member:type_name -> kryspal.plugin.v1.WorkMember
-	43, // 52: kryspal.plugin.v1.ListMemberWorksRequest.languages:type_name -> kryspal.plugin.v1.Languages
-	38, // 53: kryspal.plugin.v1.ListMemberWorksResponse.works:type_name -> kryspal.plugin.v1.MemberWork
-	20, // 54: kryspal.plugin.v1.MemberWork.work:type_name -> kryspal.plugin.v1.Work
-	5,  // 55: kryspal.plugin.v1.MemberWork.status:type_name -> kryspal.plugin.v1.WorkStatus
-	6,  // 56: kryspal.plugin.v1.MemberWork.stage:type_name -> kryspal.plugin.v1.MemberWorkStage
-	7,  // 57: kryspal.plugin.v1.DiscoverSource.DescribeDiscoverSource:input_type -> kryspal.plugin.v1.DescribeDiscoverSourceRequest
-	10, // 58: kryspal.plugin.v1.DiscoverSource.GetDiscoverPage:input_type -> kryspal.plugin.v1.GetDiscoverPageRequest
-	17, // 59: kryspal.plugin.v1.DiscoverSource.SearchWorks:input_type -> kryspal.plugin.v1.SearchWorksRequest
-	19, // 60: kryspal.plugin.v1.DiscoverSource.GetWork:input_type -> kryspal.plugin.v1.GetWorkRequest
-	27, // 61: kryspal.plugin.v1.WorkActionProvider.GetWorkStates:input_type -> kryspal.plugin.v1.GetWorkStatesRequest
-	33, // 62: kryspal.plugin.v1.WorkActionProvider.RunWorkAction:input_type -> kryspal.plugin.v1.RunWorkActionRequest
-	36, // 63: kryspal.plugin.v1.WorkActionProvider.ListMemberWorks:input_type -> kryspal.plugin.v1.ListMemberWorksRequest
-	8,  // 64: kryspal.plugin.v1.DiscoverSource.DescribeDiscoverSource:output_type -> kryspal.plugin.v1.DiscoverSourceInfo
-	12, // 65: kryspal.plugin.v1.DiscoverSource.GetDiscoverPage:output_type -> kryspal.plugin.v1.DiscoverPage
-	18, // 66: kryspal.plugin.v1.DiscoverSource.SearchWorks:output_type -> kryspal.plugin.v1.SearchWorksResponse
-	20, // 67: kryspal.plugin.v1.DiscoverSource.GetWork:output_type -> kryspal.plugin.v1.Work
-	28, // 68: kryspal.plugin.v1.WorkActionProvider.GetWorkStates:output_type -> kryspal.plugin.v1.GetWorkStatesResponse
-	35, // 69: kryspal.plugin.v1.WorkActionProvider.RunWorkAction:output_type -> kryspal.plugin.v1.RunWorkActionResponse
-	37, // 70: kryspal.plugin.v1.WorkActionProvider.ListMemberWorks:output_type -> kryspal.plugin.v1.ListMemberWorksResponse
-	64, // [64:71] is the sub-list for method output_type
-	57, // [57:64] is the sub-list for method input_type
-	57, // [57:57] is the sub-list for extension type_name
-	57, // [57:57] is the sub-list for extension extendee
-	0,  // [0:57] is the sub-list for field type_name
+	66,  // 0: kryspal.plugin.v1.DescribeDiscoverSourceRequest.languages:type_name -> kryspal.plugin.v1.Languages
+	10,  // 1: kryspal.plugin.v1.DiscoverSourceInfo.tabs:type_name -> kryspal.plugin.v1.DiscoverTab
+	67,  // 2: kryspal.plugin.v1.DiscoverSourceInfo.search_types:type_name -> kryspal.plugin.v1.ItemType
+	36,  // 3: kryspal.plugin.v1.GetDiscoverPageRequest.selections:type_name -> kryspal.plugin.v1.WorkSelection
+	66,  // 4: kryspal.plugin.v1.GetDiscoverPageRequest.languages:type_name -> kryspal.plugin.v1.Languages
+	12,  // 5: kryspal.plugin.v1.GetDiscoverPageRequest.seeds:type_name -> kryspal.plugin.v1.DiscoverSeed
+	67,  // 6: kryspal.plugin.v1.DiscoverSeed.type:type_name -> kryspal.plugin.v1.ItemType
+	63,  // 7: kryspal.plugin.v1.DiscoverSeed.provider_ids:type_name -> kryspal.plugin.v1.DiscoverSeed.ProviderIdsEntry
+	0,   // 8: kryspal.plugin.v1.DiscoverSeed.origin:type_name -> kryspal.plugin.v1.DiscoverSeedOrigin
+	14,  // 9: kryspal.plugin.v1.DiscoverPage.header:type_name -> kryspal.plugin.v1.DiscoverPageHeader
+	33,  // 10: kryspal.plugin.v1.DiscoverPage.filters:type_name -> kryspal.plugin.v1.WorkOption
+	16,  // 11: kryspal.plugin.v1.DiscoverPage.rows:type_name -> kryspal.plugin.v1.DiscoverRow
+	33,  // 12: kryspal.plugin.v1.DiscoverPage.sort:type_name -> kryspal.plugin.v1.WorkOption
+	15,  // 13: kryspal.plugin.v1.DiscoverPageHeader.facts:type_name -> kryspal.plugin.v1.DiscoverFact
+	2,   // 14: kryspal.plugin.v1.DiscoverPageHeader.image_kind:type_name -> kryspal.plugin.v1.DiscoverCardImageKind
+	1,   // 15: kryspal.plugin.v1.DiscoverRow.style:type_name -> kryspal.plugin.v1.DiscoverRowStyle
+	21,  // 16: kryspal.plugin.v1.DiscoverRow.works:type_name -> kryspal.plugin.v1.Work
+	17,  // 17: kryspal.plugin.v1.DiscoverRow.cards:type_name -> kryspal.plugin.v1.DiscoverCard
+	2,   // 18: kryspal.plugin.v1.DiscoverCard.image_kind:type_name -> kryspal.plugin.v1.DiscoverCardImageKind
+	66,  // 19: kryspal.plugin.v1.SearchWorksRequest.languages:type_name -> kryspal.plugin.v1.Languages
+	67,  // 20: kryspal.plugin.v1.SearchWorksRequest.type:type_name -> kryspal.plugin.v1.ItemType
+	21,  // 21: kryspal.plugin.v1.SearchWorksResponse.works:type_name -> kryspal.plugin.v1.Work
+	66,  // 22: kryspal.plugin.v1.GetWorkRequest.languages:type_name -> kryspal.plugin.v1.Languages
+	67,  // 23: kryspal.plugin.v1.Work.type:type_name -> kryspal.plugin.v1.ItemType
+	68,  // 24: kryspal.plugin.v1.Work.ratings:type_name -> kryspal.plugin.v1.Rating
+	64,  // 25: kryspal.plugin.v1.Work.provider_ids:type_name -> kryspal.plugin.v1.Work.ProviderIdsEntry
+	25,  // 26: kryspal.plugin.v1.Work.seasons:type_name -> kryspal.plugin.v1.WorkSeason
+	22,  // 27: kryspal.plugin.v1.Work.badges:type_name -> kryspal.plugin.v1.WorkBadge
+	23,  // 28: kryspal.plugin.v1.Work.genres:type_name -> kryspal.plugin.v1.WorkRefLink
+	23,  // 29: kryspal.plugin.v1.Work.companies:type_name -> kryspal.plugin.v1.WorkRefLink
+	24,  // 30: kryspal.plugin.v1.Work.credits:type_name -> kryspal.plugin.v1.WorkCredit
+	44,  // 31: kryspal.plugin.v1.Work.external_links:type_name -> kryspal.plugin.v1.ExternalLink
+	69,  // 32: kryspal.plugin.v1.Work.poster_crop:type_name -> kryspal.plugin.v1.ImageCrop
+	70,  // 33: kryspal.plugin.v1.Work.poster_crop_hint:type_name -> kryspal.plugin.v1.ImageCropHint
+	3,   // 34: kryspal.plugin.v1.WorkBadge.corner:type_name -> kryspal.plugin.v1.WorkBadgeCorner
+	68,  // 35: kryspal.plugin.v1.WorkBadge.rating:type_name -> kryspal.plugin.v1.Rating
+	4,   // 36: kryspal.plugin.v1.WorkCredit.kind:type_name -> kryspal.plugin.v1.WorkCreditKind
+	67,  // 37: kryspal.plugin.v1.WorkRef.type:type_name -> kryspal.plugin.v1.ItemType
+	65,  // 38: kryspal.plugin.v1.WorkRef.provider_ids:type_name -> kryspal.plugin.v1.WorkRef.ProviderIdsEntry
+	31,  // 39: kryspal.plugin.v1.WorkRef.library_files:type_name -> kryspal.plugin.v1.LibraryFile
+	26,  // 40: kryspal.plugin.v1.GetWorkStatesRequest.works:type_name -> kryspal.plugin.v1.WorkRef
+	27,  // 41: kryspal.plugin.v1.GetWorkStatesRequest.member:type_name -> kryspal.plugin.v1.WorkMember
+	66,  // 42: kryspal.plugin.v1.GetWorkStatesRequest.languages:type_name -> kryspal.plugin.v1.Languages
+	30,  // 43: kryspal.plugin.v1.GetWorkStatesResponse.states:type_name -> kryspal.plugin.v1.WorkState
+	5,   // 44: kryspal.plugin.v1.WorkState.status:type_name -> kryspal.plugin.v1.WorkStatus
+	32,  // 45: kryspal.plugin.v1.WorkState.actions:type_name -> kryspal.plugin.v1.WorkActionOffer
+	33,  // 46: kryspal.plugin.v1.WorkActionOffer.options:type_name -> kryspal.plugin.v1.WorkOption
+	34,  // 47: kryspal.plugin.v1.WorkOption.choices:type_name -> kryspal.plugin.v1.WorkChoice
+	26,  // 48: kryspal.plugin.v1.RunWorkActionRequest.work:type_name -> kryspal.plugin.v1.WorkRef
+	27,  // 49: kryspal.plugin.v1.RunWorkActionRequest.member:type_name -> kryspal.plugin.v1.WorkMember
+	66,  // 50: kryspal.plugin.v1.RunWorkActionRequest.languages:type_name -> kryspal.plugin.v1.Languages
+	36,  // 51: kryspal.plugin.v1.RunWorkActionRequest.selections:type_name -> kryspal.plugin.v1.WorkSelection
+	44,  // 52: kryspal.plugin.v1.RunWorkActionResponse.link:type_name -> kryspal.plugin.v1.ExternalLink
+	30,  // 53: kryspal.plugin.v1.RunWorkActionResponse.state:type_name -> kryspal.plugin.v1.WorkState
+	27,  // 54: kryspal.plugin.v1.RunWorkActionsRequest.member:type_name -> kryspal.plugin.v1.WorkMember
+	66,  // 55: kryspal.plugin.v1.RunWorkActionsRequest.languages:type_name -> kryspal.plugin.v1.Languages
+	39,  // 56: kryspal.plugin.v1.RunWorkActionsRequest.items:type_name -> kryspal.plugin.v1.RunWorkActionsItem
+	26,  // 57: kryspal.plugin.v1.RunWorkActionsItem.work:type_name -> kryspal.plugin.v1.WorkRef
+	36,  // 58: kryspal.plugin.v1.RunWorkActionsItem.selections:type_name -> kryspal.plugin.v1.WorkSelection
+	37,  // 59: kryspal.plugin.v1.RunWorkActionsResponse.results:type_name -> kryspal.plugin.v1.RunWorkActionResponse
+	27,  // 60: kryspal.plugin.v1.ListMemberWorksRequest.member:type_name -> kryspal.plugin.v1.WorkMember
+	66,  // 61: kryspal.plugin.v1.ListMemberWorksRequest.languages:type_name -> kryspal.plugin.v1.Languages
+	43,  // 62: kryspal.plugin.v1.ListMemberWorksResponse.works:type_name -> kryspal.plugin.v1.MemberWork
+	21,  // 63: kryspal.plugin.v1.MemberWork.work:type_name -> kryspal.plugin.v1.Work
+	5,   // 64: kryspal.plugin.v1.MemberWork.status:type_name -> kryspal.plugin.v1.WorkStatus
+	6,   // 65: kryspal.plugin.v1.MemberWork.stage:type_name -> kryspal.plugin.v1.MemberWorkStage
+	27,  // 66: kryspal.plugin.v1.GetPageStateRequest.member:type_name -> kryspal.plugin.v1.WorkMember
+	66,  // 67: kryspal.plugin.v1.GetPageStateRequest.languages:type_name -> kryspal.plugin.v1.Languages
+	32,  // 68: kryspal.plugin.v1.PageState.actions:type_name -> kryspal.plugin.v1.WorkActionOffer
+	27,  // 69: kryspal.plugin.v1.RunPageActionRequest.member:type_name -> kryspal.plugin.v1.WorkMember
+	66,  // 70: kryspal.plugin.v1.RunPageActionRequest.languages:type_name -> kryspal.plugin.v1.Languages
+	36,  // 71: kryspal.plugin.v1.RunPageActionRequest.selections:type_name -> kryspal.plugin.v1.WorkSelection
+	44,  // 72: kryspal.plugin.v1.RunPageActionResponse.link:type_name -> kryspal.plugin.v1.ExternalLink
+	46,  // 73: kryspal.plugin.v1.RunPageActionResponse.state:type_name -> kryspal.plugin.v1.PageState
+	27,  // 74: kryspal.plugin.v1.ListMemberSubscriptionsRequest.member:type_name -> kryspal.plugin.v1.WorkMember
+	66,  // 75: kryspal.plugin.v1.ListMemberSubscriptionsRequest.languages:type_name -> kryspal.plugin.v1.Languages
+	51,  // 76: kryspal.plugin.v1.ListMemberSubscriptionsResponse.subscriptions:type_name -> kryspal.plugin.v1.MemberSubscription
+	2,   // 77: kryspal.plugin.v1.MemberSubscription.image_kind:type_name -> kryspal.plugin.v1.DiscoverCardImageKind
+	21,  // 78: kryspal.plugin.v1.MemberSubscription.work:type_name -> kryspal.plugin.v1.Work
+	32,  // 79: kryspal.plugin.v1.MemberSubscription.actions:type_name -> kryspal.plugin.v1.WorkActionOffer
+	27,  // 80: kryspal.plugin.v1.RunSubscriptionActionRequest.member:type_name -> kryspal.plugin.v1.WorkMember
+	66,  // 81: kryspal.plugin.v1.RunSubscriptionActionRequest.languages:type_name -> kryspal.plugin.v1.Languages
+	36,  // 82: kryspal.plugin.v1.RunSubscriptionActionRequest.selections:type_name -> kryspal.plugin.v1.WorkSelection
+	44,  // 83: kryspal.plugin.v1.RunSubscriptionActionResponse.link:type_name -> kryspal.plugin.v1.ExternalLink
+	51,  // 84: kryspal.plugin.v1.RunSubscriptionActionResponse.subscription:type_name -> kryspal.plugin.v1.MemberSubscription
+	27,  // 85: kryspal.plugin.v1.GetSubscriptionFormRequest.member:type_name -> kryspal.plugin.v1.WorkMember
+	66,  // 86: kryspal.plugin.v1.GetSubscriptionFormRequest.languages:type_name -> kryspal.plugin.v1.Languages
+	33,  // 87: kryspal.plugin.v1.SubscriptionForm.options:type_name -> kryspal.plugin.v1.WorkOption
+	27,  // 88: kryspal.plugin.v1.CreateSubscriptionRequest.member:type_name -> kryspal.plugin.v1.WorkMember
+	66,  // 89: kryspal.plugin.v1.CreateSubscriptionRequest.languages:type_name -> kryspal.plugin.v1.Languages
+	36,  // 90: kryspal.plugin.v1.CreateSubscriptionRequest.selections:type_name -> kryspal.plugin.v1.WorkSelection
+	44,  // 91: kryspal.plugin.v1.CreateSubscriptionResponse.link:type_name -> kryspal.plugin.v1.ExternalLink
+	51,  // 92: kryspal.plugin.v1.CreateSubscriptionResponse.subscription:type_name -> kryspal.plugin.v1.MemberSubscription
+	27,  // 93: kryspal.plugin.v1.SuggestChoicesRequest.member:type_name -> kryspal.plugin.v1.WorkMember
+	66,  // 94: kryspal.plugin.v1.SuggestChoicesRequest.languages:type_name -> kryspal.plugin.v1.Languages
+	34,  // 95: kryspal.plugin.v1.SuggestChoicesResponse.choices:type_name -> kryspal.plugin.v1.WorkChoice
+	27,  // 96: kryspal.plugin.v1.ListMemberCalendarRequest.member:type_name -> kryspal.plugin.v1.WorkMember
+	66,  // 97: kryspal.plugin.v1.ListMemberCalendarRequest.languages:type_name -> kryspal.plugin.v1.Languages
+	62,  // 98: kryspal.plugin.v1.ListMemberCalendarResponse.entries:type_name -> kryspal.plugin.v1.CalendarEntry
+	21,  // 99: kryspal.plugin.v1.CalendarEntry.work:type_name -> kryspal.plugin.v1.Work
+	7,   // 100: kryspal.plugin.v1.CalendarEntry.kind:type_name -> kryspal.plugin.v1.CalendarEntryKind
+	8,   // 101: kryspal.plugin.v1.DiscoverSource.DescribeDiscoverSource:input_type -> kryspal.plugin.v1.DescribeDiscoverSourceRequest
+	11,  // 102: kryspal.plugin.v1.DiscoverSource.GetDiscoverPage:input_type -> kryspal.plugin.v1.GetDiscoverPageRequest
+	18,  // 103: kryspal.plugin.v1.DiscoverSource.SearchWorks:input_type -> kryspal.plugin.v1.SearchWorksRequest
+	20,  // 104: kryspal.plugin.v1.DiscoverSource.GetWork:input_type -> kryspal.plugin.v1.GetWorkRequest
+	28,  // 105: kryspal.plugin.v1.WorkActionProvider.GetWorkStates:input_type -> kryspal.plugin.v1.GetWorkStatesRequest
+	35,  // 106: kryspal.plugin.v1.WorkActionProvider.RunWorkAction:input_type -> kryspal.plugin.v1.RunWorkActionRequest
+	38,  // 107: kryspal.plugin.v1.WorkActionProvider.RunWorkActions:input_type -> kryspal.plugin.v1.RunWorkActionsRequest
+	41,  // 108: kryspal.plugin.v1.WorkActionProvider.ListMemberWorks:input_type -> kryspal.plugin.v1.ListMemberWorksRequest
+	45,  // 109: kryspal.plugin.v1.PageActionProvider.GetPageState:input_type -> kryspal.plugin.v1.GetPageStateRequest
+	47,  // 110: kryspal.plugin.v1.PageActionProvider.RunPageAction:input_type -> kryspal.plugin.v1.RunPageActionRequest
+	49,  // 111: kryspal.plugin.v1.MemberSubscriptionProvider.ListMemberSubscriptions:input_type -> kryspal.plugin.v1.ListMemberSubscriptionsRequest
+	52,  // 112: kryspal.plugin.v1.MemberSubscriptionProvider.RunSubscriptionAction:input_type -> kryspal.plugin.v1.RunSubscriptionActionRequest
+	54,  // 113: kryspal.plugin.v1.MemberSubscriptionProvider.GetSubscriptionForm:input_type -> kryspal.plugin.v1.GetSubscriptionFormRequest
+	56,  // 114: kryspal.plugin.v1.MemberSubscriptionProvider.CreateSubscription:input_type -> kryspal.plugin.v1.CreateSubscriptionRequest
+	58,  // 115: kryspal.plugin.v1.MemberSubscriptionProvider.SuggestChoices:input_type -> kryspal.plugin.v1.SuggestChoicesRequest
+	60,  // 116: kryspal.plugin.v1.MemberCalendarProvider.ListMemberCalendar:input_type -> kryspal.plugin.v1.ListMemberCalendarRequest
+	9,   // 117: kryspal.plugin.v1.DiscoverSource.DescribeDiscoverSource:output_type -> kryspal.plugin.v1.DiscoverSourceInfo
+	13,  // 118: kryspal.plugin.v1.DiscoverSource.GetDiscoverPage:output_type -> kryspal.plugin.v1.DiscoverPage
+	19,  // 119: kryspal.plugin.v1.DiscoverSource.SearchWorks:output_type -> kryspal.plugin.v1.SearchWorksResponse
+	21,  // 120: kryspal.plugin.v1.DiscoverSource.GetWork:output_type -> kryspal.plugin.v1.Work
+	29,  // 121: kryspal.plugin.v1.WorkActionProvider.GetWorkStates:output_type -> kryspal.plugin.v1.GetWorkStatesResponse
+	37,  // 122: kryspal.plugin.v1.WorkActionProvider.RunWorkAction:output_type -> kryspal.plugin.v1.RunWorkActionResponse
+	40,  // 123: kryspal.plugin.v1.WorkActionProvider.RunWorkActions:output_type -> kryspal.plugin.v1.RunWorkActionsResponse
+	42,  // 124: kryspal.plugin.v1.WorkActionProvider.ListMemberWorks:output_type -> kryspal.plugin.v1.ListMemberWorksResponse
+	46,  // 125: kryspal.plugin.v1.PageActionProvider.GetPageState:output_type -> kryspal.plugin.v1.PageState
+	48,  // 126: kryspal.plugin.v1.PageActionProvider.RunPageAction:output_type -> kryspal.plugin.v1.RunPageActionResponse
+	50,  // 127: kryspal.plugin.v1.MemberSubscriptionProvider.ListMemberSubscriptions:output_type -> kryspal.plugin.v1.ListMemberSubscriptionsResponse
+	53,  // 128: kryspal.plugin.v1.MemberSubscriptionProvider.RunSubscriptionAction:output_type -> kryspal.plugin.v1.RunSubscriptionActionResponse
+	55,  // 129: kryspal.plugin.v1.MemberSubscriptionProvider.GetSubscriptionForm:output_type -> kryspal.plugin.v1.SubscriptionForm
+	57,  // 130: kryspal.plugin.v1.MemberSubscriptionProvider.CreateSubscription:output_type -> kryspal.plugin.v1.CreateSubscriptionResponse
+	59,  // 131: kryspal.plugin.v1.MemberSubscriptionProvider.SuggestChoices:output_type -> kryspal.plugin.v1.SuggestChoicesResponse
+	61,  // 132: kryspal.plugin.v1.MemberCalendarProvider.ListMemberCalendar:output_type -> kryspal.plugin.v1.ListMemberCalendarResponse
+	117, // [117:133] is the sub-list for method output_type
+	101, // [101:117] is the sub-list for method input_type
+	101, // [101:101] is the sub-list for extension type_name
+	101, // [101:101] is the sub-list for extension extendee
+	0,   // [0:101] is the sub-list for field type_name
 }
 
 func init() { file_pluginv1_discover_proto_init() }
@@ -3411,16 +5376,20 @@ func file_pluginv1_discover_proto_init() {
 		return
 	}
 	file_pluginv1_metadata_proto_init()
-	file_pluginv1_discover_proto_msgTypes[31].OneofWrappers = []any{}
+	file_pluginv1_discover_proto_msgTypes[35].OneofWrappers = []any{}
+	file_pluginv1_discover_proto_msgTypes[43].OneofWrappers = []any{
+		(*MemberSubscription_Work)(nil),
+		(*MemberSubscription_PageRef)(nil),
+	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_pluginv1_discover_proto_rawDesc), len(file_pluginv1_discover_proto_rawDesc)),
-			NumEnums:      7,
-			NumMessages:   36,
+			NumEnums:      8,
+			NumMessages:   58,
 			NumExtensions: 0,
-			NumServices:   2,
+			NumServices:   5,
 		},
 		GoTypes:           file_pluginv1_discover_proto_goTypes,
 		DependencyIndexes: file_pluginv1_discover_proto_depIdxs,

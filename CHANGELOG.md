@@ -3,18 +3,46 @@
 All notable changes to the Kryspal Media Plugin SDK. The protocol major version is `v1` (proto package
 `kryspal.plugin.v1`); within v1 only compatible additions are made (new fields, RPCs, services, capabilities).
 
-## v0.10.0 (2026-11-06)
+## v0.11.0 (unreleased)
 
 - Discover and work actions (host feature `discover`, `pluginapi.HostFeatureDiscover`, §7.12): two new independent capabilities, free on every
   plan. `discover.source` (`pluginv1.CapabilityDiscoverSource`, service `DiscoverSource`: `DescribeDiscoverSource`, `GetDiscoverPage`,
   `SearchWorks`, `GetWork`) shows works outside the library, on pages the plugin defines: tabs, rows of posters, a hero, entry cards (whose
   `image_kind` is a cover, a whole logo or a portrait), filters and sort, and a detail page with links, people, related works and external links (`http` or `https`). A plugin with the new permission `discover.seeds`, `Manifest.discover_seed_ids` and a tab with `DiscoverTab.seeded` receives `GetDiscoverPageRequest.seeds` on that tab, when the administrator allows it: works from the library and what the member watched (`DiscoverSeed.origin`), with only their type and allowed IDs. A row with `DiscoverRow.refreshable` can be refreshed; the host sends a new `GetDiscoverPageRequest.batch`. `Work.product_code` is an optional catalog number, and `DISCOVER_ROW_STYLE_LANDSCAPE` is a row of `backdrop_url` images. `Work.badges` puts up to 4 badges on a poster: text, color, outline and corner like the server's own, or a score.
   `work.action` (`pluginv1.CapabilityWorkAction`, service `WorkActionProvider`: `GetWorkStates`, `RunWorkAction`, `ListMemberWorks`,
-  with the new `Manifest.work_actions`) reports a fixed set of states, runs actions for a member, lists what a member started, and is the only
+  with the new `Manifest.work_actions`) reports a fixed set of states, runs actions for a member, lists what a member started, and was the first
   capability that receives member information. Register them with `sdk.Config.DiscoverSource` and `sdk.Config.WorkActionProvider`. `plugintest` checks a plugin that
   declares them; the new `Options.DiscoverQuery`, `Options.WorkRef` and `Options.RunWorkAction` control the checks. Limits and validators are in
   `pluginapi` (`MaxWorkStates`, `MaxDiscoverFilters`, `ValidWorkKey`, `ValidDiscoverRef` and others). Plugins that declare neither are unchanged.
-- Discover additions made while the Seerr connector was built: `DiscoverPageHeader.image_kind` says what the header image of a genre, studio, network or person page is (a whole logo, which hosts may recolor, or a portrait); `MemberWork.stage` (`MemberWorkStage`: queued, downloading, paused, stalled, importing) and `MemberWork.estimated_completion` (RFC 3339, UTC) describe a download while a member's work is `PROCESSING`; `DiscoverSeed`s and `DiscoverRow.refreshable` as described above. All are optional and compatible.
+
+- Page actions, subscriptions and the calendar (§7.13), three more independent capabilities, free on every plan, each with its own host
+  feature. `page.action` (`pluginv1.CapabilityPageAction`, host feature `page_actions`, service `PageActionProvider`: `GetPageState`,
+  `RunPageAction`, with the new `Manifest.page_actions`) puts actions such as "Subscribe" on the plugin's own discover pages; it needs
+  `discover.source`. `discover.subscriptions` (`pluginv1.CapabilityDiscoverSubscriptions`, host feature `discover_subscriptions`, service
+  `MemberSubscriptionProvider`: `ListMemberSubscriptions`, `RunSubscriptionAction`, with the new `Manifest.subscription_actions`) lists what
+  a member follows, of any kind the plugin defines, and acts on it. `discover.calendar` (`pluginv1.CapabilityDiscoverCalendar`, host feature
+  `discover_calendar`, service `MemberCalendarProvider`: `ListMemberCalendar`) lists dates in a window of at most 62 days; the host asks only
+  when the viewer opens the calendar. All three receive member information. Register them with `sdk.Config.PageActionProvider`,
+  `sdk.Config.MemberSubscriptionProvider` and `sdk.Config.MemberCalendarProvider`; `plugintest` checks a plugin that declares them.
+- `work.action`: the optional `WorkActionProvider.RunWorkActions` runs one action on up to 50 works at once (`UNIMPLEMENTED` makes the host
+  call `RunWorkAction` per work), and `WorkChoice.tags` (at most 4, each at most 16 characters) are labels shared across works that the host
+  matches against a member's ranked preferences when several works are requested together.
+- A subscription's actions may carry up to 12 options (`pluginapi.MaxSubscriptionActionOptions`, as many as the new-subscription form), so an
+  edit action can show the whole form; work and page actions keep 4.
+- New subscriptions from a form (host feature `subscription_form`, `pluginapi.HostFeatureSubscriptionForm`, §7.13): a plugin that declares
+  `discover.subscriptions` and sets the new `Manifest.subscription_form` implements `MemberSubscriptionProvider.GetSubscriptionForm` (a
+  title, a description and up to 12 options) and `CreateSubscription`. The new `WorkOption.searchable` marks an option whose choices come from
+  the new `SuggestChoices` as the member types (`form` is `pluginv1.SubscriptionFormNew` or a subscription action's id); the host does not
+  check such values against a list, so the plugin does. `WorkOption.hint` (host feature `work_option_hint`) is one line of help under an option.
+- `Work.poster_crop` and `Work.poster_crop_hint` (host feature `work_poster_crop`) crop the poster out of `backdrop_url` with the same
+  `ImageCrop` and `ImageCropHint` as metadata images. `ImageFetchRule.max_concurrent` (host feature `image_host_concurrency`, 1 to 4) lets the
+  host run more background downloads against one host at a time; downloads a viewer is waiting for keep their own limit.
+- The new permission `discover.library_files` (`pluginv1.PermissionDiscoverLibraryFiles`, host feature `library_files`): when the
+  administrator allows it, `WorkRef.library_files` in `GetWorkStatesRequest` summarises the library's files of each work in the library
+  that the member can see (size, height, running time, whether it is a link, the version's name; never a path).
+
+## v0.10.0 (2026-10-29)
+
 - Picking a danmaku match (host feature `danmaku_override`, `pluginapi.HostFeatureDanmakuOverride`): the new capability `danmaku.match`
   (`pluginv1.CapabilityDanmakuMatch`, declared together with `danmaku.provider`) and the new RPC `DanmakuProvider.SearchDanmakuCandidates`.
   An administrator searches with it for an item (`SearchDanmakuCandidatesRequest`: the typed text, which may be a title or the address of a

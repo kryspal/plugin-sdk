@@ -105,8 +105,14 @@ func checkManifest(t *testing.T, m *pluginv1.Manifest) {
 				t.Errorf("image_fetch_rules[%d]: host %q is not a lowercase domain name, *.domain, IP address or CIDR", i, h)
 			}
 		}
-		if u, err := url.Parse(r.GetReferer()); err != nil || (u.Scheme != "https" && u.Scheme != "http") || u.Host == "" {
-			t.Errorf("image_fetch_rules[%d]: referer %q is not an absolute http(s) URL", i, r.GetReferer())
+		// A rule that only raises the number of downloads at a time (max_concurrent) may leave the Referer empty.
+		if r.GetReferer() != "" || r.GetMaxConcurrent() == 0 {
+			if u, err := url.Parse(r.GetReferer()); err != nil || (u.Scheme != "https" && u.Scheme != "http") || u.Host == "" {
+				t.Errorf("image_fetch_rules[%d]: referer %q is not an absolute http(s) URL", i, r.GetReferer())
+			}
+		}
+		if n := r.GetMaxConcurrent(); n < 0 || n > pluginapi.MaxImageHostConcurrency {
+			t.Errorf("image_fetch_rules[%d]: max_concurrent %d is outside 0 to %d", i, n, pluginapi.MaxImageHostConcurrency)
 		}
 		if key := r.GetProxyFrom(); key != "" {
 			f := fieldByKey(m, key)
@@ -215,6 +221,9 @@ func checkManifest(t *testing.T, m *pluginv1.Manifest) {
 		}
 	}
 	for _, p := range workActionManifestProblems(m) {
+		t.Error(p)
+	}
+	for _, p := range memberActionManifestProblems(m) {
 		t.Error(p)
 	}
 	if icon := m.GetIconPng(); len(icon) > 0 {
