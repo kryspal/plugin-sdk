@@ -3,7 +3,7 @@
 All notable changes to the Kryspal Media Plugin SDK. The protocol major version is `v1` (proto package
 `kryspal.plugin.v1`); within v1 only compatible additions are made (new fields, RPCs, services, capabilities).
 
-## v0.11.0 (unreleased)
+## v0.11.0 (2026-11-16)
 
 - Discover and work actions (host feature `discover`, `pluginapi.HostFeatureDiscover`, §7.12): two new independent capabilities, free on every
   plan. `discover.source` (`pluginv1.CapabilityDiscoverSource`, service `DiscoverSource`: `DescribeDiscoverSource`, `GetDiscoverPage`,
