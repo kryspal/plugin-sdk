@@ -3,6 +3,26 @@
 All notable changes to the Kryspal Media Plugin SDK. The protocol major version is `v1` (proto package
 `kryspal.plugin.v1`); within v1 only compatible additions are made (new fields, RPCs, services, capabilities).
 
+## v0.12.0 (2026-11-23)
+
+Needs server 0.9.18 or newer. A plugin that declares none of the new capabilities is unchanged.
+
+- Network access (`network.access`, §7.14, free on every plan): a plugin joins the server to another network, such as a tailnet, so that
+  devices on that network reach the server without port forwarding or a public address. The host opens an ingress Unix socket for the plugin
+  (`KRYSPAL_INGRESS_SOCKET` and `KRYSPAL_INGRESS_TOKEN`, `pluginapi.EnvIngressSocket` and `EnvIngressToken`); the plugin forwards the
+  network's HTTP requests to it. New in the SDK: `sdk.IngressFromEnv`, `sdk.SetPeer` (tells the host the address of the remote device and
+  clears every forwarding header the client sent), `HostClient.ReportNetworkAccess` (state, https origin, sign-in action and client steps) and
+  `sdk.ErrNetworkAccessNotDeclared`. A provider whose library maps ports on the router or probes local paths also declares `network.lan`.
+- Network identity (`network.identity`, free, needs `network.access`): the plugin sends the identity its network proved for each connection
+  (`sdk.SetIdentity`, `sdk.NetworkIdentity`), so an administrator can bind a network user to a member for sign-in without a password. The
+  optional `NetworkIdentity` service (`sdk.Config.NetworkIdentity`, `CheckIdentities`, at most `MaxCheckIdentitiesSubjects` subjects and
+  `CheckIdentitiesTimeout` per call) lets the host follow people who left the network; `PRESENT`, `ABSENT` or `UNKNOWN` per subject.
+- `Plugin.Uninstall`: when an administrator uninstalls a plugin, the host calls it on the running process (10-second deadline) before it
+  stops the process, so the plugin can undo what it set up outside the server, such as signing out or removing a registered device. It is
+  optional, never called for disable, upgrade, restart or shutdown, and an error does not stop the uninstall. Older hosts never call it.
+- `plugintest`: checks for the new capabilities and for the ingress. New options `IngressTraffic`, `RunUninstall`, `Setup` and
+  `ForgedClientHeaders` run a plugin against a fake network, send forged client headers through the ingress, and call `Uninstall`.
+
 ## v0.11.0 (2026-11-16)
 
 - Discover and work actions (host feature `discover`, `pluginapi.HostFeatureDiscover`, §7.12): two new independent capabilities, free on every

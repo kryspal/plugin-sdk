@@ -13,6 +13,18 @@
 // manifest declares: one metadata round trip, item and person images, person provider IDs and name recognition.
 // Subtitle downloads, user sync, segments, danmaku, alias maps, cast targets and the Host service are not covered yet; use Start
 // to get a connection to the running plugin and test them yourself.
+//
+// Plugin.Uninstall is called only when Options.RunUninstall is set (it may sign out of a real account): it must return OK
+// or UNIMPLEMENTED within UninstallTimeout, and the plugin must still shut down cleanly.
+//
+// A network access provider (network.access) is started once more after the shutdown, with a fake Host service and a
+// fake ingress: its ReportNetworkAccess calls must arrive within NetworkReportTimeout and follow host.proto, and every
+// request it forwards must carry the ingress token, a usable peer and no client headers. The suite has no network to
+// send requests through: set Options.IngressTraffic to push requests through your own fake network, otherwise these
+// request checks run only on requests the plugin sends by itself. When it also declares network.identity, the suite
+// calls NetworkIdentity.CheckIdentities with the subjects it sent plus one nobody has, and with no subjects: the
+// service is optional (UNIMPLEMENTED passes), but when implemented it must answer every subject asked exactly once with
+// a set presence, within CheckIdentitiesTimeout, and never PRESENT for the made-up subject.
 package plugintest
 
 import (
@@ -104,6 +116,11 @@ type Options struct {
 	// RunTasks names tasks (Manifest.tasks) to run once each with RunTask. The plugin must declare plugin.tasks.
 	// Tasks are not run unless listed, since they may reach the network or take long.
 	RunTasks []string
+	// RunUninstall calls Plugin.Uninstall just before the shutdown check, as the host does when an administrator
+	// uninstalls the plugin (PROTOCOL.md §2.4). It must return OK or UNIMPLEMENTED within UninstallTimeout, and the
+	// plugin must still shut down cleanly afterwards. It is not run unless set, since a plugin may sign out of a real
+	// account or revoke a real token configured through Config.
+	RunUninstall bool
 	// Recognize, when set, is a path the plugin is known to recognize. The plugin must declare media.recognize.
 	// Plugins that declare media.recognize are always checked with an empty path, whether or not this is set.
 	Recognize *RecognizeCase
@@ -115,9 +132,21 @@ type Options struct {
 	LibraryCases []LibraryCase
 
 	// Env adds variables to the plugin's environment, for example the address of a fake upstream service. The
-	// variables the host sets (the KRYSPAL_PLUGIN_* variables, PATH, HOME and TMPDIR) cannot be overridden, with one
+	// variables the host sets (the KRYSPAL_PLUGIN_* variables, the Host service and ingress variables, PATH, HOME and TMPDIR) cannot be overridden, with one
 	// exception: KRYSPAL_HOST_FEATURES, which lists every feature by default; set it to "" to test against an older host.
 	Env map[string]string
+	// IngressTraffic, when set, drives a network access provider (network.access) during the NetworkAccess check. The
+	// suite calls it once the plugin reports STATE_READY under the fake Host service and the fake ingress; it must push
+	// requests into the plugin through the author's own fake network (its address can travel in Env) and return when the
+	// plugin has forwarded them. Send at least one plain request and one that carries forged client headers
+	// (X-Forwarded-For, Forwarded, X-Real-IP and X-Kryspal-* including the identity headers). The suite then checks every
+	// request that reached the ingress: the ingress token, a peer set with sdk.SetPeer, no forwarding or client
+	// X-Kryspal-* headers, and identity headers only from sdk.SetIdentity and only when network.identity is declared. It
+	// fails when IngressTraffic returns and no request arrived. Without it the request checks cover only requests the
+	// plugin sends by itself. A fake network on loopback still has to report a peer that looks like a device on the
+	// network: the host answers 400 for a loopback, unspecified or multicast peer, so map the 127.0.0.1 connections to
+	// an address such as 100.64.0.7:40000 before sdk.SetPeer.
+	IngressTraffic func(t testing.TB)
 	// Setup, when set, runs once before the plugin starts, for example to start a fake upstream with httptest. The
 	// variables it returns are added to Env. Stop what it starts with t.Cleanup.
 	Setup func(t *testing.T) map[string]string
@@ -339,7 +368,15 @@ func Run(t *testing.T, binary string, opts Options) {
 		t.Log("the manifest marks fields library_override; add Options.LibraryCases to check them")
 	}
 
+	if opts.RunUninstall {
+		t.Run("Uninstall", func(t *testing.T) { checkUninstall(ctx, t, p.conn) })
+	}
 	t.Run("Shutdown", func(t *testing.T) { p.stop(t) })
+
+	// After the shutdown: the host never runs two copies of a plugin, and a provider may hold its network exclusively.
+	if declares(manifest, pluginv1.CapabilityNetworkAccess) {
+		t.Run("NetworkAccess", func(t *testing.T) { checkNetworkAccess(t, bin, extra, manifest, opts) })
+	}
 }
 
 func describe(ctx context.Context, t *testing.T, conn *grpc.ClientConn, lang string) *pluginv1.Manifest {

@@ -27,6 +27,7 @@ const _ = grpc.SupportPackageIsVersion9
 const (
 	Plugin_Describe_FullMethodName  = "/kryspal.plugin.v1.Plugin/Describe"
 	Plugin_Configure_FullMethodName = "/kryspal.plugin.v1.Plugin/Configure"
+	Plugin_Uninstall_FullMethodName = "/kryspal.plugin.v1.Plugin/Uninstall"
 )
 
 // PluginClient is the client API for Plugin service.
@@ -49,6 +50,14 @@ type PluginClient interface {
 	// The host calls it after the plugin starts and whenever an administrator changes the configuration. After the
 	// plugin starts and before it has received a valid configuration, metadata calls should return FAILED_PRECONDITION.
 	Configure(ctx context.Context, in *ConfigureRequest, opts ...grpc.CallOption) (*ConfigureResponse, error)
+	// Uninstall tells the plugin that an administrator is uninstalling it, so it can undo what it set up outside the
+	// server: sign out of an account, revoke a token, remove a device it registered. It is optional: a plugin without
+	// anything to undo leaves it unimplemented, and UNIMPLEMENTED or any error does not stop the uninstall.
+	//
+	// The host calls it once, only for an uninstall (never for disable, upgrade, restart or shutdown), on the running
+	// process before it sends SIGTERM, with a 10-second deadline; a plugin that is not running is not started for it.
+	// Afterwards the host deletes the plugin's data directory and settings.
+	Uninstall(ctx context.Context, in *UninstallRequest, opts ...grpc.CallOption) (*UninstallResponse, error)
 }
 
 type pluginClient struct {
@@ -79,6 +88,16 @@ func (c *pluginClient) Configure(ctx context.Context, in *ConfigureRequest, opts
 	return out, nil
 }
 
+func (c *pluginClient) Uninstall(ctx context.Context, in *UninstallRequest, opts ...grpc.CallOption) (*UninstallResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(UninstallResponse)
+	err := c.cc.Invoke(ctx, Plugin_Uninstall_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // PluginServer is the server API for Plugin service.
 // All implementations must embed UnimplementedPluginServer
 // for forward compatibility.
@@ -99,6 +118,14 @@ type PluginServer interface {
 	// The host calls it after the plugin starts and whenever an administrator changes the configuration. After the
 	// plugin starts and before it has received a valid configuration, metadata calls should return FAILED_PRECONDITION.
 	Configure(context.Context, *ConfigureRequest) (*ConfigureResponse, error)
+	// Uninstall tells the plugin that an administrator is uninstalling it, so it can undo what it set up outside the
+	// server: sign out of an account, revoke a token, remove a device it registered. It is optional: a plugin without
+	// anything to undo leaves it unimplemented, and UNIMPLEMENTED or any error does not stop the uninstall.
+	//
+	// The host calls it once, only for an uninstall (never for disable, upgrade, restart or shutdown), on the running
+	// process before it sends SIGTERM, with a 10-second deadline; a plugin that is not running is not started for it.
+	// Afterwards the host deletes the plugin's data directory and settings.
+	Uninstall(context.Context, *UninstallRequest) (*UninstallResponse, error)
 	mustEmbedUnimplementedPluginServer()
 }
 
@@ -114,6 +141,9 @@ func (UnimplementedPluginServer) Describe(context.Context, *DescribeRequest) (*M
 }
 func (UnimplementedPluginServer) Configure(context.Context, *ConfigureRequest) (*ConfigureResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method Configure not implemented")
+}
+func (UnimplementedPluginServer) Uninstall(context.Context, *UninstallRequest) (*UninstallResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method Uninstall not implemented")
 }
 func (UnimplementedPluginServer) mustEmbedUnimplementedPluginServer() {}
 func (UnimplementedPluginServer) testEmbeddedByValue()                {}
@@ -172,6 +202,24 @@ func _Plugin_Configure_Handler(srv interface{}, ctx context.Context, dec func(in
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Plugin_Uninstall_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UninstallRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PluginServer).Uninstall(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Plugin_Uninstall_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PluginServer).Uninstall(ctx, req.(*UninstallRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Plugin_ServiceDesc is the grpc.ServiceDesc for Plugin service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -186,6 +234,10 @@ var Plugin_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Configure",
 			Handler:    _Plugin_Configure_Handler,
+		},
+		{
+			MethodName: "Uninstall",
+			Handler:    _Plugin_Uninstall_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

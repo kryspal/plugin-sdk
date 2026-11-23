@@ -33,6 +33,241 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+type NetworkAccessStatus_State int32
+
+const (
+	NetworkAccessStatus_STATE_UNSPECIFIED NetworkAccessStatus_State = 0
+	// Connecting to the network.
+	NetworkAccessStatus_STATE_CONNECTING NetworkAccessStatus_State = 1
+	// Someone has to sign in; action_url is the sign-in address.
+	NetworkAccessStatus_STATE_NEEDS_LOGIN NetworkAccessStatus_State = 2
+	// The network's administrator has not approved this server yet.
+	NetworkAccessStatus_STATE_NEEDS_APPROVAL NetworkAccessStatus_State = 3
+	// origin is usable.
+	NetworkAccessStatus_STATE_READY NetworkAccessStatus_State = 4
+	// Something is wrong; message says what to do.
+	NetworkAccessStatus_STATE_ERROR NetworkAccessStatus_State = 5
+	// The administrator turned the provider off.
+	NetworkAccessStatus_STATE_STOPPED NetworkAccessStatus_State = 6
+)
+
+// Enum value maps for NetworkAccessStatus_State.
+var (
+	NetworkAccessStatus_State_name = map[int32]string{
+		0: "STATE_UNSPECIFIED",
+		1: "STATE_CONNECTING",
+		2: "STATE_NEEDS_LOGIN",
+		3: "STATE_NEEDS_APPROVAL",
+		4: "STATE_READY",
+		5: "STATE_ERROR",
+		6: "STATE_STOPPED",
+	}
+	NetworkAccessStatus_State_value = map[string]int32{
+		"STATE_UNSPECIFIED":    0,
+		"STATE_CONNECTING":     1,
+		"STATE_NEEDS_LOGIN":    2,
+		"STATE_NEEDS_APPROVAL": 3,
+		"STATE_READY":          4,
+		"STATE_ERROR":          5,
+		"STATE_STOPPED":        6,
+	}
+)
+
+func (x NetworkAccessStatus_State) Enum() *NetworkAccessStatus_State {
+	p := new(NetworkAccessStatus_State)
+	*p = x
+	return p
+}
+
+func (x NetworkAccessStatus_State) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (NetworkAccessStatus_State) Descriptor() protoreflect.EnumDescriptor {
+	return file_pluginv1_host_proto_enumTypes[0].Descriptor()
+}
+
+func (NetworkAccessStatus_State) Type() protoreflect.EnumType {
+	return &file_pluginv1_host_proto_enumTypes[0]
+}
+
+func (x NetworkAccessStatus_State) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use NetworkAccessStatus_State.Descriptor instead.
+func (NetworkAccessStatus_State) EnumDescriptor() ([]byte, []int) {
+	return file_pluginv1_host_proto_rawDescGZIP(), []int{0, 0}
+}
+
+// NetworkAccessStatus is the state of a network access provider.
+// Limits are in characters (Unicode code points); the host rejects a report that exceeds one (pluginv1.MaxNetwork*).
+type NetworkAccessStatus struct {
+	state protoimpl.MessageState    `protogen:"open.v1"`
+	State NetworkAccessStatus_State `protobuf:"varint,1,opt,name=state,proto3,enum=kryspal.plugin.v1.NetworkAccessStatus_State" json:"state,omitempty"`
+	// The server's https address on that network, e.g. https://media.example.ts.net. Only set when READY. It must be https,
+	// its host must be a DNS name (not an IP literal), and it carries no path; the host ignores an invalid origin and logs a
+	// warning once. The ingress accepts only requests whose Host equals this origin's host.
+	Origin string `protobuf:"bytes,2,opt,name=origin,proto3" json:"origin,omitempty"`
+	// An address for the administrator to open: sign in, approve, or turn on a setting in the network's console. The host
+	// shows it as a button and a QR code. At most 2048 characters (MaxNetworkURL).
+	ActionUrl string `protobuf:"bytes,3,opt,name=action_url,json=actionUrl,proto3" json:"action_url,omitempty"`
+	// The button's label, in `language`; at most 128 characters (MaxNetworkLabel).
+	ActionLabel string `protobuf:"bytes,4,opt,name=action_label,json=actionLabel,proto3" json:"action_label,omitempty"`
+	// The next step in plain words, in `language`; at most 500 characters (MaxNetworkMessage).
+	Message string `protobuf:"bytes,5,opt,name=message,proto3" json:"message,omitempty"`
+	// The network's name, for display; at most 128 characters (MaxNetworkLabel).
+	NetworkName string `protobuf:"bytes,6,opt,name=network_name,json=networkName,proto3" json:"network_name,omitempty"`
+	// What a member does to connect from another device: one step per entry, in `language`, at most 5 entries
+	// (MaxNetworkSteps) of at most 500 characters each (MaxNetworkStep).
+	ClientSteps []string `protobuf:"bytes,7,rep,name=client_steps,json=clientSteps,proto3" json:"client_steps,omitempty"`
+	// A download page for the app the member's device needs; at most 2048 characters (MaxNetworkURL).
+	ClientAppUrl string `protobuf:"bytes,8,opt,name=client_app_url,json=clientAppUrl,proto3" json:"client_app_url,omitempty"`
+	// The BCP 47 language the texts above are written in; at most 35 characters (MaxNetworkLanguage).
+	Language      string `protobuf:"bytes,9,opt,name=language,proto3" json:"language,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *NetworkAccessStatus) Reset() {
+	*x = NetworkAccessStatus{}
+	mi := &file_pluginv1_host_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *NetworkAccessStatus) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*NetworkAccessStatus) ProtoMessage() {}
+
+func (x *NetworkAccessStatus) ProtoReflect() protoreflect.Message {
+	mi := &file_pluginv1_host_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use NetworkAccessStatus.ProtoReflect.Descriptor instead.
+func (*NetworkAccessStatus) Descriptor() ([]byte, []int) {
+	return file_pluginv1_host_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *NetworkAccessStatus) GetState() NetworkAccessStatus_State {
+	if x != nil {
+		return x.State
+	}
+	return NetworkAccessStatus_STATE_UNSPECIFIED
+}
+
+func (x *NetworkAccessStatus) GetOrigin() string {
+	if x != nil {
+		return x.Origin
+	}
+	return ""
+}
+
+func (x *NetworkAccessStatus) GetActionUrl() string {
+	if x != nil {
+		return x.ActionUrl
+	}
+	return ""
+}
+
+func (x *NetworkAccessStatus) GetActionLabel() string {
+	if x != nil {
+		return x.ActionLabel
+	}
+	return ""
+}
+
+func (x *NetworkAccessStatus) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
+func (x *NetworkAccessStatus) GetNetworkName() string {
+	if x != nil {
+		return x.NetworkName
+	}
+	return ""
+}
+
+func (x *NetworkAccessStatus) GetClientSteps() []string {
+	if x != nil {
+		return x.ClientSteps
+	}
+	return nil
+}
+
+func (x *NetworkAccessStatus) GetClientAppUrl() string {
+	if x != nil {
+		return x.ClientAppUrl
+	}
+	return ""
+}
+
+func (x *NetworkAccessStatus) GetLanguage() string {
+	if x != nil {
+		return x.Language
+	}
+	return ""
+}
+
+type ReportNetworkAccessResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The server's interface language. When it differs from NetworkAccessStatus.language, the plugin sends the report again
+	// in this language.
+	Language      string `protobuf:"bytes,1,opt,name=language,proto3" json:"language,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ReportNetworkAccessResponse) Reset() {
+	*x = ReportNetworkAccessResponse{}
+	mi := &file_pluginv1_host_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ReportNetworkAccessResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReportNetworkAccessResponse) ProtoMessage() {}
+
+func (x *ReportNetworkAccessResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_pluginv1_host_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReportNetworkAccessResponse.ProtoReflect.Descriptor instead.
+func (*ReportNetworkAccessResponse) Descriptor() ([]byte, []int) {
+	return file_pluginv1_host_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *ReportNetworkAccessResponse) GetLanguage() string {
+	if x != nil {
+		return x.Language
+	}
+	return ""
+}
+
 // LLMMessage is one message of a conversation.
 type LLMMessage struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -45,7 +280,7 @@ type LLMMessage struct {
 
 func (x *LLMMessage) Reset() {
 	*x = LLMMessage{}
-	mi := &file_pluginv1_host_proto_msgTypes[0]
+	mi := &file_pluginv1_host_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -57,7 +292,7 @@ func (x *LLMMessage) String() string {
 func (*LLMMessage) ProtoMessage() {}
 
 func (x *LLMMessage) ProtoReflect() protoreflect.Message {
-	mi := &file_pluginv1_host_proto_msgTypes[0]
+	mi := &file_pluginv1_host_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -70,7 +305,7 @@ func (x *LLMMessage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LLMMessage.ProtoReflect.Descriptor instead.
 func (*LLMMessage) Descriptor() ([]byte, []int) {
-	return file_pluginv1_host_proto_rawDescGZIP(), []int{0}
+	return file_pluginv1_host_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *LLMMessage) GetRole() string {
@@ -107,7 +342,7 @@ type LLMCompleteRequest struct {
 
 func (x *LLMCompleteRequest) Reset() {
 	*x = LLMCompleteRequest{}
-	mi := &file_pluginv1_host_proto_msgTypes[1]
+	mi := &file_pluginv1_host_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -119,7 +354,7 @@ func (x *LLMCompleteRequest) String() string {
 func (*LLMCompleteRequest) ProtoMessage() {}
 
 func (x *LLMCompleteRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_pluginv1_host_proto_msgTypes[1]
+	mi := &file_pluginv1_host_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -132,7 +367,7 @@ func (x *LLMCompleteRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LLMCompleteRequest.ProtoReflect.Descriptor instead.
 func (*LLMCompleteRequest) Descriptor() ([]byte, []int) {
-	return file_pluginv1_host_proto_rawDescGZIP(), []int{1}
+	return file_pluginv1_host_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *LLMCompleteRequest) GetSystem() string {
@@ -184,7 +419,7 @@ type LLMCompleteResponse struct {
 
 func (x *LLMCompleteResponse) Reset() {
 	*x = LLMCompleteResponse{}
-	mi := &file_pluginv1_host_proto_msgTypes[2]
+	mi := &file_pluginv1_host_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -196,7 +431,7 @@ func (x *LLMCompleteResponse) String() string {
 func (*LLMCompleteResponse) ProtoMessage() {}
 
 func (x *LLMCompleteResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_pluginv1_host_proto_msgTypes[2]
+	mi := &file_pluginv1_host_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -209,7 +444,7 @@ func (x *LLMCompleteResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LLMCompleteResponse.ProtoReflect.Descriptor instead.
 func (*LLMCompleteResponse) Descriptor() ([]byte, []int) {
-	return file_pluginv1_host_proto_rawDescGZIP(), []int{2}
+	return file_pluginv1_host_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *LLMCompleteResponse) GetText() string {
@@ -244,7 +479,7 @@ type LLMUsage struct {
 
 func (x *LLMUsage) Reset() {
 	*x = LLMUsage{}
-	mi := &file_pluginv1_host_proto_msgTypes[3]
+	mi := &file_pluginv1_host_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -256,7 +491,7 @@ func (x *LLMUsage) String() string {
 func (*LLMUsage) ProtoMessage() {}
 
 func (x *LLMUsage) ProtoReflect() protoreflect.Message {
-	mi := &file_pluginv1_host_proto_msgTypes[3]
+	mi := &file_pluginv1_host_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -269,7 +504,7 @@ func (x *LLMUsage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LLMUsage.ProtoReflect.Descriptor instead.
 func (*LLMUsage) Descriptor() ([]byte, []int) {
-	return file_pluginv1_host_proto_rawDescGZIP(), []int{3}
+	return file_pluginv1_host_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *LLMUsage) GetKnown() bool {
@@ -297,7 +532,28 @@ var File_pluginv1_host_proto protoreflect.FileDescriptor
 
 const file_pluginv1_host_proto_rawDesc = "" +
 	"\n" +
-	"\x13pluginv1/host.proto\x12\x11kryspal.plugin.v1\":\n" +
+	"\x13pluginv1/host.proto\x12\x11kryspal.plugin.v1\"\xf2\x03\n" +
+	"\x13NetworkAccessStatus\x12B\n" +
+	"\x05state\x18\x01 \x01(\x0e2,.kryspal.plugin.v1.NetworkAccessStatus.StateR\x05state\x12\x16\n" +
+	"\x06origin\x18\x02 \x01(\tR\x06origin\x12\x1d\n" +
+	"\n" +
+	"action_url\x18\x03 \x01(\tR\tactionUrl\x12!\n" +
+	"\faction_label\x18\x04 \x01(\tR\vactionLabel\x12\x18\n" +
+	"\amessage\x18\x05 \x01(\tR\amessage\x12!\n" +
+	"\fnetwork_name\x18\x06 \x01(\tR\vnetworkName\x12!\n" +
+	"\fclient_steps\x18\a \x03(\tR\vclientSteps\x12$\n" +
+	"\x0eclient_app_url\x18\b \x01(\tR\fclientAppUrl\x12\x1a\n" +
+	"\blanguage\x18\t \x01(\tR\blanguage\"\x9a\x01\n" +
+	"\x05State\x12\x15\n" +
+	"\x11STATE_UNSPECIFIED\x10\x00\x12\x14\n" +
+	"\x10STATE_CONNECTING\x10\x01\x12\x15\n" +
+	"\x11STATE_NEEDS_LOGIN\x10\x02\x12\x18\n" +
+	"\x14STATE_NEEDS_APPROVAL\x10\x03\x12\x0f\n" +
+	"\vSTATE_READY\x10\x04\x12\x0f\n" +
+	"\vSTATE_ERROR\x10\x05\x12\x11\n" +
+	"\rSTATE_STOPPED\x10\x06\"9\n" +
+	"\x1bReportNetworkAccessResponse\x12\x1a\n" +
+	"\blanguage\x18\x01 \x01(\tR\blanguage\":\n" +
 	"\n" +
 	"LLMMessage\x12\x12\n" +
 	"\x04role\x18\x01 \x01(\tR\x04role\x12\x18\n" +
@@ -317,9 +573,10 @@ const file_pluginv1_host_proto_rawDesc = "" +
 	"\bLLMUsage\x12\x14\n" +
 	"\x05known\x18\x01 \x01(\bR\x05known\x12#\n" +
 	"\rprompt_tokens\x18\x02 \x01(\x04R\fpromptTokens\x12+\n" +
-	"\x11completion_tokens\x18\x03 \x01(\x04R\x10completionTokens2d\n" +
+	"\x11completion_tokens\x18\x03 \x01(\x04R\x10completionTokens2\xd3\x01\n" +
 	"\x04Host\x12\\\n" +
-	"\vLLMComplete\x12%.kryspal.plugin.v1.LLMCompleteRequest\x1a&.kryspal.plugin.v1.LLMCompleteResponseB1Z/github.com/kryspal/plugin-sdk/pluginv1;pluginv1b\x06proto3"
+	"\vLLMComplete\x12%.kryspal.plugin.v1.LLMCompleteRequest\x1a&.kryspal.plugin.v1.LLMCompleteResponse\x12m\n" +
+	"\x13ReportNetworkAccess\x12&.kryspal.plugin.v1.NetworkAccessStatus\x1a..kryspal.plugin.v1.ReportNetworkAccessResponseB1Z/github.com/kryspal/plugin-sdk/pluginv1;pluginv1b\x06proto3"
 
 var (
 	file_pluginv1_host_proto_rawDescOnce sync.Once
@@ -333,23 +590,30 @@ func file_pluginv1_host_proto_rawDescGZIP() []byte {
 	return file_pluginv1_host_proto_rawDescData
 }
 
-var file_pluginv1_host_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
+var file_pluginv1_host_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
+var file_pluginv1_host_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
 var file_pluginv1_host_proto_goTypes = []any{
-	(*LLMMessage)(nil),          // 0: kryspal.plugin.v1.LLMMessage
-	(*LLMCompleteRequest)(nil),  // 1: kryspal.plugin.v1.LLMCompleteRequest
-	(*LLMCompleteResponse)(nil), // 2: kryspal.plugin.v1.LLMCompleteResponse
-	(*LLMUsage)(nil),            // 3: kryspal.plugin.v1.LLMUsage
+	(NetworkAccessStatus_State)(0),      // 0: kryspal.plugin.v1.NetworkAccessStatus.State
+	(*NetworkAccessStatus)(nil),         // 1: kryspal.plugin.v1.NetworkAccessStatus
+	(*ReportNetworkAccessResponse)(nil), // 2: kryspal.plugin.v1.ReportNetworkAccessResponse
+	(*LLMMessage)(nil),                  // 3: kryspal.plugin.v1.LLMMessage
+	(*LLMCompleteRequest)(nil),          // 4: kryspal.plugin.v1.LLMCompleteRequest
+	(*LLMCompleteResponse)(nil),         // 5: kryspal.plugin.v1.LLMCompleteResponse
+	(*LLMUsage)(nil),                    // 6: kryspal.plugin.v1.LLMUsage
 }
 var file_pluginv1_host_proto_depIdxs = []int32{
-	0, // 0: kryspal.plugin.v1.LLMCompleteRequest.messages:type_name -> kryspal.plugin.v1.LLMMessage
-	3, // 1: kryspal.plugin.v1.LLMCompleteResponse.usage:type_name -> kryspal.plugin.v1.LLMUsage
-	1, // 2: kryspal.plugin.v1.Host.LLMComplete:input_type -> kryspal.plugin.v1.LLMCompleteRequest
-	2, // 3: kryspal.plugin.v1.Host.LLMComplete:output_type -> kryspal.plugin.v1.LLMCompleteResponse
-	3, // [3:4] is the sub-list for method output_type
-	2, // [2:3] is the sub-list for method input_type
-	2, // [2:2] is the sub-list for extension type_name
-	2, // [2:2] is the sub-list for extension extendee
-	0, // [0:2] is the sub-list for field type_name
+	0, // 0: kryspal.plugin.v1.NetworkAccessStatus.state:type_name -> kryspal.plugin.v1.NetworkAccessStatus.State
+	3, // 1: kryspal.plugin.v1.LLMCompleteRequest.messages:type_name -> kryspal.plugin.v1.LLMMessage
+	6, // 2: kryspal.plugin.v1.LLMCompleteResponse.usage:type_name -> kryspal.plugin.v1.LLMUsage
+	4, // 3: kryspal.plugin.v1.Host.LLMComplete:input_type -> kryspal.plugin.v1.LLMCompleteRequest
+	1, // 4: kryspal.plugin.v1.Host.ReportNetworkAccess:input_type -> kryspal.plugin.v1.NetworkAccessStatus
+	5, // 5: kryspal.plugin.v1.Host.LLMComplete:output_type -> kryspal.plugin.v1.LLMCompleteResponse
+	2, // 6: kryspal.plugin.v1.Host.ReportNetworkAccess:output_type -> kryspal.plugin.v1.ReportNetworkAccessResponse
+	5, // [5:7] is the sub-list for method output_type
+	3, // [3:5] is the sub-list for method input_type
+	3, // [3:3] is the sub-list for extension type_name
+	3, // [3:3] is the sub-list for extension extendee
+	0, // [0:3] is the sub-list for field type_name
 }
 
 func init() { file_pluginv1_host_proto_init() }
@@ -362,13 +626,14 @@ func file_pluginv1_host_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_pluginv1_host_proto_rawDesc), len(file_pluginv1_host_proto_rawDesc)),
-			NumEnums:      0,
-			NumMessages:   4,
+			NumEnums:      1,
+			NumMessages:   6,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
 		GoTypes:           file_pluginv1_host_proto_goTypes,
 		DependencyIndexes: file_pluginv1_host_proto_depIdxs,
+		EnumInfos:         file_pluginv1_host_proto_enumTypes,
 		MessageInfos:      file_pluginv1_host_proto_msgTypes,
 	}.Build()
 	File_pluginv1_host_proto = out.File

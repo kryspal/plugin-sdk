@@ -31,6 +31,7 @@ The host starts a plugin with a **clean environment** and does not pass on the s
 | `KRYSPAL_PLUGIN_DATA_DIR` | The same directory as `HOME`, under a name that states the intent. Go plugins can call `pluginapi.DataDir(os.Getenv)`, which falls back to `HOME` on older hosts. |
 | `KRYSPAL_HOST_FEATURES` | Comma-separated compatible additions the host stores and uses, for example `attributes,photo`. Missing on older hosts. See §11.6. |
 | `KRYSPAL_HOST_LAN_ALLOWED` | `1` when the administrator allowed this plugin to use the local network (`network.lan`), otherwise `0`; missing on older hosts. The host restarts the plugin when the permission changes. Use it to tell the user why images on private addresses do not load. |
+| `KRYSPAL_INGRESS_SOCKET`, `KRYSPAL_INGRESS_TOKEN` | Only for a plugin that declares `network.access`: the Unix socket path of the ingress and its one-time token (§7.14). They change on every process start and differ from the Host service's token. |
 | `SSL_CERT_FILE`, `SSL_CERT_DIR` | Passed only when the server itself has these two variables set, so the plugin connects using the same set of CA certificates. |
 
 The working directory is the plugin's data directory (the same as `HOME`). The executable lives in the installation directory (`DATA_DIR/plugins/<id>/<version>/`), which the plugin must not write to.
@@ -78,6 +79,7 @@ Rules for the handshake line:
 ### 2.4 Shutdown
 
 - To stop a plugin, the host first sends `SIGTERM`. The plugin should stop accepting new calls, finish calls in progress, remove the socket, and then exit with status 0.
+- **Uninstall.** When an administrator uninstalls a plugin, the host first calls `Plugin.Uninstall` on the running process (10-second deadline), then stops it as above and deletes its data directory and settings. Use it to undo what the plugin set up outside the server: sign out, revoke a token, remove a registered device. It is optional (embed `UnimplementedPluginServer`), it is never called for disable, upgrade, restart or shutdown, a plugin that is not running is not started for it, and an error or timeout does not stop the uninstall. Older hosts never call it.
 - If it has not exited after 5 seconds, the host sends `SIGKILL` to the whole process group. The Go SDK waits 4 seconds by default.
 - The plugin forms its own process group; on Linux, Pdeathsig is set so the plugin also exits when the server crashes. Child processes started by the plugin are terminated along with it.
 - When a plugin exits on its own or crashes, the host restarts it with backoff (starting at 1 second and doubling, up to 5 minutes); after 5 crashes within 10 minutes it is disabled until an administrator re-enables it.
@@ -225,6 +227,8 @@ Host feature `library_config`. A plugin marks the settings that make sense per l
 | `page.action` | `PageActionProvider.GetPageState`, `RunPageAction`: the actions in `Manifest.page_actions` on the plugin's own discover pages, for a member; needs `discover.source`; **receives member information** (§7.13) | (does not change the category) |
 | `discover.subscriptions` | `MemberSubscriptionProvider.ListMemberSubscriptions`, `RunSubscriptionAction`: a member's subscriptions and the actions in `Manifest.subscription_actions` on them; **receives member information** (§7.13) | (does not change the category) |
 | `discover.calendar` | `MemberCalendarProvider.ListMemberCalendar`: dates in a time window that matter to a member; **receives member information** (§7.13) | (does not change the category) |
+| `network.access` | Joins the server to another network: forwards that network's HTTP requests through the ingress socket and reports its state with `Host.ReportNetworkAccess` (§7.14); free | (does not change the category) |
+| `network.identity` | On the ingress, also sends the identity the network proved for each connection, so an administrator can bind it to members for sign-in without a password (§7.14); needs `network.access`; optionally answers `NetworkIdentity.CheckIdentities` so the host can follow people who are gone; free | (does not change the category) |
 
 - For a capability that is not declared, the corresponding calls return `UNIMPLEMENTED`. The host does not forward such calls either.
 - The host ignores capabilities it does not recognize, so capabilities added later do not affect existing plugins.
@@ -559,6 +563,38 @@ The host stores none of this: it asks you each time, as for `work.action`, and s
 
 **Errors** follow §7.12. `UNIMPLEMENTED` from a declared service counts as offering nothing, not as a failure.
 
+### 7.14 Network access providers
+
+`network.access` lets a plugin join the server to another network (an overlay or VPN such as a tailnet) so that devices on that network reach the server, without port forwarding or a public address. `network.identity` adds sign-in without a password for members an administrator binds to an identity on that network. Both are free on every plan. They need a server version that supports them; on older hosts `KRYSPAL_INGRESS_SOCKET` is absent and `Host.ReportNetworkAccess` is `UNIMPLEMENTED`. A network access provider that registered the server on an outside network should leave it in `Plugin.Uninstall` (§1).
+
+**The ingress.** For a plugin that declares `network.access`, the host opens `ingress.sock` (0600) in the plugin's socket directory and passes its path and a one-time token in `KRYSPAL_INGRESS_SOCKET` and `KRYSPAL_INGRESS_TOKEN` (§2.1). Forward your network's requests to it as plain HTTP/1.1 (WebSocket upgrades, Range and long streams work), with the token in `X-Kryspal-Ingress-Token`. The SDK's `IngressFromEnv(nil).Transport()` dials the socket and sets the token; put it in an `httputil.ReverseProxy` with `FlushInterval: -1` and a `Rewrite` (not a `Director`, which passes the client's forwarding headers on and adds its own) that calls `sdk.SetPeer` and, for `network.identity`, `sdk.SetIdentity`. `SetPeer` clears every forwarding and identity header the client brought (`X-Forwarded-*`, `Forwarded`, `X-Real-IP`, `X-Kryspal-*`); `Rewrite` alone keeps `X-Real-IP`. Forwarding to the server's ordinary ports instead is not supported: the request would count as coming from the server itself or the local network.
+
+**What the host does on the ingress**, in this order, before any handler sees the request:
+
+1. A missing or wrong token gets 403. It never falls back to treating the request as an ordinary loopback request.
+2. It reads the plugin's headers (`X-Kryspal-Peer` and the `X-Kryspal-Identity-*` headers, constants in `v1/protocol.go`), then removes them.
+3. It removes the client's own `X-Forwarded-*`, `Forwarded`, `X-Real-IP` and every other `X-Kryspal-*` header. The host reads no other identity header anywhere; vendor headers such as an overlay's user headers are ordinary headers nobody reads. Remove them in the plugin as well.
+4. `Host` must equal the host of the `origin` you last reported (otherwise 421); before you report a ready origin, every request gets 503.
+5. The request's remote address becomes the peer address you sent. A malformed, loopback, unspecified or multicast peer gets 400. Rate limits, sign-in protection and audit records therefore work per device on your network.
+6. The host writes `X-Forwarded-Proto: https` and `X-Forwarded-Host` itself, from your origin.
+
+**Ingress traffic is never local.** Whatever the peer address, a request through the ingress counts as outside the local network, also when the address falls in a range the administrator marked as local. The server's own addresses in responses use your origin.
+
+**Identity** (`network.identity`, which requires `network.access`). Send `X-Kryspal-Identity-Subject` (a stable, opaque user ID on your network, at most 128 bytes), `-Login` (for display, at most 256) and `-Device-Name` (for display, at most 128), percent-encoded. Bindings use the subject only. The host takes all three or none: when one is over its limit or does not decode, the request is handled as having no identity, not rejected. Look the identity up per connection from your network, never from the request. Send no identity when your network cannot say who the peer is, when the peer is a device without a user, when its key has expired, or when the request shows it came through another proxy. Identity headers have no effect anywhere except on the ingress, and the host trusts no identity header a client sends. The host decides what an identity may do: an administrator binds a network user to members, administrator accounts never sign in this way, a PIN is still asked for, and the usual sign-in limits and device counts apply. A sign-in this way issues an ordinary web session or device token.
+
+**Following people who are gone** (`network.identity`, optional). Register the `NetworkIdentity` service ([`pluginv1/network.proto`](pluginv1/network.proto); `sdk.Config.NetworkIdentity`) and the host asks it every few hours, and when an administrator presses "check now", which bound subjects are still on your network. `CheckIdentities` gets at most `MaxCheckIdentitiesSubjects` (1000) subjects and `CheckIdentitiesTimeout` (30 seconds).
+
+- Answer `PRESENCE_PRESENT` when your current network state has at least one device of that user, offline devices included. Answer `PRESENCE_ABSENT` only when your state is trustworthy and has no device of that user.
+- When unsure, answer `PRESENCE_UNKNOWN`: not connected, state incomplete or just after startup, a subject that is not in a form you send. A subject you leave out, repeat or did not get asked about, and `PRESENCE_UNSPECIFIED`, count as unknown; so do `UNIMPLEMENTED`, an error and a timeout.
+- Read only the state you already hold. Never connect anywhere, sign in or ask a control server for this call.
+- ABSENT means "not seen from here", not "left the network"; the host words it that way. The host acts only after two ABSENT answers at least six hours apart: it then stops passwordless sign-in for that user's bindings and ends the sessions issued through them, and keeps the bindings. A later PRESENT restores them. UNKNOWN changes nothing.
+
+**State.** Call `Host.ReportNetworkAccess` on every state change and again every 60 seconds (§7.3 for the channel). `origin` is your https address on that network, set only when `STATE_READY`: https, a DNS name (not an IP literal), no path. The host keeps only the latest report and forgets it when your process exits; after 3 minutes without one it treats you as connecting. Write the human-facing fields (`action_url`, `action_label`, `message`, `network_name`, `client_steps`, `client_app_url`) in the language the response returns, and report again when it differs from the one you used. Limits, in characters: `message` and each client step 500, `action_label` and `network_name` 128, each URL 2048, at most 5 `client_steps`, `language` 35 (`pluginv1.MaxNetwork*`); the host rejects a report over a limit. **The host shows these fields as they are in the Network settings and on the member's "watch away from home" card, and nowhere else**: it does not raise notifications, overview cards or reminders from them. Self-tests belong in `plugin.checks` (§7.9); everything else you want to explain goes into your own settings page.
+
+**Lifetime.** A plugin that declares `network.access` stays running: the host never stops it for being idle. When it exits, streams through the ingress end; clients open new requests on another address. On restart the socket and token are renewed.
+
+**Disclosure.** The admin console shows "this plugin lets devices outside the local network reach the server" for every plugin that declares `network.access`. A provider whose library maps ports on the router or probes local paths also declares `network.lan` (§11.3).
+
 ## 8. Errors
 
 Errors are expressed as gRPC status codes:
@@ -729,6 +765,7 @@ A plugin cannot ask for longer timeouts. When an upstream is slow, cache what yo
 ### 11.3 Network
 
 - Plugins may connect to the internet. A plugin that talks to devices on the local network declares the permission `network.lan`, so the admin console can disclose it.
+- Requests that reach the server through a `network.access` ingress always count as outside the local network (§7.14).
 - The host does not set up a proxy for plugins: proxy variables such as `HTTP_PROXY` in the server's environment are not passed on (§2.1). A plugin that needs a proxy offers its own setting for it.
 - Rate-limit yourself toward the upstream and report the upstream's limits with `RESOURCE_EXHAUSTED` (§8).
 
@@ -745,6 +782,7 @@ A plugin is never locked by the server's plan: any plugin can be installed, conf
 | `media.recognize` | PRO and up |
 | `subtitles.search` | PRO and up |
 | `segments.provider`, `segments.submit` | PRO and up |
+| `network.access`, `network.identity` | Free (all plans) |
 | All other capabilities | Free |
 
 The admin console tells administrators when an installed plugin declares a capability their plan does not include.

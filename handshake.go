@@ -34,6 +34,12 @@ const (
 	// returns ErrHostUnavailable and the plugin should degrade gracefully.
 	EnvHostSocket = "KRYSPAL_HOST_SOCKET"
 	EnvHostToken  = "KRYSPAL_HOST_TOKEN"
+	// EnvIngressSocket and EnvIngressToken are the Unix socket path and one-time token of the ingress, set only for a plugin
+	// that declares network.access. The plugin forwards its network's HTTP requests to this socket (see
+	// sdk.IngressTransport) with the token in the X-Kryspal-Ingress-Token header. Both change on every process start and
+	// differ from the Host service's token.
+	EnvIngressSocket = "KRYSPAL_INGRESS_SOCKET"
+	EnvIngressToken  = "KRYSPAL_INGRESS_TOKEN"
 )
 
 // CookieValue is the fixed magic value of EnvCookie. It is not a secret; it only keeps users from running a plugin directly.

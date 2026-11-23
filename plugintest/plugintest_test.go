@@ -58,8 +58,9 @@ func fullOptions() plugintest.Options {
 			t.Cleanup(srv.Close)
 			return map[string]string{"FULL_UPSTREAM": srv.URL}
 		},
-		Env:      map[string]string{"FULL_BREAK": os.Getenv("PLUGINTEST_FULL_BREAK")},
-		RunTasks: []string{"refresh", "clear_cache"},
+		Env:          map[string]string{"FULL_BREAK": os.Getenv("PLUGINTEST_FULL_BREAK")},
+		RunTasks:     []string{"refresh", "clear_cache"},
+		RunUninstall: true,
 	}
 }
 
@@ -133,6 +134,7 @@ func TestTheSuiteCatchesBrokenAnswers(t *testing.T) {
 			"max_concurrent 9 is outside 0 to 4", "sets subscription_form without discover.subscriptions",
 			"discover.library_files without work.action",
 		},
+		"uninstall": {"Plugin.Uninstall = Internal"},
 		"form": {
 			"form title is longer than 64", `form option "quality": the key is repeated`, `option "empty" has 0 choices`,
 			`form option "nolabel" has no label`, "option hint is longer than 64", "SuggestChoices returned 23 choices; the host keeps 20",

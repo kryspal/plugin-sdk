@@ -117,6 +117,10 @@ func hostError(err error) error {
 		if st.Code() == codes.PermissionDenied {
 			return ErrAIAssistNotAllowed
 		}
+	case pluginv1.CodeNetworkAccessNotDeclared:
+		if st.Code() == codes.PermissionDenied {
+			return ErrNetworkAccessNotDeclared
+		}
 	}
 	return err
 }

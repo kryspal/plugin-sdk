@@ -148,6 +148,14 @@ func (*provider) RunTask(_ context.Context, req *pluginv1.RunTaskRequest) (*plug
 }
 
 // Configure stores the global values; a dry run only checks and stores nothing.
+// Uninstall has nothing outside the server to undo. FULL_BREAK=uninstall fails the way the suite must catch.
+func (p *provider) Uninstall(context.Context, *pluginv1.UninstallRequest) (*pluginv1.UninstallResponse, error) {
+	if p.broken == "uninstall" {
+		return nil, status.Error(codes.Internal, "could not sign out")
+	}
+	return &pluginv1.UninstallResponse{}, nil
+}
+
 func (p *provider) Configure(_ context.Context, req *pluginv1.ConfigureRequest) (*pluginv1.ConfigureResponse, error) {
 	if !req.GetDryRun() {
 		p.settings.Store(req.GetValues())

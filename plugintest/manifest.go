@@ -55,6 +55,9 @@ func checkManifest(t *testing.T, m *pluginv1.Manifest) {
 	checkConfigItems(t, m)
 	checkLibraryOverrides(t, m)
 	checkDiscoverSeedDeclaration(t, m)
+	if declares(m, pluginv1.CapabilityNetworkIdentity) && !declares(m, pluginv1.CapabilityNetworkAccess) {
+		t.Errorf("declares %s without %s, which it needs (PROTOCOL.md §7.14)", pluginv1.CapabilityNetworkIdentity, pluginv1.CapabilityNetworkAccess)
+	}
 	fields := map[string]*pluginv1.ConfigField{}
 	for _, f := range m.GetConfigFields() {
 		fields[f.GetKey()] = f

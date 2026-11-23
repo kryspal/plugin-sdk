@@ -110,6 +110,13 @@ conn := plugintest.Start(t, plugintest.Build(t, "."), plugintest.Options{})
 resp, err := pluginv1.NewSubtitleProviderClient(conn).Search(t.Context(), req)
 ```
 
+A network access provider (`network.access`, §7.14) is started a second time after the shutdown, with a fake Host
+service and a fake ingress. The suite checks its `ReportNetworkAccess` calls (they must arrive within 15 seconds and
+follow `host.proto`) and every request it forwards to the ingress (token, peer, no forwarding or client `X-Kryspal-*`
+headers, identity only with `network.identity`). The suite has no network of its own: set `Options.IngressTraffic` to
+push requests through your own fake network once the plugin reports `STATE_READY`, including one with forged client
+headers. The check fails when the function returns and no request reached the ingress.
+
 The plugin cannot be run by hand: it exits with "this is a Kryspal Media plugin" unless the server starts it (§2).
 
 ## For Go plugin authors

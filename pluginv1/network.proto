@@ -1,0 +1,52 @@
+// Kryspal Media Plugin protocol v1: network identity checks.
+//
+// Capabilities and the methods they map to:
+//   network.identity  CheckIdentities (optional)
+// A network access provider that also declares network.identity can tell the host whether the people it identified are
+// still on its network, so the host can stop passwordless sign-in for someone who is gone (see PROTOCOL.md §7.14).
+// The service is optional: a plugin that does not register it answers UNIMPLEMENTED, and the host then treats every
+// subject as UNKNOWN and changes nothing.
+syntax = "proto3";
+
+package kryspal.plugin.v1;
+
+option go_package = "github.com/kryspal/plugin-sdk/pluginv1;pluginv1";
+
+// NetworkIdentity is implemented by plugins that declare network.identity and want the host to follow people who are
+// no longer seen on their network.
+service NetworkIdentity {
+  // CheckIdentities reports, for each subject, whether the plugin still sees that user on its network. Answer from the
+  // state the plugin already holds: never connect anywhere, sign in or ask a control server just for this call. When
+  // unsure, answer UNKNOWN. The host sends at most MaxCheckIdentitiesSubjects subjects and gives the call
+  // CheckIdentitiesTimeout (30 seconds).
+  rpc CheckIdentities(CheckIdentitiesRequest) returns (CheckIdentitiesResponse);
+}
+
+message CheckIdentitiesRequest {
+  // Subjects as the plugin sent them in X-Kryspal-Identity-Subject; no duplicates, at most MaxCheckIdentitiesSubjects.
+  repeated string subjects = 1;
+}
+
+message CheckIdentitiesResponse {
+  // One entry per subject, in any order. The host treats a subject that is missing, repeated or not asked for, and
+  // PRESENCE_UNSPECIFIED, as UNKNOWN.
+  repeated IdentityPresence results = 1;
+}
+
+message IdentityPresence {
+  string subject = 1;
+  Presence presence = 2;
+}
+
+enum Presence {
+  PRESENCE_UNSPECIFIED = 0;
+  // The plugin's current network state has at least one device of this user. Offline devices and devices whose key
+  // has expired but that the network still lists count as present.
+  PRESENCE_PRESENT = 1;
+  // The plugin's current network state is trustworthy and has no device of this user. It means "not seen from here",
+  // not necessarily "left the network": an access rule that hides the user from this server also gives ABSENT.
+  PRESENCE_ABSENT = 2;
+  // The plugin cannot tell: it is not connected, its state is incomplete or too fresh, or the subject is not in a form
+  // it sends. The host changes nothing for UNKNOWN.
+  PRESENCE_UNKNOWN = 3;
+}

@@ -109,6 +109,78 @@ func (ConfigFieldType) EnumDescriptor() ([]byte, []int) {
 	return file_pluginv1_plugin_proto_rawDescGZIP(), []int{0}
 }
 
+type UninstallRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UninstallRequest) Reset() {
+	*x = UninstallRequest{}
+	mi := &file_pluginv1_plugin_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UninstallRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UninstallRequest) ProtoMessage() {}
+
+func (x *UninstallRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_pluginv1_plugin_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UninstallRequest.ProtoReflect.Descriptor instead.
+func (*UninstallRequest) Descriptor() ([]byte, []int) {
+	return file_pluginv1_plugin_proto_rawDescGZIP(), []int{0}
+}
+
+type UninstallResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UninstallResponse) Reset() {
+	*x = UninstallResponse{}
+	mi := &file_pluginv1_plugin_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UninstallResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UninstallResponse) ProtoMessage() {}
+
+func (x *UninstallResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_pluginv1_plugin_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UninstallResponse.ProtoReflect.Descriptor instead.
+func (*UninstallResponse) Descriptor() ([]byte, []int) {
+	return file_pluginv1_plugin_proto_rawDescGZIP(), []int{1}
+}
+
 type DescribeRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// BCP 47 language tag, for example zh-TW or en. An empty string means English.
@@ -119,7 +191,7 @@ type DescribeRequest struct {
 
 func (x *DescribeRequest) Reset() {
 	*x = DescribeRequest{}
-	mi := &file_pluginv1_plugin_proto_msgTypes[0]
+	mi := &file_pluginv1_plugin_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -131,7 +203,7 @@ func (x *DescribeRequest) String() string {
 func (*DescribeRequest) ProtoMessage() {}
 
 func (x *DescribeRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_pluginv1_plugin_proto_msgTypes[0]
+	mi := &file_pluginv1_plugin_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -144,7 +216,7 @@ func (x *DescribeRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DescribeRequest.ProtoReflect.Descriptor instead.
 func (*DescribeRequest) Descriptor() ([]byte, []int) {
-	return file_pluginv1_plugin_proto_rawDescGZIP(), []int{0}
+	return file_pluginv1_plugin_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *DescribeRequest) GetLanguage() string {
@@ -244,7 +316,7 @@ type Manifest struct {
 
 func (x *Manifest) Reset() {
 	*x = Manifest{}
-	mi := &file_pluginv1_plugin_proto_msgTypes[1]
+	mi := &file_pluginv1_plugin_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -256,7 +328,7 @@ func (x *Manifest) String() string {
 func (*Manifest) ProtoMessage() {}
 
 func (x *Manifest) ProtoReflect() protoreflect.Message {
-	mi := &file_pluginv1_plugin_proto_msgTypes[1]
+	mi := &file_pluginv1_plugin_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -269,7 +341,7 @@ func (x *Manifest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Manifest.ProtoReflect.Descriptor instead.
 func (*Manifest) Descriptor() ([]byte, []int) {
-	return file_pluginv1_plugin_proto_rawDescGZIP(), []int{1}
+	return file_pluginv1_plugin_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *Manifest) GetId() string {
@@ -476,7 +548,7 @@ type ActionDeclaration struct {
 
 func (x *ActionDeclaration) Reset() {
 	*x = ActionDeclaration{}
-	mi := &file_pluginv1_plugin_proto_msgTypes[2]
+	mi := &file_pluginv1_plugin_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -488,7 +560,7 @@ func (x *ActionDeclaration) String() string {
 func (*ActionDeclaration) ProtoMessage() {}
 
 func (x *ActionDeclaration) ProtoReflect() protoreflect.Message {
-	mi := &file_pluginv1_plugin_proto_msgTypes[2]
+	mi := &file_pluginv1_plugin_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -501,7 +573,7 @@ func (x *ActionDeclaration) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ActionDeclaration.ProtoReflect.Descriptor instead.
 func (*ActionDeclaration) Descriptor() ([]byte, []int) {
-	return file_pluginv1_plugin_proto_rawDescGZIP(), []int{2}
+	return file_pluginv1_plugin_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *ActionDeclaration) GetId() string {
@@ -535,7 +607,7 @@ type WorkActionDeclaration struct {
 
 func (x *WorkActionDeclaration) Reset() {
 	*x = WorkActionDeclaration{}
-	mi := &file_pluginv1_plugin_proto_msgTypes[3]
+	mi := &file_pluginv1_plugin_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -547,7 +619,7 @@ func (x *WorkActionDeclaration) String() string {
 func (*WorkActionDeclaration) ProtoMessage() {}
 
 func (x *WorkActionDeclaration) ProtoReflect() protoreflect.Message {
-	mi := &file_pluginv1_plugin_proto_msgTypes[3]
+	mi := &file_pluginv1_plugin_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -560,7 +632,7 @@ func (x *WorkActionDeclaration) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WorkActionDeclaration.ProtoReflect.Descriptor instead.
 func (*WorkActionDeclaration) Descriptor() ([]byte, []int) {
-	return file_pluginv1_plugin_proto_rawDescGZIP(), []int{3}
+	return file_pluginv1_plugin_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *WorkActionDeclaration) GetId() string {
@@ -605,7 +677,7 @@ type CheckDeclaration struct {
 
 func (x *CheckDeclaration) Reset() {
 	*x = CheckDeclaration{}
-	mi := &file_pluginv1_plugin_proto_msgTypes[4]
+	mi := &file_pluginv1_plugin_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -617,7 +689,7 @@ func (x *CheckDeclaration) String() string {
 func (*CheckDeclaration) ProtoMessage() {}
 
 func (x *CheckDeclaration) ProtoReflect() protoreflect.Message {
-	mi := &file_pluginv1_plugin_proto_msgTypes[4]
+	mi := &file_pluginv1_plugin_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -630,7 +702,7 @@ func (x *CheckDeclaration) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CheckDeclaration.ProtoReflect.Descriptor instead.
 func (*CheckDeclaration) Descriptor() ([]byte, []int) {
-	return file_pluginv1_plugin_proto_rawDescGZIP(), []int{4}
+	return file_pluginv1_plugin_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *CheckDeclaration) GetId() string {
@@ -679,7 +751,7 @@ type AttributeLabel struct {
 
 func (x *AttributeLabel) Reset() {
 	*x = AttributeLabel{}
-	mi := &file_pluginv1_plugin_proto_msgTypes[5]
+	mi := &file_pluginv1_plugin_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -691,7 +763,7 @@ func (x *AttributeLabel) String() string {
 func (*AttributeLabel) ProtoMessage() {}
 
 func (x *AttributeLabel) ProtoReflect() protoreflect.Message {
-	mi := &file_pluginv1_plugin_proto_msgTypes[5]
+	mi := &file_pluginv1_plugin_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -704,7 +776,7 @@ func (x *AttributeLabel) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AttributeLabel.ProtoReflect.Descriptor instead.
 func (*AttributeLabel) Descriptor() ([]byte, []int) {
-	return file_pluginv1_plugin_proto_rawDescGZIP(), []int{5}
+	return file_pluginv1_plugin_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *AttributeLabel) GetKey() string {
@@ -747,7 +819,7 @@ type ImageFetchRule struct {
 
 func (x *ImageFetchRule) Reset() {
 	*x = ImageFetchRule{}
-	mi := &file_pluginv1_plugin_proto_msgTypes[6]
+	mi := &file_pluginv1_plugin_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -759,7 +831,7 @@ func (x *ImageFetchRule) String() string {
 func (*ImageFetchRule) ProtoMessage() {}
 
 func (x *ImageFetchRule) ProtoReflect() protoreflect.Message {
-	mi := &file_pluginv1_plugin_proto_msgTypes[6]
+	mi := &file_pluginv1_plugin_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -772,7 +844,7 @@ func (x *ImageFetchRule) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ImageFetchRule.ProtoReflect.Descriptor instead.
 func (*ImageFetchRule) Descriptor() ([]byte, []int) {
-	return file_pluginv1_plugin_proto_rawDescGZIP(), []int{6}
+	return file_pluginv1_plugin_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *ImageFetchRule) GetHosts() []string {
@@ -821,7 +893,7 @@ type TaskDeclaration struct {
 
 func (x *TaskDeclaration) Reset() {
 	*x = TaskDeclaration{}
-	mi := &file_pluginv1_plugin_proto_msgTypes[7]
+	mi := &file_pluginv1_plugin_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -833,7 +905,7 @@ func (x *TaskDeclaration) String() string {
 func (*TaskDeclaration) ProtoMessage() {}
 
 func (x *TaskDeclaration) ProtoReflect() protoreflect.Message {
-	mi := &file_pluginv1_plugin_proto_msgTypes[7]
+	mi := &file_pluginv1_plugin_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -846,7 +918,7 @@ func (x *TaskDeclaration) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TaskDeclaration.ProtoReflect.Descriptor instead.
 func (*TaskDeclaration) Descriptor() ([]byte, []int) {
-	return file_pluginv1_plugin_proto_rawDescGZIP(), []int{7}
+	return file_pluginv1_plugin_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *TaskDeclaration) GetName() string {
@@ -890,7 +962,7 @@ type TaskSchedule struct {
 
 func (x *TaskSchedule) Reset() {
 	*x = TaskSchedule{}
-	mi := &file_pluginv1_plugin_proto_msgTypes[8]
+	mi := &file_pluginv1_plugin_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -902,7 +974,7 @@ func (x *TaskSchedule) String() string {
 func (*TaskSchedule) ProtoMessage() {}
 
 func (x *TaskSchedule) ProtoReflect() protoreflect.Message {
-	mi := &file_pluginv1_plugin_proto_msgTypes[8]
+	mi := &file_pluginv1_plugin_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -915,7 +987,7 @@ func (x *TaskSchedule) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TaskSchedule.ProtoReflect.Descriptor instead.
 func (*TaskSchedule) Descriptor() ([]byte, []int) {
-	return file_pluginv1_plugin_proto_rawDescGZIP(), []int{8}
+	return file_pluginv1_plugin_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *TaskSchedule) GetIntervalMinutes() uint32 {
@@ -947,7 +1019,7 @@ type Attribution struct {
 
 func (x *Attribution) Reset() {
 	*x = Attribution{}
-	mi := &file_pluginv1_plugin_proto_msgTypes[9]
+	mi := &file_pluginv1_plugin_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -959,7 +1031,7 @@ func (x *Attribution) String() string {
 func (*Attribution) ProtoMessage() {}
 
 func (x *Attribution) ProtoReflect() protoreflect.Message {
-	mi := &file_pluginv1_plugin_proto_msgTypes[9]
+	mi := &file_pluginv1_plugin_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -972,7 +1044,7 @@ func (x *Attribution) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Attribution.ProtoReflect.Descriptor instead.
 func (*Attribution) Descriptor() ([]byte, []int) {
-	return file_pluginv1_plugin_proto_rawDescGZIP(), []int{9}
+	return file_pluginv1_plugin_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *Attribution) GetText() string {
@@ -1052,7 +1124,7 @@ type ConfigField struct {
 
 func (x *ConfigField) Reset() {
 	*x = ConfigField{}
-	mi := &file_pluginv1_plugin_proto_msgTypes[10]
+	mi := &file_pluginv1_plugin_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1064,7 +1136,7 @@ func (x *ConfigField) String() string {
 func (*ConfigField) ProtoMessage() {}
 
 func (x *ConfigField) ProtoReflect() protoreflect.Message {
-	mi := &file_pluginv1_plugin_proto_msgTypes[10]
+	mi := &file_pluginv1_plugin_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1077,7 +1149,7 @@ func (x *ConfigField) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConfigField.ProtoReflect.Descriptor instead.
 func (*ConfigField) Descriptor() ([]byte, []int) {
-	return file_pluginv1_plugin_proto_rawDescGZIP(), []int{10}
+	return file_pluginv1_plugin_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *ConfigField) GetKey() string {
@@ -1208,7 +1280,7 @@ type ConfigCondition struct {
 
 func (x *ConfigCondition) Reset() {
 	*x = ConfigCondition{}
-	mi := &file_pluginv1_plugin_proto_msgTypes[11]
+	mi := &file_pluginv1_plugin_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1220,7 +1292,7 @@ func (x *ConfigCondition) String() string {
 func (*ConfigCondition) ProtoMessage() {}
 
 func (x *ConfigCondition) ProtoReflect() protoreflect.Message {
-	mi := &file_pluginv1_plugin_proto_msgTypes[11]
+	mi := &file_pluginv1_plugin_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1233,7 +1305,7 @@ func (x *ConfigCondition) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConfigCondition.ProtoReflect.Descriptor instead.
 func (*ConfigCondition) Descriptor() ([]byte, []int) {
-	return file_pluginv1_plugin_proto_rawDescGZIP(), []int{11}
+	return file_pluginv1_plugin_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *ConfigCondition) GetKey() string {
@@ -1263,7 +1335,7 @@ type ConfigOption struct {
 
 func (x *ConfigOption) Reset() {
 	*x = ConfigOption{}
-	mi := &file_pluginv1_plugin_proto_msgTypes[12]
+	mi := &file_pluginv1_plugin_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1275,7 +1347,7 @@ func (x *ConfigOption) String() string {
 func (*ConfigOption) ProtoMessage() {}
 
 func (x *ConfigOption) ProtoReflect() protoreflect.Message {
-	mi := &file_pluginv1_plugin_proto_msgTypes[12]
+	mi := &file_pluginv1_plugin_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1288,7 +1360,7 @@ func (x *ConfigOption) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConfigOption.ProtoReflect.Descriptor instead.
 func (*ConfigOption) Descriptor() ([]byte, []int) {
-	return file_pluginv1_plugin_proto_rawDescGZIP(), []int{12}
+	return file_pluginv1_plugin_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *ConfigOption) GetValue() string {
@@ -1331,7 +1403,7 @@ type ConfigGroup struct {
 
 func (x *ConfigGroup) Reset() {
 	*x = ConfigGroup{}
-	mi := &file_pluginv1_plugin_proto_msgTypes[13]
+	mi := &file_pluginv1_plugin_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1343,7 +1415,7 @@ func (x *ConfigGroup) String() string {
 func (*ConfigGroup) ProtoMessage() {}
 
 func (x *ConfigGroup) ProtoReflect() protoreflect.Message {
-	mi := &file_pluginv1_plugin_proto_msgTypes[13]
+	mi := &file_pluginv1_plugin_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1356,7 +1428,7 @@ func (x *ConfigGroup) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConfigGroup.ProtoReflect.Descriptor instead.
 func (*ConfigGroup) Descriptor() ([]byte, []int) {
-	return file_pluginv1_plugin_proto_rawDescGZIP(), []int{13}
+	return file_pluginv1_plugin_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *ConfigGroup) GetKey() string {
@@ -1417,7 +1489,7 @@ type ConfigItem struct {
 
 func (x *ConfigItem) Reset() {
 	*x = ConfigItem{}
-	mi := &file_pluginv1_plugin_proto_msgTypes[14]
+	mi := &file_pluginv1_plugin_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1429,7 +1501,7 @@ func (x *ConfigItem) String() string {
 func (*ConfigItem) ProtoMessage() {}
 
 func (x *ConfigItem) ProtoReflect() protoreflect.Message {
-	mi := &file_pluginv1_plugin_proto_msgTypes[14]
+	mi := &file_pluginv1_plugin_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1442,7 +1514,7 @@ func (x *ConfigItem) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConfigItem.ProtoReflect.Descriptor instead.
 func (*ConfigItem) Descriptor() ([]byte, []int) {
-	return file_pluginv1_plugin_proto_rawDescGZIP(), []int{14}
+	return file_pluginv1_plugin_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *ConfigItem) GetId() string {
@@ -1488,7 +1560,7 @@ type ConfigureRequest struct {
 
 func (x *ConfigureRequest) Reset() {
 	*x = ConfigureRequest{}
-	mi := &file_pluginv1_plugin_proto_msgTypes[15]
+	mi := &file_pluginv1_plugin_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1500,7 +1572,7 @@ func (x *ConfigureRequest) String() string {
 func (*ConfigureRequest) ProtoMessage() {}
 
 func (x *ConfigureRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_pluginv1_plugin_proto_msgTypes[15]
+	mi := &file_pluginv1_plugin_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1513,7 +1585,7 @@ func (x *ConfigureRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConfigureRequest.ProtoReflect.Descriptor instead.
 func (*ConfigureRequest) Descriptor() ([]byte, []int) {
-	return file_pluginv1_plugin_proto_rawDescGZIP(), []int{15}
+	return file_pluginv1_plugin_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *ConfigureRequest) GetValues() map[string]string {
@@ -1563,7 +1635,7 @@ type LibraryContext struct {
 
 func (x *LibraryContext) Reset() {
 	*x = LibraryContext{}
-	mi := &file_pluginv1_plugin_proto_msgTypes[16]
+	mi := &file_pluginv1_plugin_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1575,7 +1647,7 @@ func (x *LibraryContext) String() string {
 func (*LibraryContext) ProtoMessage() {}
 
 func (x *LibraryContext) ProtoReflect() protoreflect.Message {
-	mi := &file_pluginv1_plugin_proto_msgTypes[16]
+	mi := &file_pluginv1_plugin_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1588,7 +1660,7 @@ func (x *LibraryContext) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LibraryContext.ProtoReflect.Descriptor instead.
 func (*LibraryContext) Descriptor() ([]byte, []int) {
-	return file_pluginv1_plugin_proto_rawDescGZIP(), []int{16}
+	return file_pluginv1_plugin_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *LibraryContext) GetLibraryId() string {
@@ -1618,7 +1690,7 @@ type ConfigureResponse struct {
 
 func (x *ConfigureResponse) Reset() {
 	*x = ConfigureResponse{}
-	mi := &file_pluginv1_plugin_proto_msgTypes[17]
+	mi := &file_pluginv1_plugin_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1630,7 +1702,7 @@ func (x *ConfigureResponse) String() string {
 func (*ConfigureResponse) ProtoMessage() {}
 
 func (x *ConfigureResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_pluginv1_plugin_proto_msgTypes[17]
+	mi := &file_pluginv1_plugin_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1643,7 +1715,7 @@ func (x *ConfigureResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConfigureResponse.ProtoReflect.Descriptor instead.
 func (*ConfigureResponse) Descriptor() ([]byte, []int) {
-	return file_pluginv1_plugin_proto_rawDescGZIP(), []int{17}
+	return file_pluginv1_plugin_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *ConfigureResponse) GetError() string {
@@ -1677,7 +1749,7 @@ type SuggestedBadgeRule struct {
 
 func (x *SuggestedBadgeRule) Reset() {
 	*x = SuggestedBadgeRule{}
-	mi := &file_pluginv1_plugin_proto_msgTypes[18]
+	mi := &file_pluginv1_plugin_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1689,7 +1761,7 @@ func (x *SuggestedBadgeRule) String() string {
 func (*SuggestedBadgeRule) ProtoMessage() {}
 
 func (x *SuggestedBadgeRule) ProtoReflect() protoreflect.Message {
-	mi := &file_pluginv1_plugin_proto_msgTypes[18]
+	mi := &file_pluginv1_plugin_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1702,7 +1774,7 @@ func (x *SuggestedBadgeRule) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SuggestedBadgeRule.ProtoReflect.Descriptor instead.
 func (*SuggestedBadgeRule) Descriptor() ([]byte, []int) {
-	return file_pluginv1_plugin_proto_rawDescGZIP(), []int{18}
+	return file_pluginv1_plugin_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *SuggestedBadgeRule) GetTag() string {
@@ -1730,7 +1802,9 @@ var File_pluginv1_plugin_proto protoreflect.FileDescriptor
 
 const file_pluginv1_plugin_proto_rawDesc = "" +
 	"\n" +
-	"\x15pluginv1/plugin.proto\x12\x11kryspal.plugin.v1\"-\n" +
+	"\x15pluginv1/plugin.proto\x12\x11kryspal.plugin.v1\"\x12\n" +
+	"\x10UninstallRequest\"\x13\n" +
+	"\x11UninstallResponse\"-\n" +
 	"\x0fDescribeRequest\x12\x1a\n" +
 	"\blanguage\x18\x01 \x01(\tR\blanguage\"\xca\n" +
 	"\n" +
@@ -1871,10 +1945,11 @@ const file_pluginv1_plugin_proto_rawDesc = "" +
 	"\x1dCONFIG_FIELD_TYPE_MULTISELECT\x10\x06\x12\x1a\n" +
 	"\x16CONFIG_FIELD_TYPE_TEXT\x10\a\x12!\n" +
 	"\x1dCONFIG_FIELD_TYPE_STRING_LIST\x10\b\x12)\n" +
-	"%CONFIG_FIELD_TYPE_ORDERED_MULTISELECT\x10\t2\xad\x01\n" +
+	"%CONFIG_FIELD_TYPE_ORDERED_MULTISELECT\x10\t2\x85\x02\n" +
 	"\x06Plugin\x12K\n" +
 	"\bDescribe\x12\".kryspal.plugin.v1.DescribeRequest\x1a\x1b.kryspal.plugin.v1.Manifest\x12V\n" +
-	"\tConfigure\x12#.kryspal.plugin.v1.ConfigureRequest\x1a$.kryspal.plugin.v1.ConfigureResponseB1Z/github.com/kryspal/plugin-sdk/pluginv1;pluginv1b\x06proto3"
+	"\tConfigure\x12#.kryspal.plugin.v1.ConfigureRequest\x1a$.kryspal.plugin.v1.ConfigureResponse\x12V\n" +
+	"\tUninstall\x12#.kryspal.plugin.v1.UninstallRequest\x1a$.kryspal.plugin.v1.UninstallResponseB1Z/github.com/kryspal/plugin-sdk/pluginv1;pluginv1b\x06proto3"
 
 var (
 	file_pluginv1_plugin_proto_rawDescOnce sync.Once
@@ -1889,59 +1964,63 @@ func file_pluginv1_plugin_proto_rawDescGZIP() []byte {
 }
 
 var file_pluginv1_plugin_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_pluginv1_plugin_proto_msgTypes = make([]protoimpl.MessageInfo, 22)
+var file_pluginv1_plugin_proto_msgTypes = make([]protoimpl.MessageInfo, 24)
 var file_pluginv1_plugin_proto_goTypes = []any{
 	(ConfigFieldType)(0),          // 0: kryspal.plugin.v1.ConfigFieldType
-	(*DescribeRequest)(nil),       // 1: kryspal.plugin.v1.DescribeRequest
-	(*Manifest)(nil),              // 2: kryspal.plugin.v1.Manifest
-	(*ActionDeclaration)(nil),     // 3: kryspal.plugin.v1.ActionDeclaration
-	(*WorkActionDeclaration)(nil), // 4: kryspal.plugin.v1.WorkActionDeclaration
-	(*CheckDeclaration)(nil),      // 5: kryspal.plugin.v1.CheckDeclaration
-	(*AttributeLabel)(nil),        // 6: kryspal.plugin.v1.AttributeLabel
-	(*ImageFetchRule)(nil),        // 7: kryspal.plugin.v1.ImageFetchRule
-	(*TaskDeclaration)(nil),       // 8: kryspal.plugin.v1.TaskDeclaration
-	(*TaskSchedule)(nil),          // 9: kryspal.plugin.v1.TaskSchedule
-	(*Attribution)(nil),           // 10: kryspal.plugin.v1.Attribution
-	(*ConfigField)(nil),           // 11: kryspal.plugin.v1.ConfigField
-	(*ConfigCondition)(nil),       // 12: kryspal.plugin.v1.ConfigCondition
-	(*ConfigOption)(nil),          // 13: kryspal.plugin.v1.ConfigOption
-	(*ConfigGroup)(nil),           // 14: kryspal.plugin.v1.ConfigGroup
-	(*ConfigItem)(nil),            // 15: kryspal.plugin.v1.ConfigItem
-	(*ConfigureRequest)(nil),      // 16: kryspal.plugin.v1.ConfigureRequest
-	(*LibraryContext)(nil),        // 17: kryspal.plugin.v1.LibraryContext
-	(*ConfigureResponse)(nil),     // 18: kryspal.plugin.v1.ConfigureResponse
-	(*SuggestedBadgeRule)(nil),    // 19: kryspal.plugin.v1.SuggestedBadgeRule
-	nil,                           // 20: kryspal.plugin.v1.ConfigureRequest.ValuesEntry
-	nil,                           // 21: kryspal.plugin.v1.LibraryContext.OverridesEntry
-	nil,                           // 22: kryspal.plugin.v1.ConfigureResponse.FieldErrorsEntry
+	(*UninstallRequest)(nil),      // 1: kryspal.plugin.v1.UninstallRequest
+	(*UninstallResponse)(nil),     // 2: kryspal.plugin.v1.UninstallResponse
+	(*DescribeRequest)(nil),       // 3: kryspal.plugin.v1.DescribeRequest
+	(*Manifest)(nil),              // 4: kryspal.plugin.v1.Manifest
+	(*ActionDeclaration)(nil),     // 5: kryspal.plugin.v1.ActionDeclaration
+	(*WorkActionDeclaration)(nil), // 6: kryspal.plugin.v1.WorkActionDeclaration
+	(*CheckDeclaration)(nil),      // 7: kryspal.plugin.v1.CheckDeclaration
+	(*AttributeLabel)(nil),        // 8: kryspal.plugin.v1.AttributeLabel
+	(*ImageFetchRule)(nil),        // 9: kryspal.plugin.v1.ImageFetchRule
+	(*TaskDeclaration)(nil),       // 10: kryspal.plugin.v1.TaskDeclaration
+	(*TaskSchedule)(nil),          // 11: kryspal.plugin.v1.TaskSchedule
+	(*Attribution)(nil),           // 12: kryspal.plugin.v1.Attribution
+	(*ConfigField)(nil),           // 13: kryspal.plugin.v1.ConfigField
+	(*ConfigCondition)(nil),       // 14: kryspal.plugin.v1.ConfigCondition
+	(*ConfigOption)(nil),          // 15: kryspal.plugin.v1.ConfigOption
+	(*ConfigGroup)(nil),           // 16: kryspal.plugin.v1.ConfigGroup
+	(*ConfigItem)(nil),            // 17: kryspal.plugin.v1.ConfigItem
+	(*ConfigureRequest)(nil),      // 18: kryspal.plugin.v1.ConfigureRequest
+	(*LibraryContext)(nil),        // 19: kryspal.plugin.v1.LibraryContext
+	(*ConfigureResponse)(nil),     // 20: kryspal.plugin.v1.ConfigureResponse
+	(*SuggestedBadgeRule)(nil),    // 21: kryspal.plugin.v1.SuggestedBadgeRule
+	nil,                           // 22: kryspal.plugin.v1.ConfigureRequest.ValuesEntry
+	nil,                           // 23: kryspal.plugin.v1.LibraryContext.OverridesEntry
+	nil,                           // 24: kryspal.plugin.v1.ConfigureResponse.FieldErrorsEntry
 }
 var file_pluginv1_plugin_proto_depIdxs = []int32{
-	11, // 0: kryspal.plugin.v1.Manifest.config_fields:type_name -> kryspal.plugin.v1.ConfigField
-	14, // 1: kryspal.plugin.v1.Manifest.config_groups:type_name -> kryspal.plugin.v1.ConfigGroup
-	10, // 2: kryspal.plugin.v1.Manifest.attribution:type_name -> kryspal.plugin.v1.Attribution
-	7,  // 3: kryspal.plugin.v1.Manifest.image_fetch_rules:type_name -> kryspal.plugin.v1.ImageFetchRule
-	8,  // 4: kryspal.plugin.v1.Manifest.tasks:type_name -> kryspal.plugin.v1.TaskDeclaration
-	6,  // 5: kryspal.plugin.v1.Manifest.attribute_labels:type_name -> kryspal.plugin.v1.AttributeLabel
-	5,  // 6: kryspal.plugin.v1.Manifest.checks:type_name -> kryspal.plugin.v1.CheckDeclaration
-	19, // 7: kryspal.plugin.v1.Manifest.suggested_badge_rules:type_name -> kryspal.plugin.v1.SuggestedBadgeRule
-	4,  // 8: kryspal.plugin.v1.Manifest.work_actions:type_name -> kryspal.plugin.v1.WorkActionDeclaration
-	3,  // 9: kryspal.plugin.v1.Manifest.page_actions:type_name -> kryspal.plugin.v1.ActionDeclaration
-	3,  // 10: kryspal.plugin.v1.Manifest.subscription_actions:type_name -> kryspal.plugin.v1.ActionDeclaration
-	9,  // 11: kryspal.plugin.v1.TaskDeclaration.default_schedule:type_name -> kryspal.plugin.v1.TaskSchedule
+	13, // 0: kryspal.plugin.v1.Manifest.config_fields:type_name -> kryspal.plugin.v1.ConfigField
+	16, // 1: kryspal.plugin.v1.Manifest.config_groups:type_name -> kryspal.plugin.v1.ConfigGroup
+	12, // 2: kryspal.plugin.v1.Manifest.attribution:type_name -> kryspal.plugin.v1.Attribution
+	9,  // 3: kryspal.plugin.v1.Manifest.image_fetch_rules:type_name -> kryspal.plugin.v1.ImageFetchRule
+	10, // 4: kryspal.plugin.v1.Manifest.tasks:type_name -> kryspal.plugin.v1.TaskDeclaration
+	8,  // 5: kryspal.plugin.v1.Manifest.attribute_labels:type_name -> kryspal.plugin.v1.AttributeLabel
+	7,  // 6: kryspal.plugin.v1.Manifest.checks:type_name -> kryspal.plugin.v1.CheckDeclaration
+	21, // 7: kryspal.plugin.v1.Manifest.suggested_badge_rules:type_name -> kryspal.plugin.v1.SuggestedBadgeRule
+	6,  // 8: kryspal.plugin.v1.Manifest.work_actions:type_name -> kryspal.plugin.v1.WorkActionDeclaration
+	5,  // 9: kryspal.plugin.v1.Manifest.page_actions:type_name -> kryspal.plugin.v1.ActionDeclaration
+	5,  // 10: kryspal.plugin.v1.Manifest.subscription_actions:type_name -> kryspal.plugin.v1.ActionDeclaration
+	11, // 11: kryspal.plugin.v1.TaskDeclaration.default_schedule:type_name -> kryspal.plugin.v1.TaskSchedule
 	0,  // 12: kryspal.plugin.v1.ConfigField.type:type_name -> kryspal.plugin.v1.ConfigFieldType
-	13, // 13: kryspal.plugin.v1.ConfigField.options:type_name -> kryspal.plugin.v1.ConfigOption
-	12, // 14: kryspal.plugin.v1.ConfigField.visible_when:type_name -> kryspal.plugin.v1.ConfigCondition
-	15, // 15: kryspal.plugin.v1.ConfigGroup.items:type_name -> kryspal.plugin.v1.ConfigItem
-	20, // 16: kryspal.plugin.v1.ConfigureRequest.values:type_name -> kryspal.plugin.v1.ConfigureRequest.ValuesEntry
-	17, // 17: kryspal.plugin.v1.ConfigureRequest.library:type_name -> kryspal.plugin.v1.LibraryContext
-	21, // 18: kryspal.plugin.v1.LibraryContext.overrides:type_name -> kryspal.plugin.v1.LibraryContext.OverridesEntry
-	22, // 19: kryspal.plugin.v1.ConfigureResponse.field_errors:type_name -> kryspal.plugin.v1.ConfigureResponse.FieldErrorsEntry
-	1,  // 20: kryspal.plugin.v1.Plugin.Describe:input_type -> kryspal.plugin.v1.DescribeRequest
-	16, // 21: kryspal.plugin.v1.Plugin.Configure:input_type -> kryspal.plugin.v1.ConfigureRequest
-	2,  // 22: kryspal.plugin.v1.Plugin.Describe:output_type -> kryspal.plugin.v1.Manifest
-	18, // 23: kryspal.plugin.v1.Plugin.Configure:output_type -> kryspal.plugin.v1.ConfigureResponse
-	22, // [22:24] is the sub-list for method output_type
-	20, // [20:22] is the sub-list for method input_type
+	15, // 13: kryspal.plugin.v1.ConfigField.options:type_name -> kryspal.plugin.v1.ConfigOption
+	14, // 14: kryspal.plugin.v1.ConfigField.visible_when:type_name -> kryspal.plugin.v1.ConfigCondition
+	17, // 15: kryspal.plugin.v1.ConfigGroup.items:type_name -> kryspal.plugin.v1.ConfigItem
+	22, // 16: kryspal.plugin.v1.ConfigureRequest.values:type_name -> kryspal.plugin.v1.ConfigureRequest.ValuesEntry
+	19, // 17: kryspal.plugin.v1.ConfigureRequest.library:type_name -> kryspal.plugin.v1.LibraryContext
+	23, // 18: kryspal.plugin.v1.LibraryContext.overrides:type_name -> kryspal.plugin.v1.LibraryContext.OverridesEntry
+	24, // 19: kryspal.plugin.v1.ConfigureResponse.field_errors:type_name -> kryspal.plugin.v1.ConfigureResponse.FieldErrorsEntry
+	3,  // 20: kryspal.plugin.v1.Plugin.Describe:input_type -> kryspal.plugin.v1.DescribeRequest
+	18, // 21: kryspal.plugin.v1.Plugin.Configure:input_type -> kryspal.plugin.v1.ConfigureRequest
+	1,  // 22: kryspal.plugin.v1.Plugin.Uninstall:input_type -> kryspal.plugin.v1.UninstallRequest
+	4,  // 23: kryspal.plugin.v1.Plugin.Describe:output_type -> kryspal.plugin.v1.Manifest
+	20, // 24: kryspal.plugin.v1.Plugin.Configure:output_type -> kryspal.plugin.v1.ConfigureResponse
+	2,  // 25: kryspal.plugin.v1.Plugin.Uninstall:output_type -> kryspal.plugin.v1.UninstallResponse
+	23, // [23:26] is the sub-list for method output_type
+	20, // [20:23] is the sub-list for method input_type
 	20, // [20:20] is the sub-list for extension type_name
 	20, // [20:20] is the sub-list for extension extendee
 	0,  // [0:20] is the sub-list for field type_name
@@ -1952,14 +2031,14 @@ func file_pluginv1_plugin_proto_init() {
 	if File_pluginv1_plugin_proto != nil {
 		return
 	}
-	file_pluginv1_plugin_proto_msgTypes[10].OneofWrappers = []any{}
+	file_pluginv1_plugin_proto_msgTypes[12].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_pluginv1_plugin_proto_rawDesc), len(file_pluginv1_plugin_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   22,
+			NumMessages:   24,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

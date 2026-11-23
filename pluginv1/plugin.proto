@@ -26,7 +26,20 @@ service Plugin {
   // The host calls it after the plugin starts and whenever an administrator changes the configuration. After the
   // plugin starts and before it has received a valid configuration, metadata calls should return FAILED_PRECONDITION.
   rpc Configure(ConfigureRequest) returns (ConfigureResponse);
+
+  // Uninstall tells the plugin that an administrator is uninstalling it, so it can undo what it set up outside the
+  // server: sign out of an account, revoke a token, remove a device it registered. It is optional: a plugin without
+  // anything to undo leaves it unimplemented, and UNIMPLEMENTED or any error does not stop the uninstall.
+  //
+  // The host calls it once, only for an uninstall (never for disable, upgrade, restart or shutdown), on the running
+  // process before it sends SIGTERM, with a 10-second deadline; a plugin that is not running is not started for it.
+  // Afterwards the host deletes the plugin's data directory and settings.
+  rpc Uninstall(UninstallRequest) returns (UninstallResponse);
 }
+
+message UninstallRequest {}
+
+message UninstallResponse {}
 
 message DescribeRequest {
   // BCP 47 language tag, for example zh-TW or en. An empty string means English.

@@ -77,6 +77,7 @@ func absBinary(t *testing.T, binary string) string {
 var reservedEnv = []string{
 	"PATH", "HOME", "TMPDIR",
 	pluginapi.EnvCookie, pluginapi.EnvProtocols, pluginapi.EnvSocketDir, pluginapi.EnvDataDir,
+	pluginapi.EnvHostSocket, pluginapi.EnvHostToken, pluginapi.EnvIngressSocket, pluginapi.EnvIngressToken,
 }
 
 // extraEnv runs Options.Setup and returns Options.Env plus its variables as KEY=VALUE pairs, sorted.

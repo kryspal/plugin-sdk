@@ -80,6 +80,14 @@ const (
 	CapabilityDiscoverSubscriptions = "discover.subscriptions"
 	// A member's calendar: ListMemberCalendar. Receives member information.
 	CapabilityDiscoverCalendar = "discover.calendar"
+	// A network access provider: the plugin joins the server to another network and forwards that network's requests
+	// through the ingress socket (KRYSPAL_INGRESS_SOCKET), reporting its state with Host.ReportNetworkAccess. Ingress
+	// traffic always counts as outside the local network. Free on all plans.
+	CapabilityNetworkAccess = "network.access"
+	// A network identity provider: on the ingress, the plugin also sends the identity its network proved for the
+	// connection (the X-Kryspal-Identity-* headers), so an administrator can bind a network user to members for sign-in
+	// without a password. Requires network.access. Free on all plans.
+	CapabilityNetworkIdentity = "network.identity"
 )
 
 // Permissions (Manifest.permissions). The host ignores permissions it does not recognize.
@@ -113,6 +121,53 @@ const (
 // MetadataHostToken is the gRPC metadata key under which a plugin sends the token when calling the Host service.
 const MetadataHostToken = "x-kryspal-host-token"
 
+// CodeNetworkAccessNotDeclared is the PERMISSION_DENIED message of Host.ReportNetworkAccess when the manifest does not
+// declare network.access.
+const CodeNetworkAccessNotDeclared = "network_access_not_declared"
+
+// Headers a network access provider writes on requests it forwards through the ingress socket. The host reads them only
+// on the ingress, and only after checking HeaderIngressToken; it removes them before any handler sees the request. On the
+// server's ordinary ports they have no effect. Values other than the token are percent-encoded UTF-8.
+const (
+	// HeaderIngressToken carries the value of KRYSPAL_INGRESS_TOKEN. A missing or wrong token gets 403.
+	HeaderIngressToken = "X-Kryspal-Ingress-Token"
+	// HeaderPeer is the peer address of the connection on the plugin's network, as ip:port. Loopback, unspecified and
+	// multicast addresses get 400.
+	HeaderPeer = "X-Kryspal-Peer"
+	// The identity the network proved for the connection (network.identity only). The host takes all three or none: when
+	// one exceeds its limit or does not decode, the request is handled as having no identity. Bindings use the subject
+	// only; the login and the device name are for display.
+	HeaderIdentitySubject    = "X-Kryspal-Identity-Subject"     // stable, opaque user ID on that network; at most 128 bytes
+	HeaderIdentityLogin      = "X-Kryspal-Identity-Login"       // display login, e.g. an email address; at most 256 bytes
+	HeaderIdentityDeviceName = "X-Kryspal-Identity-Device-Name" // display device name; at most 128 bytes
+)
+
+// Limits of the identity headers, in bytes after decoding.
+const (
+	MaxIdentitySubject    = 128
+	MaxIdentityLogin      = 256
+	MaxIdentityDeviceName = 128
+)
+
+// Limits of the NetworkAccessStatus fields (Host.ReportNetworkAccess), in characters (Unicode code points). The host
+// rejects a report that exceeds one of them.
+const (
+	MaxNetworkMessage  = 500  // message
+	MaxNetworkLabel    = 128  // action_label and network_name
+	MaxNetworkURL      = 2048 // action_url and client_app_url
+	MaxNetworkSteps    = 5    // number of client_steps
+	MaxNetworkStep     = 500  // each client step
+	MaxNetworkLanguage = 35   // language (a BCP 47 tag)
+)
+
+// Limits of NetworkIdentity.CheckIdentities (capability network.identity, PROTOCOL.md §7.14).
+const (
+	// MaxCheckIdentitiesSubjects is the most subjects the host sends in one CheckIdentities call.
+	MaxCheckIdentitiesSubjects = 1000
+	// CheckIdentitiesTimeout is the deadline the host gives one CheckIdentities call.
+	CheckIdentitiesTimeout = 30 * time.Second
+)
+
 // Service names for the standard health check (grpc.health.v1). The empty string stands for the whole plugin.
 const (
 	HealthServicePlugin              = "kryspal.plugin.v1.Plugin"
@@ -128,6 +183,7 @@ const (
 	HealthServiceCastTarget          = "kryspal.plugin.v1.CastTarget"
 	HealthServiceTaskRunner          = "kryspal.plugin.v1.TaskRunner"
 	HealthServiceChecker             = "kryspal.plugin.v1.Checker"
+	HealthServiceNetworkIdentity     = "kryspal.plugin.v1.NetworkIdentity"
 	HealthServiceDiscoverSource      = "kryspal.plugin.v1.DiscoverSource"
 	HealthServiceWorkActionProvider  = "kryspal.plugin.v1.WorkActionProvider"
 	HealthServicePageActionProvider  = "kryspal.plugin.v1.PageActionProvider"

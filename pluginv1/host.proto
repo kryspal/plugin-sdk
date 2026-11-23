@@ -33,6 +33,66 @@ service Host {
   //   UNAVAILABLE  the service provider cannot be reached, or it returned 5xx.
   //   UNAUTHENTICATED  the service provider rejected the key; the plugin need not handle this beyond logging it and degrading.
   rpc LLMComplete(LLMCompleteRequest) returns (LLMCompleteResponse);
+
+  // ReportNetworkAccess reports the state of a network access provider (capability network.access, see PROTOCOL.md):
+  // whether the plugin is connected, the https origin it serves, and what a person has to do next. Call it on every state
+  // change and again every 60 seconds; the host keeps only the latest report and forgets it when the process exits. After 3
+  // minutes without a report the host treats the provider as CONNECTING.
+  //
+  // The human-facing fields (action_url, action_label, message, network_name, client_steps, client_app_url) are shown as
+  // they are on the access-address page and on the member's "watch away from home" card, and nowhere else: the host does
+  // not raise notifications or overview cards from them.
+  //
+  // Errors: PERMISSION_DENIED when the manifest does not declare network.access (message network_access_not_declared) or
+  // host_token_invalid on a token mismatch; INVALID_ARGUMENT when a field exceeds its limit.
+  rpc ReportNetworkAccess(NetworkAccessStatus) returns (ReportNetworkAccessResponse);
+}
+
+// NetworkAccessStatus is the state of a network access provider.
+// Limits are in characters (Unicode code points); the host rejects a report that exceeds one (pluginv1.MaxNetwork*).
+message NetworkAccessStatus {
+  enum State {
+    STATE_UNSPECIFIED = 0;
+    // Connecting to the network.
+    STATE_CONNECTING = 1;
+    // Someone has to sign in; action_url is the sign-in address.
+    STATE_NEEDS_LOGIN = 2;
+    // The network's administrator has not approved this server yet.
+    STATE_NEEDS_APPROVAL = 3;
+    // origin is usable.
+    STATE_READY = 4;
+    // Something is wrong; message says what to do.
+    STATE_ERROR = 5;
+    // The administrator turned the provider off.
+    STATE_STOPPED = 6;
+  }
+  State state = 1;
+  // The server's https address on that network, e.g. https://media.example.ts.net. Only set when READY. It must be https,
+  // its host must be a DNS name (not an IP literal), and it carries no path; the host ignores an invalid origin and logs a
+  // warning once. The ingress accepts only requests whose Host equals this origin's host.
+  string origin = 2;
+  // An address for the administrator to open: sign in, approve, or turn on a setting in the network's console. The host
+  // shows it as a button and a QR code. At most 2048 characters (MaxNetworkURL).
+  string action_url = 3;
+  // The button's label, in `language`; at most 128 characters (MaxNetworkLabel).
+  string action_label = 4;
+  // The next step in plain words, in `language`; at most 500 characters (MaxNetworkMessage).
+  string message = 5;
+  // The network's name, for display; at most 128 characters (MaxNetworkLabel).
+  string network_name = 6;
+  // What a member does to connect from another device: one step per entry, in `language`, at most 5 entries
+  // (MaxNetworkSteps) of at most 500 characters each (MaxNetworkStep).
+  repeated string client_steps = 7;
+  // A download page for the app the member's device needs; at most 2048 characters (MaxNetworkURL).
+  string client_app_url = 8;
+  // The BCP 47 language the texts above are written in; at most 35 characters (MaxNetworkLanguage).
+  string language = 9;
+}
+
+message ReportNetworkAccessResponse {
+  // The server's interface language. When it differs from NetworkAccessStatus.language, the plugin sends the report again
+  // in this language.
+  string language = 1;
 }
 
 // LLMMessage is one message of a conversation.

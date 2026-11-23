@@ -97,6 +97,9 @@ type Config struct {
 	TaskRunner pluginv1.TaskRunnerServer
 	// Checker is required when the plugin declares plugin.checks; when nil, it is not registered.
 	Checker pluginv1.CheckerServer
+	// NetworkIdentity is optional for plugins that declare network.identity (PROTOCOL.md §7.14); when nil, it is not
+	// registered and the host treats every subject as UNKNOWN.
+	NetworkIdentity pluginv1.NetworkIdentityServer
 
 	// GracePeriod of 0 means DefaultGracePeriod.
 	GracePeriod time.Duration
@@ -260,6 +263,10 @@ func Serve(ctx context.Context, cfg Config) error {
 	if cfg.Checker != nil {
 		pluginv1.RegisterCheckerServer(srv, cfg.Checker)
 		hs.SetServingStatus(pluginv1.HealthServiceChecker, healthpb.HealthCheckResponse_SERVING)
+	}
+	if cfg.NetworkIdentity != nil {
+		pluginv1.RegisterNetworkIdentityServer(srv, cfg.NetworkIdentity)
+		hs.SetServingStatus(pluginv1.HealthServiceNetworkIdentity, healthpb.HealthCheckResponse_SERVING)
 	}
 	healthpb.RegisterHealthServer(srv, hs)
 

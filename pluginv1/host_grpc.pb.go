@@ -31,7 +31,8 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	Host_LLMComplete_FullMethodName = "/kryspal.plugin.v1.Host/LLMComplete"
+	Host_LLMComplete_FullMethodName         = "/kryspal.plugin.v1.Host/LLMComplete"
+	Host_ReportNetworkAccess_FullMethodName = "/kryspal.plugin.v1.Host/ReportNetworkAccess"
 )
 
 // HostClient is the client API for Host service.
@@ -56,6 +57,18 @@ type HostClient interface {
 	//   UNAVAILABLE  the service provider cannot be reached, or it returned 5xx.
 	//   UNAUTHENTICATED  the service provider rejected the key; the plugin need not handle this beyond logging it and degrading.
 	LLMComplete(ctx context.Context, in *LLMCompleteRequest, opts ...grpc.CallOption) (*LLMCompleteResponse, error)
+	// ReportNetworkAccess reports the state of a network access provider (capability network.access, see PROTOCOL.md):
+	// whether the plugin is connected, the https origin it serves, and what a person has to do next. Call it on every state
+	// change and again every 60 seconds; the host keeps only the latest report and forgets it when the process exits. After 3
+	// minutes without a report the host treats the provider as CONNECTING.
+	//
+	// The human-facing fields (action_url, action_label, message, network_name, client_steps, client_app_url) are shown as
+	// they are on the access-address page and on the member's "watch away from home" card, and nowhere else: the host does
+	// not raise notifications or overview cards from them.
+	//
+	// Errors: PERMISSION_DENIED when the manifest does not declare network.access (message network_access_not_declared) or
+	// host_token_invalid on a token mismatch; INVALID_ARGUMENT when a field exceeds its limit.
+	ReportNetworkAccess(ctx context.Context, in *NetworkAccessStatus, opts ...grpc.CallOption) (*ReportNetworkAccessResponse, error)
 }
 
 type hostClient struct {
@@ -70,6 +83,16 @@ func (c *hostClient) LLMComplete(ctx context.Context, in *LLMCompleteRequest, op
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(LLMCompleteResponse)
 	err := c.cc.Invoke(ctx, Host_LLMComplete_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *hostClient) ReportNetworkAccess(ctx context.Context, in *NetworkAccessStatus, opts ...grpc.CallOption) (*ReportNetworkAccessResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ReportNetworkAccessResponse)
+	err := c.cc.Invoke(ctx, Host_ReportNetworkAccess_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -98,6 +121,18 @@ type HostServer interface {
 	//   UNAVAILABLE  the service provider cannot be reached, or it returned 5xx.
 	//   UNAUTHENTICATED  the service provider rejected the key; the plugin need not handle this beyond logging it and degrading.
 	LLMComplete(context.Context, *LLMCompleteRequest) (*LLMCompleteResponse, error)
+	// ReportNetworkAccess reports the state of a network access provider (capability network.access, see PROTOCOL.md):
+	// whether the plugin is connected, the https origin it serves, and what a person has to do next. Call it on every state
+	// change and again every 60 seconds; the host keeps only the latest report and forgets it when the process exits. After 3
+	// minutes without a report the host treats the provider as CONNECTING.
+	//
+	// The human-facing fields (action_url, action_label, message, network_name, client_steps, client_app_url) are shown as
+	// they are on the access-address page and on the member's "watch away from home" card, and nowhere else: the host does
+	// not raise notifications or overview cards from them.
+	//
+	// Errors: PERMISSION_DENIED when the manifest does not declare network.access (message network_access_not_declared) or
+	// host_token_invalid on a token mismatch; INVALID_ARGUMENT when a field exceeds its limit.
+	ReportNetworkAccess(context.Context, *NetworkAccessStatus) (*ReportNetworkAccessResponse, error)
 	mustEmbedUnimplementedHostServer()
 }
 
@@ -110,6 +145,9 @@ type UnimplementedHostServer struct{}
 
 func (UnimplementedHostServer) LLMComplete(context.Context, *LLMCompleteRequest) (*LLMCompleteResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method LLMComplete not implemented")
+}
+func (UnimplementedHostServer) ReportNetworkAccess(context.Context, *NetworkAccessStatus) (*ReportNetworkAccessResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ReportNetworkAccess not implemented")
 }
 func (UnimplementedHostServer) mustEmbedUnimplementedHostServer() {}
 func (UnimplementedHostServer) testEmbeddedByValue()              {}
@@ -150,6 +188,24 @@ func _Host_LLMComplete_Handler(srv interface{}, ctx context.Context, dec func(in
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Host_ReportNetworkAccess_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(NetworkAccessStatus)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(HostServer).ReportNetworkAccess(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Host_ReportNetworkAccess_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(HostServer).ReportNetworkAccess(ctx, req.(*NetworkAccessStatus))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Host_ServiceDesc is the grpc.ServiceDesc for Host service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -160,6 +216,10 @@ var Host_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "LLMComplete",
 			Handler:    _Host_LLMComplete_Handler,
+		},
+		{
+			MethodName: "ReportNetworkAccess",
+			Handler:    _Host_ReportNetworkAccess_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
